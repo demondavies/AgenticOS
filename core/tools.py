@@ -38,6 +38,8 @@ from capabilities.vault import (
     read_obsidian_note,
     search_master_brain_vault,
 )
+from capabilities.web import web_search
+from capabilities.system import get_system_metrics
 
 
 ToolHandler = Callable[..., Any]
@@ -289,7 +291,7 @@ def _legacy_module():
 
 
 def _web_search(query: str = "") -> str:
-    return _legacy_module().perform_web_search(query)
+    return web_search(query)
 
 
 def _current_time() -> str:
@@ -315,7 +317,7 @@ async def _daily_vault_summary() -> str:
 
 
 def _system_metrics() -> str:
-    return _legacy_module().get_system_metrics_telemetry()
+    return get_system_metrics()
 
 
 # ============================================================================
@@ -346,7 +348,7 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "perform_web_search",
+                "capability_handler": "capabilities.web.web_search",
             },
         )
     )

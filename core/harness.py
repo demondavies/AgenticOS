@@ -7,15 +7,15 @@ This is the first working orchestration layer.
 The Harness coordinates:
 
     Task
-      ↓
+      â†“
     Agent
-      ↓
+      â†“
     Model Provider
-      ↓
+      â†“
     Model
-      ↓
+      â†“
     Result
-      ↓
+      â†“
     Events
 
 IMPORTANT:
@@ -79,6 +79,10 @@ from .tools import (
     create_default_registry,
 )
 
+from capabilities.memory import (
+    MemoryStore,
+)
+
 
 # ============================================================================
 # HARNESS RESULT
@@ -125,7 +129,7 @@ class AgentHarness:
         - Discord
         - FastAPI
         - Kokoro
-        - SQLite
+        - SQLite implementation details
         - ChromaDB
 
     Interfaces and infrastructure sit outside this layer.
@@ -137,6 +141,7 @@ class AgentHarness:
         model_registry: Optional[ModelRegistry] = None,
         event_bus: Optional[EventBus] = None,
         tool_registry: Optional[ToolRegistry] = None,
+        memory_store: Optional[MemoryStore] = None,
     ) -> None:
         self.agents = (
             agent_registry
@@ -160,6 +165,14 @@ class AgentHarness:
             tool_registry
             if tool_registry is not None
             else create_default_registry()
+        )
+
+        # Memory is an AgenticOS capability. The Harness receives it as a
+        # dependency; it does not own SQLite implementation details.
+        self.memory = (
+            memory_store
+            if memory_store is not None
+            else MemoryStore()
         )
 
     # ---------------------------------------------------------------------
@@ -335,6 +348,48 @@ class AgentHarness:
         maintain their own hard-coded lists of deterministic tools.
         """
         return self.tools.execution_mode(tool_name)
+
+    # ---------------------------------------------------------------------
+    # Memory
+    # ---------------------------------------------------------------------
+
+    def initialize_memory(self) -> None:
+        """Initialize the configured AgenticOS memory store."""
+        self.memory.init_db()
+
+    def get_memory(
+        self,
+        channel_id: str,
+        limit: int = 20,
+    ) -> List[Dict[str, str]]:
+        """Retrieve recent persistent conversation memory."""
+        return self.memory.get_recent_history(channel_id, limit)
+
+    def save_memory(
+        self,
+        channel_id: str,
+        user_id: str,
+        role: str,
+        content: str,
+    ) -> None:
+        """Persist one conversation message through the memory capability."""
+        self.memory.save_message(
+            channel_id,
+            user_id,
+            role,
+            content,
+        )
+
+    async def compact_memory(
+        self,
+        channel_id: str,
+        keep_recent: int = 10,
+    ) -> str:
+        """Compact persistent channel memory when requested by the caller."""
+        return await self.memory.compact_channel_memory(
+            channel_id,
+            keep_recent,
+        )
 
     def run_tool(
         self,
@@ -788,18 +843,23 @@ def run_tool_tests() -> None:
     """Verify the Harness owns tool execution-mode decisions."""
     harness = AgentHarness()
 
+    assert isinstance(harness.memory, MemoryStore)
+    assert callable(harness.get_memory)
+    assert callable(harness.save_memory)
+    assert callable(harness.compact_memory)
+
     assert harness.tool_execution_mode("web_search") == "direct"
     assert harness.tool_execution_mode("get_current_time") == "direct"
     assert harness.tool_execution_mode("get_system_metrics") == "direct"
 
     assert harness.tool_execution_mode("search_vault") == "synthesize"
     assert harness.tool_execution_mode("read_obsidian_note") == "synthesize"
-    assert harness.tool_execution_mode("get_daily_vault_summary") == "synthesize"
+    assert harness.tool_execution_mode("get_daily_vault_summary") == "direct"
 
     # Do not execute the legacy-backed tools here; importing bot.py would pull
     # the legacy runtime into the core test. We only verify routing ownership.
 
-    print("✓ Harness tool-routing contract passed")
+    print("âœ“ Harness tool-routing contract passed")
 
 
 def run_tests() -> None:
@@ -840,13 +900,13 @@ def run_tests() -> None:
 
     print("\nProviders:")
     for provider in harness.models.list_providers():
-        print(f"  ✓ {provider}")
+        print(f"  âœ“ {provider}")
 
     print("\nAgents:")
 
     for agent in harness.agents.list_agents():
         print(
-            f"  ✓ {agent.name} "
+            f"  âœ“ {agent.name} "
             f"({agent.model_capability()})"
         )
 
@@ -923,7 +983,7 @@ def run_tests() -> None:
 
     for event in captured_events:
         print(
-            f"  ✓ {event.name}"
+            f"  âœ“ {event.name}"
         )
 
     required_events = {

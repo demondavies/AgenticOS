@@ -20,6 +20,86 @@ from typing import Any, Dict, Iterable, List, Optional, Protocol
 
 
 # ============================================================================
+# CAPABILITY CONTRACTS
+# ============================================================================
+
+CAPABILITY_SYSTEM_PROMPTS: Dict[str, str] = {
+    "tool_synthesis": (
+        "You are ARNIE's tool-synthesis engine.\n\n"
+        "A runtime tool has already executed successfully and supplied "
+        "authoritative evidence. Your job is to answer the user's request "
+        "using that evidence.\n\n"
+        "Rules:\n"
+        "1. Treat runtime tool evidence as the current factual source.\n"
+        "2. Never claim you lack access to information that the tool just "
+        "retrieved.\n"
+        "3. Never substitute your training knowledge or knowledge cutoff "
+        "for retrieved evidence.\n"
+        "4. Never invent facts, dates, versions, sources, or results.\n"
+        "5. If the evidence is insufficient, say what is missing instead "
+        "of guessing.\n"
+        "6. Do not emit tool calls. The tool has already executed.\n"
+        "7. For web results, identify the relevant source/title when useful.\n"
+        "8. Keep the final answer concise and directly answer the user."
+    ),
+}
+
+
+def capability_system_prompt(capability: str) -> Optional[str]:
+    """Return the system contract for a model capability, if one exists."""
+    return CAPABILITY_SYSTEM_PROMPTS.get(
+        (capability or "conversation").strip().lower()
+    )
+
+
+def prepare_capability_messages(
+    messages: List["ModelMessage"],
+    capability: str,
+) -> List["ModelMessage"]:
+    """
+    Apply the provider-independent capability contract.
+
+    For tool_synthesis we deliberately remove legacy conversational system
+    prompts. Those prompts belong to the old monolithic agent loop and can
+    contradict live tool evidence (for example, stale knowledge-cutoff
+    instructions).
+
+    A system message containing an authoritative tool result is preserved as
+    a tool message so the evidence remains available to the model.
+    """
+    capability_key = (capability or "conversation").strip().lower()
+    contract = capability_system_prompt(capability_key)
+
+    if not contract:
+        return list(messages)
+
+    prepared: List["ModelMessage"] = [
+        ModelMessage(role="system", content=contract)
+    ]
+
+    for message in messages:
+        if message.role == "system":
+            if "AUTHORITATIVE TOOL RESULT" in message.content.upper():
+                prepared.append(
+                    ModelMessage(
+                        role="user",
+                        content=(
+                            "RUNTIME TOOL EVIDENCE — AUTHORITATIVE\n"
+                            "========================================\n"
+                            f"{message.content}\n\n"
+                            "Use this evidence to answer the original request."
+                        ),
+                        name=message.name or "runtime_tool",
+                    )
+                )
+            continue
+
+        prepared.append(message)
+
+    return prepared
+
+
+# ============================================================================
 # DATA CONTRACTS
 # ============================================================================
 
@@ -293,9 +373,14 @@ class OllamaProvider:
 
         model_name = request.model or self.default_model
 
+        prepared_messages = prepare_capability_messages(
+            request.messages,
+            request.capability,
+        )
+
         messages: List[Dict[str, str]] = []
 
-        for message in request.messages:
+        for message in prepared_messages:
             item: Dict[str, str] = {
                 "role": message.role,
                 "content": message.content,
@@ -380,9 +465,14 @@ class OllamaProvider:
 
         model_name = request.model or self.default_model
 
+        prepared_messages = prepare_capability_messages(
+            request.messages,
+            request.capability,
+        )
+
         messages: List[Dict[str, str]] = []
 
-        for message in request.messages:
+        for message in prepared_messages:
             item: Dict[str, str] = {
                 "role": message.role,
                 "content": message.content,

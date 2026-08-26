@@ -1,113 +1,192 @@
 """
-AgenticOS Tool Registry
+ARNIE AgenticOS
+Safe Tool Registry
 
-Canonical boundary between the AgenticOS harness/policy layer and executable tools.
+This module is the canonical registry for the first migration wave of
+ARNIE's existing read-oriented tools.
 
-Design goals:
-- Explicit tool registration
-- No LLM-facing execution logic
-- No giant if/elif dispatcher
-- Tools expose stable names and descriptions
-- Execution is centralized through ToolRegistry
-- Policy remains a separate concern
-- Existing legacy bot.py can migrate onto this boundary incrementally
+Important:
+- Tool is the canonical executable capability.
+- ToolRegistry is the canonical collection.
+- PolicyEngine remains responsible for authorization.
+- The legacy bot implementation remains the handler owner for now.
+- Lazy handler adapters avoid importing bot.py during AgenticOS startup,
+  preventing a circular import while we migrate the monolith incrementally.
+
+Migration wave 1:
+    web_search
+    get_current_time
+    read_obsidian_note
+    search_vault
+    get_daily_vault_summary
+    get_system_metrics
+
+Privileged/state-changing tools are intentionally NOT registered here yet.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from inspect import isawaitable
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 
 ToolHandler = Callable[..., Any]
+AsyncToolHandler = Callable[..., Awaitable[Any]]
+ToolHandlerType = Union[ToolHandler, AsyncToolHandler]
+
+
+class ToolRisk(str, Enum):
+    SAFE = "safe"
+    CONTROLLED = "controlled"
+    PRIVILEGED = "privileged"
+
+
+class ToolStatus(str, Enum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
 
 
 @dataclass(frozen=True)
-class ToolDefinition:
-    """
-    Immutable definition of an AgenticOS tool.
-    """
+class ToolPermissionPolicy:
+    requires_approval: bool = False
+    allow_owner: bool = True
+    allow_agents: bool = True
+    require_approval_for_privileged_tools: bool = True
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
+
+@dataclass
+class Tool:
     name: str
     description: str
-    handler: ToolHandler
+    handler: ToolHandlerType
+    risk: ToolRisk = ToolRisk.SAFE
+    status: ToolStatus = ToolStatus.ENABLED
+    local_access: bool = False
+    mutates_state: bool = False
+    requires_approval: bool = False
+    permission_policy: ToolPermissionPolicy = field(
+        default_factory=ToolPermissionPolicy
+    )
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.name = self.name.strip()
+        if not self.name:
+            raise ValueError("Tool name cannot be empty.")
+        self.description = self.description.strip()
+        if not callable(self.handler):
+            raise TypeError(
+                f"Handler for Tool '{self.name}' must be callable."
+            )
+
+        if self.requires_approval and not self.permission_policy.requires_approval:
+            self.permission_policy = ToolPermissionPolicy(
+                requires_approval=True,
+                allow_owner=self.permission_policy.allow_owner,
+                allow_agents=self.permission_policy.allow_agents,
+                require_approval_for_privileged_tools=(
+                    self.permission_policy.require_approval_for_privileged_tools
+                ),
+                metadata=dict(self.permission_policy.metadata),
+            )
+
+    @property
+    def enabled(self) -> bool:
+        return self.status == ToolStatus.ENABLED
+
+    @property
+    def disabled(self) -> bool:
+        return self.status == ToolStatus.DISABLED
+
+    def enable(self) -> None:
+        self.status = ToolStatus.ENABLED
+
+    def disable(self) -> None:
+        self.status = ToolStatus.DISABLED
+
+    def execute(self, arguments: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Execute the handler.
+
+        Authorization is deliberately NOT performed here.
+        The Harness / PolicyEngine owns that responsibility.
+        """
+        if not self.enabled:
+            raise RuntimeError(f"Tool '{self.name}' is disabled.")
+
+        arguments = {} if arguments is None else arguments
+
+        if not isinstance(arguments, dict):
+            raise TypeError("Tool arguments must be a dictionary.")
+
+        return self.handler(**arguments)
+
+    async def execute_async(
+        self,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        result = self.execute(arguments)
+
+        if isawaitable(result):
+            return await result
+
+        return result
+
+    def describe(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "risk": self.risk.value,
+            "status": self.status.value,
+            "local_access": self.local_access,
+            "mutates_state": self.mutates_state,
+            "requires_approval": (
+                self.requires_approval
+                or self.permission_policy.requires_approval
+            ),
+            "metadata": dict(self.metadata),
+        }
 
 
 class ToolRegistry:
     """
-    Central registry for executable AgenticOS tools.
+    Canonical registry of AgenticOS Tools.
 
-    The registry knows:
-        - what tools exist
-        - how they are described
-        - how to invoke them
-
-    The registry does NOT decide:
-        - whether a caller is allowed to use a tool
-        - whether a tool requires approval
-        - whether execution is safe
-
-    Those decisions belong to the PolicyEngine / Harness layer.
+    It knows what exists and how to invoke it.
+    It does not decide whether execution is permitted.
     """
 
     def __init__(self) -> None:
-        self._tools: dict[str, ToolDefinition] = {}
+        self._tools: Dict[str, Tool] = {}
 
-    def register(
-        self,
-        name: str,
-        description: str,
-        handler: ToolHandler,
-    ) -> ToolDefinition:
-        """
-        Register a tool.
-
-        Duplicate tool names are rejected deliberately.
-        Silent replacement would make the execution surface
-        difficult to reason about.
-        """
-
-        normalized_name = name.strip()
-
-        if not normalized_name:
-            raise ValueError("Tool name cannot be empty.")
-
-        if normalized_name in self._tools:
-            raise ValueError(
-                f"Tool already registered: {normalized_name}"
+    def register(self, tool: Tool) -> Tool:
+        if not isinstance(tool, Tool):
+            raise TypeError(
+                "ToolRegistry.register() requires a Tool object."
             )
 
-        definition = ToolDefinition(
-            name=normalized_name,
-            description=description.strip(),
-            handler=handler,
-        )
+        if tool.name in self._tools:
+            raise ValueError(
+                f"Tool already registered: {tool.name}"
+            )
 
-        self._tools[normalized_name] = definition
+        self._tools[tool.name] = tool
+        return tool
 
-        return definition
+    def register_many(self, tools: List[Tool]) -> None:
+        for tool in tools:
+            self.register(tool)
 
-    def unregister(self, name: str) -> None:
-        """
-        Remove a registered tool.
+    def unregister(self, name: str) -> Optional[Tool]:
+        return self._tools.pop(name, None)
 
-        Primarily useful for tests and controlled runtime configuration.
-        """
-
-        self._tools.pop(name, None)
-
-    def get(self, name: str) -> ToolDefinition | None:
-        """
-        Retrieve a tool definition by name.
-        """
-
+    def get(self, name: str) -> Optional[Tool]:
         return self._tools.get(name)
 
-    def require(self, name: str) -> ToolDefinition:
-        """
-        Retrieve a tool definition or raise a clear error.
-        """
-
+    def require(self, name: str) -> Tool:
         tool = self.get(name)
 
         if tool is None:
@@ -116,120 +195,305 @@ class ToolRegistry:
         return tool
 
     def has(self, name: str) -> bool:
-        """
-        Return True if the tool is registered.
-        """
-
         return name in self._tools
 
-    def list(self) -> list[ToolDefinition]:
-        """
-        Return all registered tools in deterministic name order.
-        """
+    def list(self, include_disabled: bool = True) -> List[Tool]:
+        tools = list(self._tools.values())
 
+        if not include_disabled:
+            tools = [tool for tool in tools if tool.enabled]
+
+        return sorted(
+            tools,
+            key=lambda tool: tool.name.lower(),
+        )
+
+    def names(self, include_disabled: bool = True) -> List[str]:
         return [
-            self._tools[name]
-            for name in sorted(self._tools)
+            tool.name
+            for tool in self.list(
+                include_disabled=include_disabled
+            )
         ]
 
-    def names(self) -> list[str]:
-        """
-        Return registered tool names in deterministic order.
-        """
-
-        return sorted(self._tools)
-
-    def describe(self) -> list[dict[str, str]]:
-        """
-        Return an LLM/UI-friendly description of the available tools.
-
-        Handlers themselves are intentionally excluded.
-        """
-
+    def describe(
+        self,
+        include_disabled: bool = True,
+    ) -> List[Dict[str, Any]]:
         return [
-            {
-                "name": tool.name,
-                "description": tool.description,
-            }
-            for tool in self.list()
+            tool.describe()
+            for tool in self.list(
+                include_disabled=include_disabled
+            )
         ]
 
     def execute(
         self,
         name: str,
-        arguments: dict[str, Any] | None = None,
+        arguments: Optional[Dict[str, Any]] = None,
     ) -> Any:
-        """
-        Execute a registered tool.
+        return self.require(name).execute(arguments)
 
-        IMPORTANT:
-        This is the execution boundary, not the authorization boundary.
-
-        Callers should pass through the Harness / PolicyEngine before
-        reaching this method.
-        """
-
-        tool = self.require(name)
-
-        if arguments is None:
-            arguments = {}
-
-        if not isinstance(arguments, dict):
-            raise TypeError(
-                "Tool arguments must be provided as a dictionary."
-            )
-
-        return tool.handler(**arguments)
+    async def execute_async(
+        self,
+        name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        return await self.require(name).execute_async(arguments)
 
 
-# ============================================================
-# DEFAULT TOOL REGISTRY
-# ============================================================
+# ============================================================================
+# LAZY LEGACY HANDLER ADAPTERS
+# ============================================================================
+
+def _legacy_module():
+    """
+    Import the legacy bot only when a registered tool is actually executed.
+
+    This is a temporary migration seam. Once the handlers move into
+    AgenticOS tool modules, these adapters disappear.
+    """
+    import bot
+    return bot
+
+
+def _web_search(query: str = "") -> str:
+    return _legacy_module().perform_web_search(query)
+
+
+def _current_time() -> str:
+    return _legacy_module().get_current_time()
+
+
+def _read_obsidian_note(filename: str = "Inbox") -> str:
+    return _legacy_module().read_obsidian_note(filename)
+
+
+def _search_vault(
+    query: str = "",
+    n_results: int = 3,
+) -> str:
+    return _legacy_module().search_master_brain_vault(
+        query,
+        n_results,
+    )
+
+
+async def _daily_vault_summary() -> str:
+    return await _legacy_module().get_daily_vault_summary()
+
+
+def _system_metrics() -> str:
+    return _legacy_module().get_system_metrics_telemetry()
+
+
+# ============================================================================
+# SAFE TOOL DEFINITIONS
+# ============================================================================
 
 def create_default_registry() -> ToolRegistry:
     """
-    Create the canonical AgenticOS tool registry.
+    Create the first real production registry.
 
-    This function intentionally contains only registrations.
-
-    Actual implementations will be connected incrementally as
-    legacy bot.py functionality is migrated into proper tool modules.
+    Only read-oriented tools are included in migration wave 1.
     """
 
     registry = ToolRegistry()
 
+    registry.register(
+        Tool(
+            name="web_search",
+            description=(
+                "Search the live web for current information and return "
+                "a concise set of relevant results."
+            ),
+            handler=_web_search,
+            risk=ToolRisk.SAFE,
+            local_access=False,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "perform_web_search",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_current_time",
+            description=(
+                "Return the current local system time and date."
+            ),
+            handler=_current_time,
+            risk=ToolRisk.SAFE,
+            local_access=False,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "get_current_time",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="read_obsidian_note",
+            description=(
+                "Read the contents of a Markdown note from the "
+                "Master Brain vault."
+            ),
+            handler=_read_obsidian_note,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "read_obsidian_note",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="search_vault",
+            description=(
+                "Search the Master Brain vector vault for relevant "
+                "past notes, project context, and stored knowledge."
+            ),
+            handler=_search_vault,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "search_master_brain_vault",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_daily_vault_summary",
+            description=(
+                "Return an on-demand executive summary of the current "
+                "Master Brain vault."
+            ),
+            handler=_daily_vault_summary,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "get_daily_vault_summary",
+                "async": True,
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_system_metrics",
+            description=(
+                "Return current CPU, RAM, and local hardware telemetry."
+            ),
+            handler=_system_metrics,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            metadata={
+                "migration_wave": 1,
+                "legacy_handler": "get_system_metrics_telemetry",
+            },
+        )
+    )
+
     return registry
 
 
-# ============================================================
-# DEVELOPMENT / SELF TEST
-# ============================================================
+# ============================================================================
+# SELF TEST
+# ============================================================================
 
-if __name__ == "__main__":
-    def test_tool(message: str = "hello") -> str:
-        return f"TEST_OK: {message}"
+def run_tests() -> None:
+    import asyncio
 
     registry = create_default_registry()
 
-    registry.register(
-        name="test_tool",
-        description="Simple registry self-test tool.",
-        handler=test_tool,
+    expected = {
+        "web_search",
+        "get_current_time",
+        "read_obsidian_note",
+        "search_vault",
+        "get_daily_vault_summary",
+        "get_system_metrics",
+    }
+
+    actual = set(registry.names())
+
+    assert actual == expected, (
+        f"Registry mismatch.\nExpected: {sorted(expected)}"
+        f"\nActual: {sorted(actual)}"
     )
 
-    assert registry.has("test_tool")
-    assert registry.get("test_tool") is not None
-    assert registry.require("test_tool").name == "test_tool"
+    for name in expected:
+        tool = registry.require(name)
 
-    result = registry.execute(
-        "test_tool",
-        {"message": "AgenticOS"},
-    )
+        assert tool.enabled
+        assert tool.risk == ToolRisk.SAFE
+        assert tool.permission_policy.allow_owner
+        assert not tool.mutates_state
 
-    assert result == "TEST_OK: AgenticOS"
+    # Verify the async adapter shape without importing bot.py.
+    import inspect
+    assert inspect.iscoroutinefunction(_daily_vault_summary)
 
-    print("✅ ToolRegistry self-test passed.")
+    # Verify all descriptions are serializable and handlers are hidden.
+    for description in registry.describe():
+        assert "handler" not in description
+        assert description["risk"] == "safe"
+
+    # Verify duplicate protection.
+    duplicate_rejected = False
+
+    try:
+        registry.register(
+            Tool(
+                name="web_search",
+                description="Duplicate test.",
+                handler=_web_search,
+            )
+        )
+    except ValueError:
+        duplicate_rejected = True
+
+    assert duplicate_rejected
+
+    print("=" * 64)
+    print("ARNIE SAFE TOOL REGISTRY TEST")
+    print("=" * 64)
     print()
-    print("Registered tools:")
-    for tool in registry.describe():
-        print(f"  - {tool['name']}: {tool['description']}")
+    print("Registered migration-wave-1 tools:")
+
+    for tool in registry.list():
+        print(
+            f"  ✓ {tool.name:<24}"
+            f" risk={tool.risk.value:<8}"
+            f" local={str(tool.local_access):<5}"
+            f" mutates={str(tool.mutates_state):<5}"
+        )
+
+    print()
+    print("✓ Six safe tools registered")
+    print("✓ Canonical Tool domain objects")
+    print("✓ Lazy legacy handlers")
+    print("✓ Async vault-summary adapter")
+    print("✓ Duplicate protection")
+    print("✓ Policy metadata preserved")
+    print()
+    print("==============================================================")
+    print("SAFE TOOL REGISTRY TEST PASSED")
+    print("==============================================================")
+
+
+if __name__ == "__main__":
+    run_tests()

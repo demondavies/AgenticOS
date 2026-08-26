@@ -31,6 +31,14 @@ from enum import Enum
 from inspect import isawaitable
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
+# Canonical AgenticOS Vault capability.
+# Vault is no longer owned by bot.py.
+from capabilities.vault import (
+    get_daily_vault_summary,
+    read_obsidian_note,
+    search_master_brain_vault,
+)
+
 
 ToolHandler = Callable[..., Any]
 AsyncToolHandler = Callable[..., Awaitable[Any]]
@@ -289,21 +297,21 @@ def _current_time() -> str:
 
 
 def _read_obsidian_note(filename: str = "Inbox") -> str:
-    return _legacy_module().read_obsidian_note(filename)
+    return read_obsidian_note(filename)
 
 
 def _search_vault(
     query: str = "",
     n_results: int = 3,
 ) -> str:
-    return _legacy_module().search_master_brain_vault(
+    return search_master_brain_vault(
         query,
         n_results,
     )
 
 
 async def _daily_vault_summary() -> str:
-    return await _legacy_module().get_daily_vault_summary()
+    return await get_daily_vault_summary()
 
 
 def _system_metrics() -> str:
@@ -413,8 +421,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=True,
             mutates_state=False,
-            deterministic=False,
-            synthesis_required=True,
+            deterministic=True,
+            synthesis_required=False,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "get_daily_vault_summary",
@@ -485,16 +493,21 @@ def run_tests() -> None:
         assert not tool.synthesis_required
         assert registry.execution_mode(name) == "direct"
 
-    # Knowledge tools remain synthesis-capable during this migration wave.
+    # Knowledge retrieval remains synthesis-capable, while the vault
+    # summary is already a complete authoritative response.
     for name in {
         "read_obsidian_note",
         "search_vault",
-        "get_daily_vault_summary",
     }:
         tool = registry.require(name)
         assert not tool.deterministic
         assert tool.synthesis_required
         assert registry.execution_mode(name) == "synthesize"
+
+    daily_summary = registry.require("get_daily_vault_summary")
+    assert daily_summary.deterministic
+    assert not daily_summary.synthesis_required
+    assert registry.execution_mode("get_daily_vault_summary") == "direct"
 
     # Verify the async adapter shape without importing bot.py.
     import inspect
@@ -538,8 +551,9 @@ def run_tests() -> None:
     print()
     print("✓ Six safe tools registered")
     print("✓ Canonical Tool domain objects")
-    print("✓ Lazy legacy handlers")
-    print("✓ Async vault-summary adapter")
+    print("✓ Legacy seam retained only for unmigrated capabilities")
+    print("✓ Vault handlers now live in AgenticOS")
+    print("✓ Direct authoritative vault summary")
     print("✓ Duplicate protection")
     print("✓ Policy metadata preserved")
     print()

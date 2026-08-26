@@ -42,14 +42,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from agents import (
+from .agents import (
     Agent,
     AgentRegistry,
     AgentStatus,
     create_default_agent_registry,
 )
 
-from events import (
+from .events import (
     Event,
     EventBus,
     EventCategory,
@@ -58,7 +58,7 @@ from events import (
     create_event,
 )
 
-from models import (
+from .models import (
     ModelMessage,
     ModelProvider,
     ModelRegistry,
@@ -67,11 +67,16 @@ from models import (
     create_default_model_registry,
 )
 
-from tasks import (
+from .tasks import (
     Task,
     TaskExecution,
     TaskResult,
     TaskStatus,
+)
+
+from .tools import (
+    ToolRegistry,
+    create_default_registry,
 )
 
 
@@ -131,6 +136,7 @@ class AgentHarness:
         agent_registry: Optional[AgentRegistry] = None,
         model_registry: Optional[ModelRegistry] = None,
         event_bus: Optional[EventBus] = None,
+        tool_registry: Optional[ToolRegistry] = None,
     ) -> None:
         self.agents = (
             agent_registry
@@ -148,6 +154,12 @@ class AgentHarness:
             event_bus
             if event_bus is not None
             else EventBus()
+        )
+
+        self.tools = (
+            tool_registry
+            if tool_registry is not None
+            else create_default_registry()
         )
 
     # ---------------------------------------------------------------------
@@ -294,6 +306,54 @@ class AgentHarness:
         # Otherwise use the first available provider.
 
         return self.models.get(providers[0])
+
+    # ---------------------------------------------------------------------
+    # Tool execution and post-tool routing
+    # ---------------------------------------------------------------------
+
+    def execute_tool(
+        self,
+        tool_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Execute a registered tool through the canonical ToolRegistry."""
+        return self.tools.execute(tool_name, arguments)
+
+    async def execute_tool_async(
+        self,
+        tool_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Async counterpart to execute_tool()."""
+        return await self.tools.execute_async(tool_name, arguments)
+
+    def tool_execution_mode(self, tool_name: str) -> str:
+        """
+        Return the canonical post-execution routing mode.
+
+        The Harness owns this decision. Interfaces such as bot.py must not
+        maintain their own hard-coded lists of deterministic tools.
+        """
+        return self.tools.execution_mode(tool_name)
+
+    def run_tool(
+        self,
+        tool_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a tool and return structured runtime evidence.
+
+        Deterministic tools are authoritative runtime capabilities and should
+        be returned directly. Synthesis-capable tools are explicitly marked
+        for later model synthesis by the caller.
+        """
+        result = self.execute_tool(tool_name, arguments)
+        return {
+            "tool": tool_name,
+            "mode": self.tool_execution_mode(tool_name),
+            "result": result,
+        }
 
     # ---------------------------------------------------------------------
     # Task execution
@@ -724,6 +784,24 @@ class AgentHarness:
 # ============================================================================
 
 
+def run_tool_tests() -> None:
+    """Verify the Harness owns tool execution-mode decisions."""
+    harness = AgentHarness()
+
+    assert harness.tool_execution_mode("web_search") == "direct"
+    assert harness.tool_execution_mode("get_current_time") == "direct"
+    assert harness.tool_execution_mode("get_system_metrics") == "direct"
+
+    assert harness.tool_execution_mode("search_vault") == "synthesize"
+    assert harness.tool_execution_mode("read_obsidian_note") == "synthesize"
+    assert harness.tool_execution_mode("get_daily_vault_summary") == "synthesize"
+
+    # Do not execute the legacy-backed tools here; importing bot.py would pull
+    # the legacy runtime into the core test. We only verify routing ownership.
+
+    print("✓ Harness tool-routing contract passed")
+
+
 def run_tests() -> None:
     """
     End-to-end Harness test.
@@ -733,6 +811,8 @@ def run_tests() -> None:
     It intentionally uses a tiny prompt so that we can prove the complete
     architecture without involving the existing bot.py.
     """
+
+    run_tool_tests()
 
     print("=" * 60)
     print("ARNIE AGENT HARNESS TEST")

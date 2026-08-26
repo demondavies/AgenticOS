@@ -67,6 +67,13 @@ class Tool:
     local_access: bool = False
     mutates_state: bool = False
     requires_approval: bool = False
+
+    # Execution semantics belong to the Tool contract, not to bot.py.
+    # Deterministic tools return authoritative runtime results directly.
+    # Tools marked synthesis_required may be passed to a model after execution.
+    deterministic: bool = False
+    synthesis_required: bool = True
+
     permission_policy: ToolPermissionPolicy = field(
         default_factory=ToolPermissionPolicy
     )
@@ -147,6 +154,8 @@ class Tool:
                 self.requires_approval
                 or self.permission_policy.requires_approval
             ),
+            "deterministic": self.deterministic,
+            "synthesis_required": self.synthesis_required,
             "metadata": dict(self.metadata),
         }
 
@@ -241,6 +250,20 @@ class ToolRegistry:
     ) -> Any:
         return await self.require(name).execute_async(arguments)
 
+    def execution_mode(self, name: str) -> str:
+        """
+        Return the canonical post-execution routing mode.
+
+        This is intentionally a property of the registered Tool rather than
+        a hard-coded list in bot.py.
+        """
+        tool = self.require(name)
+
+        if tool.deterministic and not tool.synthesis_required:
+            return "direct"
+
+        return "synthesize"
+
 
 # ============================================================================
 # LAZY LEGACY HANDLER ADAPTERS
@@ -311,6 +334,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=False,
             mutates_state=False,
+            deterministic=True,
+            synthesis_required=False,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "perform_web_search",
@@ -328,6 +353,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=False,
             mutates_state=False,
+            deterministic=True,
+            synthesis_required=False,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "get_current_time",
@@ -346,6 +373,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=True,
             mutates_state=False,
+            deterministic=False,
+            synthesis_required=True,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "read_obsidian_note",
@@ -364,6 +393,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=True,
             mutates_state=False,
+            deterministic=False,
+            synthesis_required=True,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "search_master_brain_vault",
@@ -382,6 +413,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=True,
             mutates_state=False,
+            deterministic=False,
+            synthesis_required=True,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "get_daily_vault_summary",
@@ -400,6 +433,8 @@ def create_default_registry() -> ToolRegistry:
             risk=ToolRisk.SAFE,
             local_access=True,
             mutates_state=False,
+            deterministic=True,
+            synthesis_required=False,
             metadata={
                 "migration_wave": 1,
                 "legacy_handler": "get_system_metrics_telemetry",
@@ -442,6 +477,24 @@ def run_tests() -> None:
         assert tool.risk == ToolRisk.SAFE
         assert tool.permission_policy.allow_owner
         assert not tool.mutates_state
+
+    # Deterministic runtime capabilities must bypass model synthesis.
+    for name in {"web_search", "get_current_time", "get_system_metrics"}:
+        tool = registry.require(name)
+        assert tool.deterministic
+        assert not tool.synthesis_required
+        assert registry.execution_mode(name) == "direct"
+
+    # Knowledge tools remain synthesis-capable during this migration wave.
+    for name in {
+        "read_obsidian_note",
+        "search_vault",
+        "get_daily_vault_summary",
+    }:
+        tool = registry.require(name)
+        assert not tool.deterministic
+        assert tool.synthesis_required
+        assert registry.execution_mode(name) == "synthesize"
 
     # Verify the async adapter shape without importing bot.py.
     import inspect

@@ -39,7 +39,7 @@ from capabilities.vault import (
     search_master_brain_vault,
 )
 from capabilities.web import web_search
-from capabilities.system import get_system_metrics
+from capabilities.system import get_system_metrics, get_current_time
 
 
 ToolHandler = Callable[..., Any]
@@ -295,7 +295,7 @@ def _web_search(query: str = "") -> str:
 
 
 def _current_time() -> str:
-    return _legacy_module().get_current_time()
+    return get_current_time()
 
 
 def _read_obsidian_note(filename: str = "Inbox") -> str:

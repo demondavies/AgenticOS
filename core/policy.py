@@ -50,9 +50,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from agents import Agent
-from tasks import Task
-from tools import Tool, ToolRisk
+from .agents import Agent
+from .tasks import Task
+from .tools import Tool, ToolRisk
 
 
 # ============================================================================
@@ -538,7 +538,7 @@ class PolicyEngine:
             ),
             agent_id=request.agent.id,
             task_id=request.task.id,
-            tool_id=request.tool.id,
+            tool_id=request.tool.name,
             tool_name=request.tool.name,
             risk=request.tool.risk,
             requires_approval=False,
@@ -618,7 +618,7 @@ class PolicyEngine:
             message=message,
             agent_id=request.agent.id,
             task_id=request.task.id,
-            tool_id=request.tool.id,
+            tool_id=request.tool.name,
             tool_name=request.tool.name,
             risk=request.tool.risk,
             requires_approval=False,
@@ -639,7 +639,7 @@ class PolicyEngine:
             message=message,
             agent_id=request.agent.id,
             task_id=request.task.id,
-            tool_id=request.tool.id,
+            tool_id=request.tool.name,
             tool_name=request.tool.name,
             risk=request.tool.risk,
             requires_approval=True,
@@ -737,9 +737,9 @@ def run_tests() -> None:
     # Imports needed for test objects
     # ------------------------------------------------------------------
 
-    from agents import Agent
-    from tasks import Task
-    from tools import Tool, ToolRisk, ToolStatus
+    from .agents import Agent
+    from .tasks import Task
+    from .tools import Tool, ToolRisk, ToolStatus
 
     # ------------------------------------------------------------------
     # Test Agent

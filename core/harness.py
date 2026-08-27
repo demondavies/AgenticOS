@@ -7,15 +7,15 @@ This is the first working orchestration layer.
 The Harness coordinates:
 
     Task
-      â†“
+      Ã¢â€ â€œ
     Agent
-      â†“
+      Ã¢â€ â€œ
     Model Provider
-      â†“
+      Ã¢â€ â€œ
     Model
-      â†“
+      Ã¢â€ â€œ
     Result
-      â†“
+      Ã¢â€ â€œ
     Events
 
 IMPORTANT:
@@ -25,7 +25,7 @@ This is deliberately a SMALL first implementation.
 It does not yet:
     - replace bot.py
     - persist tasks
-    - execute arbitrary tools
+    - execute arbitrary tools without Policy authorization
     - run the existing swarm
     - manage Discord
     - manage FastAPI
@@ -77,6 +77,12 @@ from .tasks import (
 from .tools import (
     ToolRegistry,
     create_default_registry,
+)
+
+from .policy import (
+    PolicyDecision,
+    PolicyEngine,
+    PolicyRequest,
 )
 
 from capabilities.memory import (
@@ -168,6 +174,11 @@ class AgentHarness:
             if tool_registry is not None
             else create_default_registry()
         )
+
+        # Policy is the authorization boundary for Tool execution.
+        # The PolicyEngine never executes Tools; it only decides whether the
+        # Harness may hand an authorized Tool to the ToolRegistry.
+        self.policy = PolicyEngine()
 
         # Memory is an AgenticOS capability. The Harness receives it as a
         # dependency; it does not own SQLite implementation details.
@@ -335,21 +346,131 @@ class AgentHarness:
     # Tool execution and post-tool routing
     # ---------------------------------------------------------------------
 
+    def _authorize_tool(
+        self,
+        tool_name: str,
+        *,
+        task: Task,
+        agent: Agent,
+        source: str = "harness",
+        user_approved: bool = False,
+    ):
+        """Evaluate Tool authorization without executing the Tool."""
+        tool = self.tools.get(tool_name)
+        if tool is None:
+            raise KeyError(f"Unknown tool: {tool_name}")
+
+        result = self.policy.evaluate(
+            PolicyRequest(
+                agent=agent,
+                task=task,
+                tool=tool,
+                source=source,
+                user_approved=user_approved,
+            )
+        )
+
+        if result.decision != PolicyDecision.ALLOW:
+            raise PermissionError(
+                f"Policy denied Tool '{tool_name}': "
+                f"{result.message}"
+            )
+
+        return result
+
     def execute_tool(
         self,
         tool_name: str,
         arguments: Optional[Dict[str, Any]] = None,
+        *,
+        task: Optional[Task] = None,
+        agent: Optional[Agent] = None,
+        source: str = "harness",
+        user_approved: bool = False,
     ) -> Any:
-        """Execute a registered tool through the canonical ToolRegistry."""
+        """Authorize and execute a registered Tool through the Harness."""
+        if task is None or agent is None:
+            raise ValueError(
+                "Policy-protected Tool execution requires both task and agent. "
+                "Use execute_tool_for_task() for a managed execution context."
+            )
+
+        self._authorize_tool(
+            tool_name,
+            task=task,
+            agent=agent,
+            source=source,
+            user_approved=user_approved,
+        )
         return self.tools.execute(tool_name, arguments)
 
     async def execute_tool_async(
         self,
         tool_name: str,
         arguments: Optional[Dict[str, Any]] = None,
+        *,
+        task: Optional[Task] = None,
+        agent: Optional[Agent] = None,
+        source: str = "harness",
+        user_approved: bool = False,
     ) -> Any:
-        """Async counterpart to execute_tool()."""
+        """Async counterpart to policy-protected Tool execution."""
+        if task is None or agent is None:
+            raise ValueError(
+                "Policy-protected Tool execution requires both task and agent. "
+                "Use execute_tool_for_task() for a managed execution context."
+            )
+
+        self._authorize_tool(
+            tool_name,
+            task=task,
+            agent=agent,
+            source=source,
+            user_approved=user_approved,
+        )
         return await self.tools.execute_async(tool_name, arguments)
+
+    def execute_tool_for_task(
+        self,
+        task: Task,
+        tool_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        *,
+        agent_name: Optional[str] = None,
+        source: str = "harness",
+        user_approved: bool = False,
+    ) -> Any:
+        """Select an Agent, enforce Policy, then execute the Tool."""
+        agent = self.select_agent(task, agent_name=agent_name)
+        return self.execute_tool(
+            tool_name,
+            arguments,
+            task=task,
+            agent=agent,
+            source=source,
+            user_approved=user_approved,
+        )
+
+    async def execute_tool_for_task_async(
+        self,
+        task: Task,
+        tool_name: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        *,
+        agent_name: Optional[str] = None,
+        source: str = "harness",
+        user_approved: bool = False,
+    ) -> Any:
+        """Async managed Tool execution through the Policy boundary."""
+        agent = self.select_agent(task, agent_name=agent_name)
+        return await self.execute_tool_async(
+            tool_name,
+            arguments,
+            task=task,
+            agent=agent,
+            source=source,
+            user_approved=user_approved,
+        )
 
     def tool_execution_mode(self, tool_name: str) -> str:
         """
@@ -426,7 +547,19 @@ class AgentHarness:
         be returned directly. Synthesis-capable tools are explicitly marked
         for later model synthesis by the caller.
         """
-        result = self.execute_tool(tool_name, arguments)
+        task = Task(
+            title=f"Tool execution: {tool_name}",
+            description=f"Execute registered Tool '{tool_name}'.",
+            workspace="development",
+        )
+        agent = self.select_agent(task)
+        result = self.execute_tool(
+            tool_name,
+            arguments,
+            task=task,
+            agent=agent,
+            source="harness.run_tool",
+        )
         return {
             "tool": tool_name,
             "mode": self.tool_execution_mode(tool_name),
@@ -885,7 +1018,53 @@ def run_tool_tests() -> None:
     # Do not execute the legacy-backed tools here; importing bot.py would pull
     # the legacy runtime into the core test. We only verify routing ownership.
 
-    print("âœ“ Harness tool-routing contract passed")
+    print("Ã¢Å“â€œ Harness tool-routing contract passed")
+
+
+def run_policy_tests() -> None:
+    """Verify that Harness Tool execution is gated by PolicyEngine."""
+    harness = AgentHarness()
+
+    task = Task(
+        title="Policy harness test",
+        description="Test policy-protected Tool execution.",
+        workspace="development",
+        metadata={"agent": "Researcher"},
+    )
+    agent = harness.select_agent(task)
+
+    # Researcher is explicitly permitted to use web_search.
+    result = harness._authorize_tool(
+        "web_search",
+        task=task,
+        agent=agent,
+        source="harness.test",
+    )
+    assert result.decision == PolicyDecision.ALLOW
+
+    # An unapproved Tool must not reach the registry handler.
+    blocked = Task(
+        title="Policy denial test",
+        description="Test denied Tool execution.",
+        workspace="development",
+        metadata={"agent": "Coordinator"},
+    )
+    coordinator = harness.select_agent(blocked)
+
+    try:
+        harness.execute_tool(
+            "web_search",
+            {"query": "policy test"},
+            task=blocked,
+            agent=coordinator,
+            source="harness.test",
+        )
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("Policy bypass: denied Tool executed")
+
+    print("✓ Harness Policy boundary passed")
 
 
 def run_tests() -> None:
@@ -899,6 +1078,7 @@ def run_tests() -> None:
     """
 
     run_tool_tests()
+    run_policy_tests()
 
     print("=" * 60)
     print("ARNIE AGENT HARNESS TEST")
@@ -926,13 +1106,13 @@ def run_tests() -> None:
 
     print("\nProviders:")
     for provider in harness.models.list_providers():
-        print(f"  âœ“ {provider}")
+        print(f"  Ã¢Å“â€œ {provider}")
 
     print("\nAgents:")
 
     for agent in harness.agents.list_agents():
         print(
-            f"  âœ“ {agent.name} "
+            f"  Ã¢Å“â€œ {agent.name} "
             f"({agent.model_capability()})"
         )
 
@@ -1009,7 +1189,7 @@ def run_tests() -> None:
 
     for event in captured_events:
         print(
-            f"  âœ“ {event.name}"
+            f"  Ã¢Å“â€œ {event.name}"
         )
 
     required_events = {

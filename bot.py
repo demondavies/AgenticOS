@@ -1,4 +1,4 @@
-import discord
+﻿import discord
 import json
 import re
 import os
@@ -6,9 +6,7 @@ import sys
 import asyncio
 import uvicorn
 import subprocess
-import uuid
 import psutil
-import random
 import time
 import io
 import wave
@@ -20,8 +18,6 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
 import threading
 
 # 🔒 SECURE SYSTEM CONFIGURATION
@@ -91,6 +87,7 @@ from core.agent_runtime import (
 from capabilities.voice import VoiceService
 from capabilities.voice.oak import clean_text_for_speech, speak_text_kokoro
 from core.intent import create_default_intent_router
+from core.swarm import STAGED_ARTIFACTS, SwarmManager
 
 from capabilities.vault import (
     get_daily_vault_summary,

@@ -1807,36 +1807,23 @@ async def voice_agent_stream(clean_content: str, is_owner=True):
         yield {"type": "reply", "text": reply}
         return
 
-    async def run_stream(messages):
-        q = asyncio.Queue()
-        done = object()
-
-        def producer():
-            try:
-                for chunk in _stream_chat_sync(messages):
-                    asyncio.run_coroutine_threadsafe(q.put(chunk), loop)
-            except Exception as exc:
-                asyncio.run_coroutine_threadsafe(q.put(exc), loop)
-            finally:
-                asyncio.run_coroutine_threadsafe(q.put(done), loop)
-
-        loop = asyncio.get_running_loop()
-        threading.Thread(target=producer, daemon=True).start()
-
-        while True:
-            item = await q.get()
-            if item is done:
-                break
-            if isinstance(item, Exception):
-                raise item
-            yield _ollama_chunk_text(item)
-
-    # First pass: stream model output while collecting it for tool detection.
-    first_text = ""
-    async for token in run_stream(history):
-        if token:
-            first_text += token
-            yield {"type": "token", "text": token}
+    # ------------------------------------------------------------
+    # Conversation path
+    # ------------------------------------------------------------
+    # Voice conversation does not need token-by-token model streaming.
+    # Use the canonical non-streaming ModelProvider path here so the voice
+    # endpoint always receives one complete human-facing response. This also
+    # prevents an empty/stalled streaming pass from producing "no spoken
+    # response" even though the model generated successfully.
+    #
+    # Tool calls are still supported: if Hermes returns a tool request, the
+    # tool is executed silently and Hermes receives the result for a final
+    # conversational response.
+    first_text = await arnie_model_chat(
+        history,
+        model="hermes3:8b",
+        capability="conversation",
+    )
 
     tool_data = _extract_tool_call(first_text)
 
@@ -1847,26 +1834,56 @@ async def voice_agent_stream(clean_content: str, is_owner=True):
         history.append({"role": "assistant", "content": first_text})
         history.append({
             "role": "system",
-            "content": f"Tool output received:\n\n{tool_output}\n\nPlease generate your final response."
+            "content": (
+                "Tool output received:\n\n"
+                f"{tool_output}\n\n"
+                "Please generate your final response to the user. "
+                "Do not emit another tool call unless it is genuinely required."
+            ),
         })
 
-        final_text = ""
-        async for token in run_stream(history):
-            if token:
-                final_text += token
-                yield {"type": "token", "text": token}
+        final_text = await arnie_model_chat(
+            history,
+            model="hermes3:8b",
+            capability="conversation",
+        )
 
-        final_text = re.sub(r"<tool_call>.*?</tool_call>", "", final_text, flags=re.S).strip()
-        TOOL_HARNESS.save_memory(WEB_CHANNEL_ID, "local_owner_voice", "assistant", final_text)
-        yield {"type": "done", "text": final_text}
+        final_text = re.sub(
+            r"<tool_call>.*?</tool_call>",
+            "",
+            final_text,
+            flags=re.DOTALL,
+        ).strip()
+
+        if not final_text:
+            final_text = str(tool_output)
+
+        TOOL_HARNESS.save_memory(
+            WEB_CHANNEL_ID,
+            "local_owner_voice",
+            "assistant",
+            final_text,
+        )
+        yield {"type": "reply", "text": final_text}
         return
 
-    clean_reply = re.sub(r"<tool_call>.*?</tool_call>", "", first_text, flags=re.S).strip()
-    if not clean_reply:
-        clean_reply = "Action completed successfully."
+    clean_reply = re.sub(
+        r"<tool_call>.*?</tool_call>",
+        "",
+        str(first_text or ""),
+        flags=re.DOTALL,
+    ).strip()
 
-    TOOL_HARNESS.save_memory(WEB_CHANNEL_ID, "local_owner_voice", "assistant", clean_reply)
-    yield {"type": "done", "text": clean_reply}
+    if not clean_reply:
+        clean_reply = "I'm here. What do you need?"
+
+    TOOL_HARNESS.save_memory(
+        WEB_CHANNEL_ID,
+        "local_owner_voice",
+        "assistant",
+        clean_reply,
+    )
+    yield {"type": "reply", "text": clean_reply}
 
 
 @app.post("/api/chat")

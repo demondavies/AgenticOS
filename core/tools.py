@@ -30,6 +30,21 @@ from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isawaitable
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+from capabilities.system.applications import launch_windows_app
+
+
+
+def _launch_app(args: Optional[Dict[str, Any]] = None, **kwargs: Any) -> str:
+    """Launch a local application through the system capability."""
+    arguments = dict(args or {})
+    arguments.update(kwargs)
+    target = (
+        arguments.get("app_name")
+        or arguments.get("target")
+        or arguments.get("name")
+        or ""
+    )
+    return launch_windows_app(str(target))
 
 # Canonical AgenticOS Vault capability.
 # Vault is no longer owned by bot.py.
@@ -452,6 +467,31 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    registry.register(
+        Tool(
+            name="launch_app",
+            description=(
+                "Launch a local Windows application using a known "
+                "application shortcut or an explicit application target."
+            ),
+            handler=_launch_app,
+            risk=ToolRisk.PRIVILEGED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=True,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 2,
+                "capability_handler": (
+                    "capabilities.system.applications.launch_windows_app"
+                ),
+                "privileged": True,
+                "approval_required": True,
+            },
+        )
+    )
+
     return registry
 
 
@@ -471,6 +511,7 @@ def run_tests() -> None:
         "search_vault",
         "get_daily_vault_summary",
         "get_system_metrics",
+        "launch_app",
     }
 
     actual = set(registry.names())
@@ -480,13 +521,25 @@ def run_tests() -> None:
         f"\nActual: {sorted(actual)}"
     )
 
-    for name in expected:
+    safe_tools = expected - {"launch_app"}
+
+    for name in safe_tools:
         tool = registry.require(name)
 
         assert tool.enabled
         assert tool.risk == ToolRisk.SAFE
         assert tool.permission_policy.allow_owner
         assert not tool.mutates_state
+
+    launch_app = registry.require("launch_app")
+
+    assert launch_app.enabled
+    assert launch_app.risk == ToolRisk.PRIVILEGED
+    assert launch_app.local_access
+    assert launch_app.mutates_state
+    assert launch_app.requires_approval
+    assert launch_app.permission_policy.allow_owner
+    assert registry.execution_mode("launch_app") == "direct"
 
     # Deterministic runtime capabilities must bypass model synthesis.
     for name in {"web_search", "get_current_time", "get_system_metrics"}:
@@ -518,7 +571,11 @@ def run_tests() -> None:
     # Verify all descriptions are serializable and handlers are hidden.
     for description in registry.describe():
         assert "handler" not in description
-        assert description["risk"] == "safe"
+
+    for name in safe_tools:
+        assert registry.require(name).describe()["risk"] == "safe"
+
+    assert registry.require("launch_app").describe()["risk"] == "privileged"
 
     # Verify duplicate protection.
     duplicate_rejected = False
@@ -544,20 +601,21 @@ def run_tests() -> None:
 
     for tool in registry.list():
         print(
-            f"  ✓ {tool.name:<24}"
+            f"  âœ“ {tool.name:<24}"
             f" risk={tool.risk.value:<8}"
             f" local={str(tool.local_access):<5}"
             f" mutates={str(tool.mutates_state):<5}"
         )
 
     print()
-    print("✓ Six safe tools registered")
-    print("✓ Canonical Tool domain objects")
-    print("✓ Legacy seam retained only for unmigrated capabilities")
-    print("✓ Vault handlers now live in AgenticOS")
-    print("✓ Direct authoritative vault summary")
-    print("✓ Duplicate protection")
-    print("✓ Policy metadata preserved")
+    print("âœ“ Six safe tools registered")
+    print("âœ“ One privileged tool registered behind Policy")
+    print("âœ“ Canonical Tool domain objects")
+    print("âœ“ Legacy seam retained only for unmigrated capabilities")
+    print("âœ“ Vault handlers now live in AgenticOS")
+    print("âœ“ Direct authoritative vault summary")
+    print("âœ“ Duplicate protection")
+    print("âœ“ Policy metadata preserved")
     print()
     print("==============================================================")
     print("SAFE TOOL REGISTRY TEST PASSED")

@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARNIE // AGENTIC OS CORE MATRIX</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-color: #08080a;
+            --panel-bg: rgba(18, 18, 24, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-pink: #ff2a6d;
+            --accent-cyan: #05d9e8;
+            --accent-amber: #ffaa00;
+            --accent-green: #39ff88;
+            --text-main: #e0e6ed;
+            --text-muted: #6272a4;
+            --danger: #ff4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, rgba(5, 217, 232, 0.05), transparent 70%);
+            color: var(--text-main);
+            font-family: 'Fira Code', monospace;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            padding: 12px 20px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-pink);
+            text-shadow: 0 0 12px rgba(255, 42, 109, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(5, 217, 232, 0.2);
+        }
+
+        .btn:disabled {
+            cursor: wait;
+            opacity: 0.7;
+        }
+
+        .btn-pink {
+            border-color: rgba(255, 42, 109, 0.4);
+            color: var(--accent-pink);
+        }
+
+        .btn-pink:hover:not(:disabled) {
+            background: var(--accent-pink);
+            color: #000;
+        }
+
+        #voiceMicBtn {
+            min-width: 118px;
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        #voiceMicBtn.listening {
+            border-color: var(--accent-pink);
+            color: var(--accent-pink);
+            background: rgba(255, 42, 109, 0.12);
+            box-shadow: 0 0 16px rgba(255, 42, 109, 0.22);
+            animation: pulseListening 1s infinite;
+        }
+
+        #voiceMicBtn.thinking {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+            background: rgba(255, 170, 0, 0.10);
+            box-shadow: 0 0 16px rgba(255, 170, 0, 0.22);
+            animation: pulseThinking 1.2s infinite;
+        }
+
+        #voiceMicBtn.speaking {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background: rgba(57, 255, 136, 0.10);
+            box-shadow: 0 0 16px rgba(57, 255, 136, 0.22);
+            animation: pulseSpeaking 1s infinite;
+        }
+
+        @keyframes pulseListening {
+            50% {
+                box-shadow: 0 0 26px rgba(255, 42, 109, 0.5);
+            }
+        }
+
+        @keyframes pulseThinking {
+            50% {
+                box-shadow: 0 0 26px rgba(255, 170, 0, 0.5);
+            }
+        }
+
+        @keyframes pulseSpeaking {
+            50% {
+                box-shadow: 0 0 26px rgba(57, 255, 136, 0.5);
+            }
+        }
+
+        .matrix-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .panel-header {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .editor-area {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            padding: 12px;
+            resize: none;
+            outline: none;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            max-height: 140px;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .file-item:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(5, 217, 232, 0.05);
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 90%;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .user-msg {
+            background: rgba(255, 42, 109, 0.15);
+            border: 1px solid rgba(255, 42, 109, 0.3);
+            color: #fff;
+            align-self: flex-end;
+        }
+
+        .arnie-msg {
+            background: rgba(5, 217, 232, 0.1);
+            border: 1px solid rgba(5, 217, 232, 0.3);
+            color: var(--accent-cyan);
+            align-self: flex-start;
+        }
+
+        .system-msg {
+            background: rgba(255, 170, 0, 0.08);
+            border: 1px solid rgba(255, 170, 0, 0.35);
+            color: var(--accent-amber);
+            align-self: center;
+            max-width: 100%;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .staging-card {
+            background: rgba(255, 170, 0, 0.08);
+            border: 1px solid var(--accent-amber);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+            flex-shrink: 0;
+        }
+
+        .status-pill {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(5, 217, 232, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(5, 217, 232, 0.3);
+        }
+
+        .voice-hint {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-align: right;
+            margin-top: -5px;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                overflow: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .matrix-container {
+                grid-template-columns: 1fr;
+                min-height: 900px;
+            }
+
+            header {
+                align-items: flex-start;
+                gap: 12px;
+                flex-direction: column;
+            }
+
+            .hud-buttons {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HUD HEADER -->
+    <header>
+        <div class="logo">⚡ ARNIE // AGENTIC OS</div>
+
+        <div class="hud-buttons">
+            <button class="btn" id="syncVectorBtn">🧠 SYNC RAG</button>
+            <button class="btn" id="cronJobsBtn">⏰ CRON LOGS</button>
+            <button class="btn btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
+        </div>
+    </header>
+
+    <!-- STAGING CARD ALERT -->
+    <div id="swarmApprovalCard" class="staging-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="color:var(--accent-amber);font-weight:700;">⚠️ SWARM STAGING BUFFER</span>
+            <span id="stagedTaskId" style="font-size:11px;color:var(--text-muted);"></span>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+            <input type="text" id="stagedFilename" class="chat-input" style="font-size:12px;">
+            <button class="btn" id="approveSwarmBtn"
+                    style="background:var(--accent-amber);color:#000;font-weight:700;">
+                APPROVE
+            </button>
+            <button class="btn" id="rejectSwarmBtn"
+                    style="border-color:#ff3333;color:#ff3333;">
+                DISCARD
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN MATRIX GRID -->
+    <div class="matrix-container">
+
+        <!-- LEFT PANEL -->
+        <div class="panel">
+
+            <div class="panel-header">
+                <span id="editorTitle">📝 VAULT EDITOR</span>
+                <span id="sysStatus" class="status-pill">READY</span>
+            </div>
+
+            <textarea
+                id="editorTextArea"
+                class="editor-area"
+                placeholder="Select a note file from the vault repository below to edit..."
+                disabled
+            ></textarea>
+
+            <button
+                id="saveBtn"
+                class="btn"
+                style="display:none;background:var(--accent-cyan);color:#000;font-weight:700;align-self:flex-end;"
+            >
+                💾 SAVE NOTE
+            </button>
+
+            <div class="panel-header" style="margin-top:10px;">
+                <span>📂 VAULT REPOSITORY</span>
+            </div>
+
+            <div id="vaultFileList" class="file-list">
+                Loading vault notes...
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="panel">
+
+            <div class="panel-header">
+                <span>💬 TACTICAL CHAT TERMINAL</span>
+                <span class="status-pill" id="chatStatus">ONLINE</span>
+            </div>
+
+            <div id="chatBox" class="chat-history">
+                <div class="msg arnie-msg">
+                    <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                </div>
+            </div>
+
+            <div class="chat-input-wrapper">
+                <input
+                    id="chatInput"
+                    class="chat-input"
+                    type="text"
+                    placeholder="Command Arnie, run swarms, query vector store..."
+                    autocomplete="off"
+                >
+
+                <button id="voiceMicBtn" class="btn" type="button">
+                    🎙️ MIC
+                </button>
+
+                <button id="sendChatBtn" class="btn"
+                        type="button"
+                        style="background:var(--accent-pink);border:none;font-weight:700;">
+                    SEND
+                </button>
+            </div>
+
+            <div class="voice-hint">
+                🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS
+            </div>
+
+        </div>
+    </div>
+
+
+    <script>
+        let currentLoadedFile = "";
+        let activeStagedTaskId = null;
+        let voiceBusy = false;
+
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+
+        document.addEventListener("DOMContentLoaded", () => {
+
+            fetchVaultFiles();
+
+            document.getElementById("sendChatBtn")
+                .addEventListener("click", sendMessage);
+
+            document.getElementById("chatInput")
+                .addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+
+            document.getElementById("saveBtn")
+                .addEventListener("click", saveNote);
+
+            document.getElementById("syncVectorBtn")
+                .addEventListener("click", syncVectorDb);
+
+            document.getElementById("cronJobsBtn")
+                .addEventListener("click", checkCronJobs);
+
+            document.getElementById("flushMemoryBtn")
+                .addEventListener("click", triggerMemoryFlush);
+
+            document.getElementById("approveSwarmBtn")
+                .addEventListener("click", approveStagedSwarm);
+
+            document.getElementById("rejectSwarmBtn")
+                .addEventListener("click", rejectStagedSwarm);
+
+            // 🎙️ THIS WAS MISSING FROM THE ORIGINAL UI
+            document.getElementById("voiceMicBtn")
+                .addEventListener("click", handleVoiceInput);
+
+            console.log("⚡ ARNIE UI INITIALIZED");
+            console.log("🎙️ Voice control connected — THE OAK TTS enabled");
+        });
+
+
+        // ============================================================
+        // 🎙️ VOICE ENGINE
+        // ============================================================
+
+        function setVoiceState(state) {
+
+            const micBtn = document.getElementById("voiceMicBtn");
+            const chatStatus = document.getElementById("chatStatus");
+
+            micBtn.classList.remove("listening", "thinking", "speaking");
+
+            if (state === "listening") {
+                micBtn.classList.add("listening");
+                micBtn.innerText = "🔴 LISTENING...";
+                chatStatus.innerText = "LISTENING";
+                return;
+            }
+
+            if (state === "thinking") {
+                micBtn.classList.add("thinking");
+                micBtn.innerText = "🧠 THINKING...";
+                chatStatus.innerText = "THINKING";
+                return;
+            }
+
+            if (state === "speaking") {
+                micBtn.classList.add("speaking");
+                micBtn.innerText = "🔊 SPEAKING...";
+                chatStatus.innerText = "SPEAKING";
+                return;
+            }
+
+            micBtn.innerText = "🎙️ MIC";
+            chatStatus.innerText = "ONLINE";
+        }
+
+
+        async function handleVoiceInput() {
+
+            if (voiceBusy) {
+                return;
+            }
+
+            const micBtn = document.getElementById("voiceMicBtn");
+            const chatBox = document.getElementById("chatBox");
+
+            voiceBusy = true;
+            micBtn.disabled = true;
+
+            const statusId = "voiceStatus_" + Date.now();
+
+            try {
+
+                // --------------------------------------------------------
+                // 1. LISTENING
+                // --------------------------------------------------------
+                setVoiceState("listening");
+
+                appendMessage(
+                    "arnie-msg",
+                    `<b>ARNIE:</b> 🎙️ Listening... Speak naturally. I'll stop when you finish.`,
+                    statusId
+                );
+
+                console.log("🎙️ Calling /api/voice/transcribe...");
+
+                const transcriptionResponse = await fetch("/api/voice/transcribe", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                let transcriptionData;
+
+                try {
+                    transcriptionData = await transcriptionResponse.json();
+                } catch (jsonError) {
+                    throw new Error(
+                        "Voice server returned an invalid response (HTTP " +
+                        transcriptionResponse.status + ")."
+                    );
+                }
+
+                const listeningMessage = document.getElementById(statusId);
+                if (listeningMessage) {
+                    listeningMessage.remove();
+                }
+
+                if (!transcriptionResponse.ok) {
+                    throw new Error(
+                        transcriptionData.error ||
+                        "Voice transcription failed (HTTP " + transcriptionResponse.status + ")."
+                    );
+                }
+
+                const transcription = (transcriptionData.transcription || "").trim();
+
+                if (!transcription) {
+                    appendMessage(
+                        "system-msg",
+                        "<b>VOICE:</b> I didn't catch anything. Try speaking a little closer to the microphone."
+                    );
+                    return;
+                }
+
+                console.log("🗣️ Transcription:", transcription);
+
+                appendMessage(
+                    "user-msg",
+                    "<b>YOU 🎙️:</b> " + escapeHtml(transcription)
+                );
+
+
+                // --------------------------------------------------------
+                // 2. THINKING
+                // --------------------------------------------------------
+                setVoiceState("thinking");
+
+                const thinkingId = "thinking_" + Date.now();
+
+                appendMessage(
+                    "arnie-msg",
+                    "<b>ARNIE:</b> 🧠 Thinking...",
+                    thinkingId
+                );
+
+                console.log("🧠 Streaming transcription to /api/voice/stream...");
+
+                const chatResponse = await fetch("/api/voice/stream", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: transcription
+                    })
+                });
+
+                if (!chatResponse.ok || !chatResponse.body) {
+                    let errorText = "Voice stream failed (HTTP " + chatResponse.status + ").";
+                    try {
+                        const errData = await chatResponse.json();
+                        errorText = errData.error || errorText;
+                    } catch (_) {}
+                    throw new Error(errorText);
+                }
+
+                const reader = chatResponse.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+                let reply = "";
+                let speakingStarted = false;
+                let finalData = null;
+
+                const thinkingMessage = document.getElementById(thinkingId);
+                if (thinkingMessage) {
+                    thinkingMessage.innerHTML = "<b>ARNIE:</b> 🧠 Generating...";
+                }
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const events = buffer.split("\n\n");
+                    buffer = events.pop() || "";
+
+                    for (const eventBlock of events) {
+                        const line = eventBlock
+                            .split("\n")
+                            .find(line => line.startsWith("data: "));
+
+                        if (!line) continue;
+
+                        let event;
+                        try {
+                            event = JSON.parse(line.slice(6));
+                        } catch (_) {
+                            continue;
+                        }
+
+                        if (event.type === "token") {
+                            reply += event.text || "";
+
+                            if (!speakingStarted && reply.trim()) {
+                                speakingStarted = true;
+                                setVoiceState("speaking");
+
+                                if (thinkingMessage) {
+                                    thinkingMessage.remove();
+                                }
+
+                                appendMessage(
+                                    "arnie-msg",
+                                    "<b>ARNIE:</b> " + escapeHtml(reply)
+                                );
+                            } else {
+                                const messages = document.querySelectorAll(".arnie-msg");
+                                const last = messages[messages.length - 1];
+
+                                if (last && reply.trim()) {
+                                    last.innerHTML = "<b>ARNIE:</b> " + escapeHtml(reply);
+                                }
+                            }
+                        }
+
+                        if (event.type === "done") {
+                            finalData = event;
+                        }
+
+                        if (event.type === "error") {
+                            throw new Error(event.error || "Unknown voice stream error.");
+                        }
+                    }
+                }
+
+                if (thinkingMessage) {
+                    thinkingMessage.remove();
+                }
+
+                if (!reply.trim()) {
+                    appendMessage(
+                        "system-msg",
+                        "<b>VOICE:</b> ARNIE returned no spoken response."
+                    );
+                }
+
+                if (finalData && finalData.tts_error) {
+                    appendMessage(
+                        "system-msg",
+                        "<b>TTS:</b> " +
+                        escapeHtml(finalData.tts_error)
+                    );
+                }
+
+                setVoiceState("ready");
+
+                // The agent may have modified the vault.
+                await fetchVaultFiles();
+
+            } catch (error) {
+
+                console.error("❌ Voice pipeline error:", error);
+
+                const statusMessage = document.getElementById(statusId);
+
+                if (statusMessage) {
+                    statusMessage.className = "msg system-msg";
+                    statusMessage.innerHTML =
+                        "<b>VOICE ERROR:</b> " +
+                        escapeHtml(error.message);
+                } else {
+                    appendMessage(
+                        "system-msg",
+                        "<b>VOICE ERROR:</b> " +
+                        escapeHtml(error.message)
+                    );
+                }
+
+            } finally {
+
+                voiceBusy = false;
+                micBtn.disabled = false;
+                setVoiceState("ready");
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+
+        // ============================================================
+        // MESSAGE HELPERS
+        // ============================================================
+
+        function appendMessage(className, html, id = null) {
+
+            const box = document.getElementById("chatBox");
+            const div = document.createElement("div");
+
+            div.className = "msg " + className;
+
+            if (id) {
+                div.id = id;
+            }
+
+            div.innerHTML = html;
+
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+
+            return div;
+        }
+
+
+        // ============================================================
+        // VAULT
+        // ============================================================
+
+        async function fetchVaultFiles() {
+
+            try {
+
+                const res = await fetch("/api/vault/files");
+
+                if (!res.ok) {
+                    throw new Error("Vault endpoint returned HTTP " + res.status);
+                }
+
+                const data = await res.json();
+                const container = document.getElementById("vaultFileList");
+
+                container.innerHTML = "";
+
+                if (!data.files || data.files.length === 0) {
+
+                    container.innerText =
+                        "No markdown files found in vault.";
+
+                    return;
+                }
+
+                data.files.forEach(f => {
+
+                    const div = document.createElement("div");
+
+                    div.className = "file-item";
+                    div.innerText = "📄 " + f;
+
+                    div.addEventListener("click", () => loadNote(f));
+
+                    container.appendChild(div);
+                });
+
+            } catch (e) {
+
+                document.getElementById("vaultFileList").innerText =
+                    "Failed to access vault directory.";
+
+                console.error("Vault error:", e);
+            }
+        }
+
+
+        async function loadNote(filename) {
+
+            const textarea = document.getElementById("editorTextArea");
+            const title = document.getElementById("editorTitle");
+            const saveBtn = document.getElementById("saveBtn");
+            const status = document.getElementById("sysStatus");
+
+            status.innerText = "STREAMING...";
+            textarea.value = "Reading vault file content...";
+
+            try {
+
+                const res = await fetch("/api/get_note", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        filename: filename
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.content !== undefined) {
+
+                    currentLoadedFile = filename;
+                    title.innerText = "📝 " + filename;
+                    textarea.value = data.content;
+                    textarea.disabled = false;
+                    saveBtn.style.display = "block";
+                    status.innerText = "SYNCED";
+
+                } else {
+
+                    throw new Error(data.error || "Unable to load note.");
+                }
+
+            } catch (e) {
+
+                textarea.value = "Error loading file content.";
+                status.innerText = "ERROR";
+
+                console.error("Load note error:", e);
+            }
+        }
+
+
+        async function saveNote() {
+
+            if (!currentLoadedFile) {
+                return;
+            }
+
+            const textarea = document.getElementById("editorTextArea");
+            const status = document.getElementById("sysStatus");
+            const saveBtn = document.getElementById("saveBtn");
+
+            status.innerText = "COMMITTING...";
+            saveBtn.disabled = true;
+
+            try {
+
+                const res = await fetch("/api/save_note", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        filename: currentLoadedFile,
+                        content: textarea.value
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.status === "success") {
+
+                    status.innerText = "SAVED";
+
+                    setTimeout(() => {
+                        status.innerText = "SYNCED";
+                    }, 2000);
+
+                } else {
+
+                    throw new Error(data.error || "Save failed.");
+                }
+
+            } catch (e) {
+
+                status.innerText = "ERROR";
+
+                console.error("Save error:", e);
+
+            } finally {
+
+                saveBtn.disabled = false;
+            }
+        }
+
+
+        // ============================================================
+        // CHAT
+        // ============================================================
+
+        async function sendMessage() {
+
+            const input = document.getElementById("chatInput");
+            const box = document.getElementById("chatBox");
+            const text = input.value.trim();
+
+            if (!text) {
+                return;
+            }
+
+            input.value = "";
+
+            appendMessage(
+                "user-msg",
+                "<b>YOU:</b> " + escapeHtml(text)
+            );
+
+            const thinkingId = "think_" + Date.now();
+
+            appendMessage(
+                "arnie-msg",
+                "<b>ARNIE:</b> Processing request...",
+                thinkingId
+            );
+
+            try {
+
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: text
+                    })
+                });
+
+                const data = await response.json();
+
+                const thinking = document.getElementById(thinkingId);
+
+                if (thinking) {
+                    thinking.remove();
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        "Chat server returned HTTP " + response.status
+                    );
+                }
+
+                appendMessage(
+                    "arnie-msg",
+                    "<b>ARNIE:</b> " +
+                    escapeHtml(data.reply || "No response returned.")
+                );
+
+                if (data.staged_artifact) {
+
+                    showStagingCard(
+                        data.staged_artifact.task_id,
+                        data.staged_artifact.filename
+                    );
+                }
+
+            } catch (e) {
+
+                const thinking = document.getElementById(thinkingId);
+
+                if (thinking) {
+
+                    thinking.className = "msg system-msg";
+
+                    thinking.innerHTML =
+                        "<b>SYSTEM ERROR:</b> " +
+                        escapeHtml(e.message);
+
+                } else {
+
+                    appendMessage(
+                        "system-msg",
+                        "<b>SYSTEM ERROR:</b> " +
+                        escapeHtml(e.message)
+                    );
+                }
+
+                console.error("Chat error:", e);
+            }
+
+            box.scrollTop = box.scrollHeight;
+        }
+
+
+        // ============================================================
+        // VECTOR DATABASE
+        // ============================================================
+
+        async function syncVectorDb() {
+
+            const status = document.getElementById("sysStatus");
+
+            status.innerText = "INDEXING...";
+
+            try {
+
+                const res = await fetch("/api/vector/sync", {
+                    method: "POST"
+                });
+
+                const data = await res.json();
+
+                alert(data.message || data.error || "Vector sync completed.");
+
+                status.innerText = "RAG SYNCED";
+
+            } catch (e) {
+
+                alert("Vector database synchronization failed.");
+                status.innerText = "SYNC ERROR";
+
+                console.error("Vector sync error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // MEMORY
+        // ============================================================
+
+        async function triggerMemoryFlush() {
+
+            try {
+
+                const res = await fetch("/api/memory/compact", {
+                    method: "POST"
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+
+                    alert(
+                        "HASTA LA VISTA, BLOAT! " +
+                        data.message
+                    );
+
+                } else {
+
+                    alert("Error: " + (data.error || "Unknown error."));
+                }
+
+            } catch (e) {
+
+                alert("Memory compaction failed.");
+                console.error("Memory error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // CRON
+        // ============================================================
+
+        async function checkCronJobs() {
+
+            try {
+
+                const res = await fetch("/api/cron/jobs");
+                const data = await res.json();
+
+                let jobList = data.jobs
+                    .map(j =>
+                        "• " + j.id +
+                        "\n  Trigger: " + j.trigger +
+                        "\n  Next Run: " + j.next_run
+                    )
+                    .join("\n\n");
+
+                alert(
+                    "⏰ ACTIVE CRON JOBS:\n\n" +
+                    (jobList || "No active scheduled jobs")
+                );
+
+            } catch (e) {
+
+                alert("Failed to retrieve cron logs.");
+                console.error("Cron error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // SWARM STAGING
+        // ============================================================
+
+        function showStagingCard(taskId, filename) {
+
+            activeStagedTaskId = taskId;
+
+            document.getElementById("stagedTaskId").innerText =
+                "ID: " + taskId;
+
+            document.getElementById("stagedFilename").value =
+                filename;
+
+            document.getElementById("swarmApprovalCard")
+                .style.display = "block";
+        }
+
+
+        async function approveStagedSwarm() {
+
+            if (!activeStagedTaskId) {
+                return;
+            }
+
+            const filename =
+                document.getElementById("stagedFilename").value;
+
+            try {
+
+                const res = await fetch("/api/swarm/approve", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        task_id: activeStagedTaskId,
+                        target_filename: filename
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+
+                    alert(data.message);
+
+                    document.getElementById("swarmApprovalCard")
+                        .style.display = "none";
+
+                    activeStagedTaskId = null;
+
+                    fetchVaultFiles();
+
+                } else {
+
+                    alert(
+                        "Disk write error: " +
+                        (data.error || "Unknown error.")
+                    );
+                }
+
+            } catch (e) {
+
+                alert("Swarm approval request failed.");
+                console.error("Swarm approval error:", e);
+            }
+        }
+
+
+        async function rejectStagedSwarm() {
+
+            if (!activeStagedTaskId) {
+                return;
+            }
+
+            try {
+
+                await fetch(
+                    "/api/swarm/reject/" +
+                    activeStagedTaskId,
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                document.getElementById("swarmApprovalCard")
+                    .style.display = "none";
+
+                activeStagedTaskId = null;
+
+                alert("Artifact discarded!");
+
+            } catch (e) {
+
+                alert("Failed to discard artifact.");
+                console.error("Swarm rejection error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // SECURITY
+        // ============================================================
+
+        function escapeHtml(text) {
+
+            return String(text ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+    </script>
+
+</body>
+</html>

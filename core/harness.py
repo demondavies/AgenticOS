@@ -82,6 +82,7 @@ from .tools import (
 from capabilities.memory import (
     MemoryStore,
 )
+from capabilities.voice import VoiceService
 
 
 # ============================================================================
@@ -142,6 +143,7 @@ class AgentHarness:
         event_bus: Optional[EventBus] = None,
         tool_registry: Optional[ToolRegistry] = None,
         memory_store: Optional[MemoryStore] = None,
+        voice_service: Optional[VoiceService] = None,
     ) -> None:
         self.agents = (
             agent_registry
@@ -173,6 +175,15 @@ class AgentHarness:
             memory_store
             if memory_store is not None
             else MemoryStore()
+        )
+
+        # Voice is an AgenticOS capability. The Harness exposes the
+        # orchestration seam; microphone/STT implementation stays in
+        # capabilities.voice.
+        self.voice = (
+            voice_service
+            if voice_service is not None
+            else VoiceService()
         )
 
     # ---------------------------------------------------------------------
@@ -348,6 +359,18 @@ class AgentHarness:
         maintain their own hard-coded lists of deterministic tools.
         """
         return self.tools.execution_mode(tool_name)
+
+    # ---------------------------------------------------------------------
+    # Voice
+    # ---------------------------------------------------------------------
+
+    def record_voice(self) -> bytes:
+        """Record local microphone audio through the Voice capability."""
+        return self.voice.record()
+
+    def transcribe_voice(self, audio_bytes: bytes) -> str:
+        """Transcribe captured audio through the Voice capability."""
+        return self.voice.transcribe(audio_bytes)
 
     # ---------------------------------------------------------------------
     # Memory
@@ -844,6 +867,9 @@ def run_tool_tests() -> None:
     harness = AgentHarness()
 
     assert isinstance(harness.memory, MemoryStore)
+    assert isinstance(harness.voice, VoiceService)
+    assert callable(harness.record_voice)
+    assert callable(harness.transcribe_voice)
     assert callable(harness.get_memory)
     assert callable(harness.save_memory)
     assert callable(harness.compact_memory)

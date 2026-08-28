@@ -145,3 +145,6 @@ artifacts/
 # ------------------------------------------------------------
 
 data/chroma_db/
+# Tool scaffolding
+.ijfw/
+AGENTS.md

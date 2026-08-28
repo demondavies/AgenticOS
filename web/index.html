@@ -301,6 +301,138 @@
             border: 1px solid rgba(5, 217, 232, 0.3);
         }
 
+        .tasks-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-cyan);
+            backdrop-filter: blur(12px);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: none;
+            flex-shrink: 0;
+            max-height: 40vh;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tasks-panel.open {
+            display: flex;
+        }
+
+        .tasks-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tasks-panel-title {
+            color: var(--accent-cyan);
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tasks-panel-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .tasks-filter-select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .tasks-filter-select:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .task-list {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .task-item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .task-item-title {
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .task-item-meta {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .task-status-pill {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .task-status-queued,
+        .task-status-created {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .task-status-running,
+        .task-status-assigned {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .task-status-completed {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .task-status-failed,
+        .task-status-cancelled,
+        .task-status-rejected {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .task-list-empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 10px 0;
+        }
+
         .voice-hint {
             color: var(--text-muted);
             font-size: 10px;
@@ -341,6 +473,7 @@
 
         <div class="hud-buttons">
             <button class="btn" id="syncVectorBtn">🧠 SYNC RAG</button>
+            <button class="btn" id="tasksBtn">📋 TASKS</button>
             <button class="btn" id="cronJobsBtn">⏰ CRON LOGS</button>
             <button class="btn btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
         </div>
@@ -363,6 +496,32 @@
                     style="border-color:#ff3333;color:#ff3333;">
                 DISCARD
             </button>
+        </div>
+    </div>
+
+    <!-- TASKS PANEL -->
+    <div id="tasksPanel" class="tasks-panel">
+        <div class="tasks-panel-header">
+            <span class="tasks-panel-title">📋 Task Queue</span>
+
+            <div class="tasks-panel-controls">
+                <select id="tasksStatusFilter" class="tasks-filter-select">
+                    <option value="">All statuses</option>
+                    <option value="queued">Queued</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+
+                <button class="btn" id="tasksRefreshBtn">🔄 Refresh</button>
+                <button class="btn" id="tasksCloseBtn">✕ Close</button>
+            </div>
+        </div>
+
+        <div id="taskList" class="task-list">
+            Loading tasks...
         </div>
     </div>
 
@@ -477,6 +636,18 @@
 
             document.getElementById("cronJobsBtn")
                 .addEventListener("click", checkCronJobs);
+
+            document.getElementById("tasksBtn")
+                .addEventListener("click", toggleTasksPanel);
+
+            document.getElementById("tasksCloseBtn")
+                .addEventListener("click", closeTasksPanel);
+
+            document.getElementById("tasksRefreshBtn")
+                .addEventListener("click", () => fetchAndRenderTasks());
+
+            document.getElementById("tasksStatusFilter")
+                .addEventListener("change", () => fetchAndRenderTasks());
 
             document.getElementById("flushMemoryBtn")
                 .addEventListener("click", triggerMemoryFlush);
@@ -1134,6 +1305,102 @@
 
                 alert("Failed to retrieve cron logs.");
                 console.error("Cron error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // TASKS
+        // ============================================================
+
+        let tasksPollHandle = null;
+
+        function toggleTasksPanel() {
+
+            const panel = document.getElementById("tasksPanel");
+
+            if (panel.classList.contains("open")) {
+                closeTasksPanel();
+                return;
+            }
+
+            panel.classList.add("open");
+            fetchAndRenderTasks();
+
+            tasksPollHandle = setInterval(fetchAndRenderTasks, 5000);
+        }
+
+        function closeTasksPanel() {
+
+            document.getElementById("tasksPanel")
+                .classList.remove("open");
+
+            if (tasksPollHandle) {
+                clearInterval(tasksPollHandle);
+                tasksPollHandle = null;
+            }
+        }
+
+        async function fetchAndRenderTasks() {
+
+            const listEl = document.getElementById("taskList");
+            const status = document.getElementById("tasksStatusFilter").value;
+
+            try {
+
+                const url = status
+                    ? "/api/tasks?status=" + encodeURIComponent(status)
+                    : "/api/tasks";
+
+                const res = await fetch(url);
+
+                if (!res.ok) {
+                    throw new Error("Tasks endpoint returned HTTP " + res.status);
+                }
+
+                const data = await res.json();
+                const tasks = data.tasks || [];
+
+                if (tasks.length === 0) {
+                    listEl.innerHTML =
+                        '<div class="task-list-empty">No tasks recorded yet.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = "";
+
+                tasks.forEach(t => {
+
+                    const item = document.createElement("div");
+                    item.className = "task-item";
+
+                    const statusClass =
+                        "task-status-" + (t.status || "unknown").toLowerCase();
+
+                    item.innerHTML =
+                        '<div class="task-item-main">' +
+                            '<span class="task-item-title">' +
+                                escapeHtml(t.title || t.id) +
+                            "</span>" +
+                            '<span class="task-item-meta">' +
+                                "Agent: " + escapeHtml(t.assigned_agent || "unassigned") +
+                                " &middot; " +
+                                escapeHtml(t.created_at || "") +
+                            "</span>" +
+                        "</div>" +
+                        '<span class="task-status-pill ' + statusClass + '">' +
+                            escapeHtml((t.status || "unknown").toUpperCase()) +
+                        "</span>";
+
+                    listEl.appendChild(item);
+                });
+
+            } catch (e) {
+
+                listEl.innerHTML =
+                    '<div class="task-list-empty">Failed to load tasks.</div>';
+
+                console.error("Tasks error:", e);
             }
         }
 

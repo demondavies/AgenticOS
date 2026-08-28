@@ -1,22 +1,9 @@
 import discord
 import json
-import re
-import os
 import sys
 import asyncio
 import uvicorn
-import uuid
-import psutil
-import random
-import time
-import io
-import wave
 
-from datetime import datetime
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from pydantic import BaseModel
-import threading
 
 # 🔒 SECURE SYSTEM CONFIGURATION
 ALLOWED_USERS = [319548579163144192]  # Optional: Paste numeric Discord User ID here when using Discord
@@ -75,17 +62,7 @@ from capabilities.voice import VoiceService
 from capabilities.voice.http import VoiceHTTPAdapter
 from core.swarm import STAGED_ARTIFACTS
 
-from capabilities.vault import (
-    get_daily_vault_summary,
-    get_vault_location,
-    list_vault_notes,
-    read_obsidian_note,
-    read_vault_file,
-    search_master_brain_vault,
-    save_vault_file,
-    sync_master_brain_vector_db,
-    write_obsidian_note,
-)
+from capabilities.vault import sync_master_brain_vector_db
 
 # Canonical AgenticOS tool registry.
 # Tool execution is owned by the Harness/Policy/ToolRegistry boundary.
@@ -142,36 +119,6 @@ print(
 from capabilities.memory import configure_memory_summarizer
 configure_memory_summarizer(TOOL_HARNESS.chat)
 TOOL_HARNESS.memory.init_db()
-
-
-# 🧠 CHROMADB VECTOR SEARCH RAG ENGINE
-# NOTE: nomic-embed-text is an embedding workload, not LLM chat.
-# It remains on the direct Ollama embedding path during this migration.
-
-
-
-
-
-
-
-# ============================================================
-# 📚 DAILY MASTER BRAIN VAULT SUMMARY
-# ============================================================
-
-
-
-
-# 🛠️ AGENT TOOL SUITE
-def launch_swarm_task(mission: str) -> str:
-    """Discord/interface compatibility adapter for Harness-owned Swarm."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(TOOL_HARNESS.execute_swarm(mission))
-
-    raise RuntimeError(
-        "launch_swarm_task cannot run synchronously inside an active event loop."
-    )
 
 
 
@@ -292,202 +239,16 @@ async def on_message(message):
             await message.reply(f"Tool execution failed: {exc}")
 
 
-# 🌐 FASTAPI WEB INFRASTRUCTURE
-app = FastAPI()
+# 🌐 FASTAPI HTTP INTERFACE
+from api import create_app
 
-
-class ChatPayload(BaseModel):
-    message: str
-
-
-class VoiceSpeakPayload(BaseModel):
-    text: str
-
-
-class GetNotePayload(BaseModel):
-    filename: str
-
-
-class SaveNotePayload(BaseModel):
-    filename: str
-    content: str
-
-
-class ApprovalPayload(BaseModel):
-    task_id: str
-    target_filename: str | None = None
-
-
-@app.get("/api/vault/files")
-async def get_vault_files():
-    return JSONResponse(
-        content={
-            "path": get_vault_location(),
-            "files": list_vault_notes(),
-        }
-    )
-
-
-
-@app.post("/api/chat")
-async def api_chat(payload: ChatPayload):
-    reply = await AGENT_RUNTIME.execute(
-        WEB_CHANNEL_ID,
-        "local_owner_web",
-        payload.message,
-        is_owner=True,
-        source="ui",
-    )
-    
-    latest_staged = None
-    if STAGED_ARTIFACTS:
-        t_id, data = list(STAGED_ARTIFACTS.items())[-1]
-        latest_staged = {
-            "task_id": t_id,
-            "filename": data["default_filename"],
-            "mission": data["mission"]
-        }
-        
-    return JSONResponse(content={"reply": reply, "staged_artifact": latest_staged})
-
-
-@app.post("/api/voice/transcribe")
-async def api_voice_transcribe():
-    return await VOICE_API.transcribe()
-
-
-@app.post("/api/voice/stream")
-async def api_voice_stream(payload: ChatPayload):
-    return VOICE_API.stream_response(payload.message, is_owner=True)
-
-
-@app.post("/api/voice/listen")
-async def api_voice_listen():
-    return await VOICE_API.listen()
-
-
-@app.post("/api/voice/speak")
-async def api_voice_speak(payload: VoiceSpeakPayload):
-    return await VOICE_API.speak(payload.text)
-
-
-@app.get("/api/cron/jobs")
-async def get_cron_jobs():
-    jobs = []
-    for job in scheduler.get_jobs():
-        jobs.append({
-            "id": job.id,
-            "next_run": str(job.next_run_time),
-            "trigger": str(job.trigger)
-        })
-    return JSONResponse(content={"jobs": jobs})
-
-
-@app.post("/api/memory/compact")
-async def api_compact_memory():
-    try:
-        msg = await TOOL_HARNESS.compact_memory(WEB_CHANNEL_ID, keep_recent=5)
-        return JSONResponse(content={"status": "success", "message": msg})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/vector/sync")
-async def api_sync_vector_db():
-    msg = sync_master_brain_vector_db()
-    return JSONResponse(content={"status": "success", "message": msg})
-
-
-@app.get("/api/swarm/staged")
-async def get_staged_artifacts():
-    return JSONResponse(content={"artifacts": STAGED_ARTIFACTS})
-
-
-@app.post("/api/swarm/approve")
-async def approve_staged_artifact(payload: ApprovalPayload):
-    artifact = STAGED_ARTIFACTS.get(payload.task_id)
-    if not artifact:
-        return JSONResponse(status_code=404, content={"error": "Staged artifact not found or expired."})
-
-    target_name = payload.target_filename or artifact["default_filename"]
-    safe_name = re.sub(r'[\\/*?:"<>|]', "", target_name).strip()
-    if not safe_name.endswith(".md") and not safe_name.endswith(".py"):
-        safe_name += ".md"
-
-    try:
-        save_result = save_vault_file(safe_name, artifact["content"])
-        if save_result.startswith("Failed to save file:"):
-            return JSONResponse(status_code=500, content={"error": save_result})
-
-        del STAGED_ARTIFACTS[payload.task_id]
-        print(f"💾 [Swarm Approval] Written to Master_Brain: {safe_name}")
-        return JSONResponse(content={
-            "status": "success",
-            "message": f"APPROVED! Saved swarm output to {safe_name}",
-            "filename": safe_name
-        })
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Failed disk commit: {str(e)}"})
-
-
-@app.delete("/api/swarm/reject/{task_id}")
-async def reject_staged_artifact(task_id: str):
-    if task_id in STAGED_ARTIFACTS:
-        del STAGED_ARTIFACTS[task_id]
-        return JSONResponse(content={"status": "success", "message": "Artifact discarded from staging memory!"})
-    return JSONResponse(status_code=404, content={"error": "Artifact ID missing."})
-
-
-@app.post("/api/get_note")
-async def api_get_note(payload: GetNotePayload):
-    try:
-        result = read_vault_file(payload.filename)
-        if result.startswith("Error: Note file ") and result.endswith(" missing."):
-            return JSONResponse(status_code=404, content={"error": "File missing"})
-        if result.startswith("Error: Note filename is empty"):
-            return JSONResponse(status_code=400, content={"error": result})
-        if result.startswith("Failed to read file:"):
-            return JSONResponse(status_code=500, content={"error": result})
-
-        return JSONResponse(content={"content": result})
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.post("/api/save_note")
-async def api_save_note(payload: SaveNotePayload):
-    try:
-        result = save_vault_file(payload.filename, payload.content)
-        if result.startswith("Failed to save file:"):
-            return JSONResponse(status_code=500, content={"error": result})
-
-        return JSONResponse(
-            content={
-                "status": "success",
-                "message": result,
-            }
-        )
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.get("/", response_class=FileResponse)
-async def dashboard():
-    index_path = os.path.join(
-        os.path.dirname(__file__),
-        "web",
-        "index.html",
-    )
-
-    if not os.path.exists(index_path):
-        return JSONResponse(
-            status_code=404,
-            content={"error": "web/index.html file missing."},
-        )
-
-    return FileResponse(index_path)
+app = create_app(
+    agent_runtime=AGENT_RUNTIME,
+    harness=TOOL_HARNESS,
+    voice_api=VOICE_API,
+    scheduler=scheduler,
+    web_channel_id=WEB_CHANNEL_ID,
+)
 
 
 # 🔄 CONCURRENT RUNNER ENGINE (Standalone Capable)

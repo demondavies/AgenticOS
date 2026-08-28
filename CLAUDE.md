@@ -43,7 +43,7 @@ Capability  (capabilities/)
 | 5 | Memory interface (SQLite/ChromaDB/Brain behind service boundary) | ✅ Done |
 | 6 | Voice extraction | ✅ Done |
 | 7 | Interface thinning (bot.py / api.py further cleanup) | ✅ Done |
-| 8 | Persistent Task queue (survive restart, queue depth) | 🔜 Next |
+| 8 | Persistent Task queue (survive restart, queue depth) | ✅ Done |
 
 ---
 
@@ -135,6 +135,8 @@ All five must be green. Architecture contract test is the canonical boundary enf
 ## Git baseline
 
 ```
+d210513 arch: recover interrupted Tasks on Harness startup (Phase 8)
+7c920c4 docs: mark Phase 7 done, advance Phase 8 to next, update git baseline
 57d8336 arch: move Swarm staging/approval logic out of api.py (Phase 7)
 f309b9e  arch: voice boundary — VoiceService.speak + Harness facades + fix http adapter
 e53137f  docs: mark Phase 5 done, advance Phase 6 to next, update git baseline

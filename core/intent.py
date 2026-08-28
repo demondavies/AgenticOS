@@ -275,6 +275,45 @@ class IntentRouter:
                 },
             )
 
+        # ------------------------------------------------------------
+        # IMAGE GENERATION
+        # ------------------------------------------------------------
+        img_match = re.search(
+            r"\b(?:generate|create|make|draw|produce)\s+(?:an?\s+)?image\s+(?:of\s+)?(.+)",
+            lower,
+        )
+        if img_match:
+            prompt_text = clean[img_match.start(1):]
+            return Intent(
+                tool_name="generate_image",
+                arguments={"prompt": prompt_text.strip()},
+            )
+
+        # ------------------------------------------------------------
+        # LIST TASKS
+        # ------------------------------------------------------------
+        if re.search(
+            r"\b(?:list|show|what(?:'s| are)|display)\s+(?:(?:my|all|current|active|running)\s+)?tasks?\b"
+            r"|\btask\s+queue\b"
+            r"|\bwhat(?:'s| is)\s+(?:arnie\s+)?(?:working\s+on|running)\b",
+            lower,
+        ):
+            return Intent(tool_name="list_tasks")
+
+        # ------------------------------------------------------------
+        # AGENCY RESEARCH
+        # ------------------------------------------------------------
+        agency_match = re.search(
+            r"\b(?:agency\s+research\s+(?:on|about)|research\s+(?:on|about|the\s+company|the\s+topic)\s+)(.+)",
+            lower,
+        )
+        if agency_match:
+            topic_text = clean[agency_match.start(1):]
+            return Intent(
+                tool_name="run_agency_research",
+                arguments={"topic": topic_text.strip()},
+            )
+
         return Intent()
 
 

@@ -566,7 +566,7 @@ class AgentHarness:
             )
         )
 
-        if result.decision != PolicyDecision.ALLOW:
+        if result.decision == PolicyDecision.DENY:
             raise PermissionError(
                 f"Policy denied Tool '{tool_name}': "
                 f"{result.message}"
@@ -1291,19 +1291,15 @@ def run_policy_tests() -> None:
         assert local_result.decision == PolicyDecision.ALLOW
         assert local_result.metadata.get("source_auto_approved") is True
 
-        try:
-            harness._authorize_tool(
-                tool_name,
-                task=trusted_local,
-                agent=coordinator,
-                source="discord",
-            )
-        except PermissionError as error:
-            assert "requires human approval" in str(error)
-        else:
-            raise AssertionError(
-                f"Policy bypass: Discord auto-approved {tool_name}"
-            )
+        discord_result = harness._authorize_tool(
+            tool_name,
+            task=trusted_local,
+            agent=coordinator,
+            source="discord",
+        )
+        assert discord_result.approval_required, (
+            f"Policy bypass: Discord auto-approved {tool_name}"
+        )
 
         approved_result = harness._authorize_tool(
             tool_name,

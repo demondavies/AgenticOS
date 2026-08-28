@@ -97,6 +97,7 @@ print(
 from capabilities.memory import configure_memory_summarizer
 configure_memory_summarizer(TOOL_HARNESS.chat)
 TOOL_HARNESS.memory.init_db()
+TOOL_HARNESS.task_store.init_db()
 
 
 

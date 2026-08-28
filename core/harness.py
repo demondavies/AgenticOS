@@ -92,6 +92,7 @@ from .policy import (
 from capabilities.memory import (
     MemoryStore,
 )
+from capabilities.tasks import TaskStore
 from capabilities.voice import VoiceService
 from capabilities.web.research import deep_research_web
 from .swarm import SwarmManager
@@ -156,6 +157,7 @@ class AgentHarness:
         tool_registry: Optional[ToolRegistry] = None,
         memory_store: Optional[MemoryStore] = None,
         voice_service: Optional[VoiceService] = None,
+        task_store: Optional[TaskStore] = None,
     ) -> None:
         self.agents = (
             agent_registry
@@ -192,6 +194,15 @@ class AgentHarness:
             memory_store
             if memory_store is not None
             else MemoryStore()
+        )
+
+        # Tasks are an AgenticOS capability. The Harness receives it as a
+        # dependency and drives Task lifecycle transitions around managed
+        # Tool execution; it does not own SQLite implementation details.
+        self.task_store = (
+            task_store
+            if task_store is not None
+            else TaskStore()
         )
 
         # Voice is an AgenticOS capability. The Harness exposes the
@@ -585,7 +596,22 @@ class AgentHarness:
             source=source,
             user_approved=user_approved,
         )
-        return self.tools.execute(tool_name, arguments)
+
+        task.queue()
+        task.assign(agent.id)
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            output = self.tools.execute(tool_name, arguments)
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.complete(TaskResult(success=True, output=str(output)))
+        self.task_store.save_task(task)
+        return output
 
     async def execute_tool_async(
         self,
@@ -611,7 +637,22 @@ class AgentHarness:
             source=source,
             user_approved=user_approved,
         )
-        return await self.tools.execute_async(tool_name, arguments)
+
+        task.queue()
+        task.assign(agent.id)
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            output = await self.tools.execute_async(tool_name, arguments)
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.complete(TaskResult(success=True, output=str(output)))
+        self.task_store.save_task(task)
+        return output
 
     def execute_tool_for_task(
         self,
@@ -683,6 +724,10 @@ class AgentHarness:
     def initialize_memory(self) -> None:
         """Initialize the configured AgenticOS memory store."""
         self.memory.init_db()
+
+    def initialize_tasks(self) -> None:
+        """Initialize the configured AgenticOS Task store."""
+        self.task_store.init_db()
 
     def get_memory(
         self,

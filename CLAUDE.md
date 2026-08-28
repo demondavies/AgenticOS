@@ -57,7 +57,7 @@ Capability  (capabilities/)
 | 18 | Agent routing + Ollama load balancing — VRAM-aware model selection | ✅ Done |
 | 19 | Client workspace — CRM tools for tracking agency clients | ✅ Done |
 | 20 | Parallel agency execution — run_parallel_agency fans out concurrent research | ✅ Done |
-| 21 | Dashboard 2.0 (particle neural net centre, micro-apps panel, YouTube Studio widget, agent status feed) | ⏳ Queued |
+| 21 | Dashboard 2.0 (particle neural net centre, micro-apps panel, YouTube Studio widget, agent status feed) | ✅ Done |
 | 22 | Bot token moved out of bot.py into .env / secrets manager | ✅ Done |
 | 23 | Per-turn memory injection (currently first-turn only) | ⏳ Queued |
 
@@ -213,3 +213,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `bot.py`: DISCORD_BOT_TOKEN now read via `os.environ.get("DISCORD_BOT_TOKEN", "")` with `python-dotenv` loading `.env` at import time; empty/missing token still falls through to LOCAL-ONLY MODE
 - `.env.example` added documenting the expected key; `.env` already covered by `.gitignore`
 - Trigger: a real token had been pasted directly into bot.py in a prior uncommitted local edit — confirmed via full `git log --all -p` scan that it was never pushed to GitHub, then stripped before any commit
+### Phase 21 — Dashboard 2.0 (`c7ffc54`)
+- `web/index.html`: full rewrite to Rubric-style dark mothership — orange/amber design system, 3-column layout, header, floating swarm approval modal unchanged
+- Added animated particle canvas (`#particleCanvas`, pure JS, no libraries) — 80 nodes colour-coded by workspace, edges within 120px, idle breathing effect, pulses on live SSE events
+- Added Agent Status panel (hermes3:8b/phi3:mini rows + system RAM bar — no live VRAM/routing endpoint exists yet, so RAM is the load proxy), YouTube Studio panel (placeholder tiles — no `/api/youtube` endpoint), Client CRM panel (reads `/api/tasks?workspace=client` — no dedicated `/api/clients` endpoint)
+- Every existing JS function preserved verbatim by element ID: chat, voice pipeline, SSE stream, vault preview/quick capture, swarm approval, cron/RAG/memory buttons — zero behavior regressions
+- No external CDN dependencies; Google Fonts import removed in favour of a local monospace stack
+- Verified live: launched via `python bot.py`, Playwright screenshot confirmed correct render with no console errors beyond the expected `/api/youtube` 404; `/api/chat` smoke-tested end-to-end through the real Harness/Ollama pipeline; fixed two panel-height overflow bugs found in the first screenshot pass (Quick Capture save button, Agent Status RAM bar)

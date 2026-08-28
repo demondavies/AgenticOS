@@ -79,7 +79,7 @@ TOOL_HARNESS.voice.configure_agent(
     channel_id=WEB_CHANNEL_ID,
     base_system_prompt=BASE_SYSTEM_PROMPT,
     owner_extensions=OWNER_EXTENSIONS,
-    model="hermes3:8b",
+    model=DEFAULT_MODEL,
 )
 
 

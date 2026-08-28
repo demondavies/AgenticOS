@@ -549,6 +549,10 @@ def create_coordinator_agent() -> Agent:
     agent.allow_tool("run_terminal_command")
     agent.allow_tool("launch_swarm")
 
+    # Agency workspace: the Coordinator launches Agency research missions
+    # the same way it launches Swarm missions.
+    agent.allow_tool("run_agency_research")
+
     return agent
 
 

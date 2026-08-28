@@ -230,6 +230,14 @@ class AgentHarness:
             self.execute_swarm,
         )
 
+        # run_agency_research is a canonical Tool. Bind the Harness-owned
+        # Agency research capability so normal Policy authorization remains
+        # in force before the handler can execute.
+        self.tools.bind_handler(
+            "run_agency_research",
+            self.execute_agency_research,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -381,6 +389,55 @@ class AgentHarness:
             f"Task ID: {result['task_id']}\n"
             "Artifact staged in memory. "
             f"Default filename: {result['default_filename']}"
+        )
+
+    async def execute_agency_research(
+        self,
+        topic: str = "",
+    ) -> str:
+        """Run an Agency research mission through the Tool boundary.
+
+        An Agency research mission is tracked as a first-class Task
+        (workspace="agency"), the same pattern used for Swarm missions,
+        so it survives restart and appears in the dashboard Task panel
+        alongside other workspaces. It reuses the existing deep web
+        research capability that already powers Swarm, rather than
+        introducing a second research implementation.
+        """
+        task = Task(
+            title=f"Agency research: {topic[:60]}",
+            description=topic,
+            workspace="agency",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("researcher")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            report = await deep_research_web(topic)
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=report,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return (
+            "AGENCY RESEARCH COMPLETE\n"
+            f"Task ID: {task.id}\n\n"
+            f"{report}"
         )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:

@@ -45,6 +45,9 @@ Wave 2:
     run_terminal_command
     launch_swarm
 
+Agency workspace (Phase 12):
+    run_agency_research
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -618,6 +621,21 @@ async def _launch_swarm(
 
 
 # ============================================================================
+# AGENCY WORKSPACE HANDLERS
+# ============================================================================
+
+
+async def _run_agency_research(
+    topic: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Agency research handler."""
+    raise RuntimeError(
+        "The run_agency_research Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -933,6 +951,38 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # AGENCY WORKSPACE
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="run_agency_research",
+            description=(
+                "Run an autonomous Agency research mission on a topic, "
+                "company, or lead, and track it as a workspace='agency' "
+                "Task."
+            ),
+            handler=_run_agency_research,
+            risk=ToolRisk.CONTROLLED,
+            local_access=False,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 12,
+                "workspace": "agency",
+                "capability_handler": (
+                    "capabilities.web.research.deep_research_web"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -963,6 +1013,7 @@ def run_tests() -> None:
         "write_obsidian_note",
         "run_terminal_command",
         "launch_swarm",
+        "run_agency_research",
     }
 
     actual = set(
@@ -1032,6 +1083,29 @@ def run_tests() -> None:
         assert registry.execution_mode(name) == "direct"
 
     # ========================================================================
+    # CONTROLLED TOOLS
+    # ========================================================================
+
+    controlled_tools = {
+        "run_agency_research",
+    }
+
+    for name in controlled_tools:
+        tool = registry.require(name)
+
+        assert tool.enabled
+
+        assert tool.risk == ToolRisk.CONTROLLED
+
+        assert tool.mutates_state
+
+        assert not tool.requires_approval
+
+        assert tool.permission_policy.allow_owner
+
+        assert registry.execution_mode(name) == "direct"
+
+    # ========================================================================
     # DETERMINISTIC TOOLS
     # ========================================================================
 
@@ -1046,6 +1120,7 @@ def run_tests() -> None:
         "write_obsidian_note",
         "run_terminal_command",
         "launch_swarm",
+        "run_agency_research",
     }
 
     for name in deterministic_tools:

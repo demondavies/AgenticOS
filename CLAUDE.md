@@ -47,6 +47,8 @@ Capability  (capabilities/)
 | 9 | Swarm missions tracked as first-class Tasks (workspace="swarm") | ✅ Done |
 | 10 | Live Event Stream dashboard (SSE from EventBus) | ✅ Done |
 | 11 | OpenAICompatibleProvider (LM Studio / vLLM support) | ✅ Done |
+| 12 | Agency workspace — run_agency_research Tool (workspace="agency") | ✅ Done |
+| 12 | Agency workspace — run_agency_research Tool (workspace="agency" Tasks) | ✅ Done |
 
 ---
 

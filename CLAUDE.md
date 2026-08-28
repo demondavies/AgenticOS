@@ -186,4 +186,14 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/agents.py`: added get_system_prompt_for_workspace() using existing find_by_name() — AgentRegistry._agents is keyed by ID not name
 - `core/agent_runtime.py`: Coordinator agent system prompt prepended before BASE_SYSTEM_PROMPT; model swap applied to plain-conversation LLM call only (not tool-synthesis calls)
 - Verified live: VRAM tracking correctly demotes routing when hermes3:8b loaded (1.4GB free < 2.0GB threshold)
+### Phase 19 — Client Workspace + CRM (`62f31d4`)
+- `core/tasks.py`: added client to workspace literals
+- `core/policy.py`: added WorkspacePolicy for client workspace
+- `capabilities/clients/service.py`: JSON-backed Client store (add/list/update)
+- `core/tools.py`: add_client, list_clients, update_client_status tools
+- `core/harness.py`: execute_* methods with full Task lifecycle for mutating tools, lightweight read for list_clients
+- `core/config.py`: OWNER_EXTENSIONS guidance for all three tools
+- `core/intent.py`: deterministic routes for list clients + add client
+- `clients.json` added to .gitignore (runtime data)
+- Verified: Discord requires approval for update_client_status, UI auto-approves; Task lifecycle queryable via list_tasks(workspace=client)
 

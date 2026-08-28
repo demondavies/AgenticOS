@@ -49,6 +49,7 @@ Capability  (capabilities/)
 | 11 | OpenAICompatibleProvider (LM Studio / vLLM support) | ✅ Done |
 | 12 | Agency workspace — run_agency_research Tool (workspace="agency") | ✅ Done |
 | 12 | Agency workspace — run_agency_research Tool (workspace="agency" Tasks) | ✅ Done |
+| 13 | Media workspace — generate_image Tool (workspace="media" Tasks) | ✅ Done |
 
 ---
 
@@ -82,7 +83,8 @@ Capability  (capabilities/)
 `get_daily_vault_summary`, `get_system_metrics`, `list_tasks`, `get_task`
 
 **Wave 2 — privileged, state-mutating:**
-`launch_app`, `write_obsidian_note`, `run_terminal_command`, `launch_swarm`
+`launch_app`, `write_obsidian_note`, `run_terminal_command`, `launch_swarm`,
+`run_agency_research`, `generate_image`
 
 Wave-2 tools auto-approve from `ui` source; require human approval from `discord`.
 

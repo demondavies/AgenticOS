@@ -336,10 +336,45 @@ class AgentHarness:
         self,
         mission: str = "Default feature task",
     ) -> str:
-        """Execute the canonical SwarmManager through the Tool boundary."""
-        result = await self.swarm_orchestrator.execute_crew_pipeline(
-            mission
+        """Execute the canonical SwarmManager through the Tool boundary.
+
+        A Swarm mission is tracked as a first-class Task (workspace="swarm")
+        so it survives restart and appears in the dashboard Task panel.
+        SwarmManager itself is untouched; the Harness owns the Task
+        lifecycle around the single unchanged pipeline call.
+        """
+        task = Task(
+            title=f"Swarm mission: {mission[:60]}",
+            description=mission,
+            workspace="swarm",
         )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("swarm_manager")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            result = await self.swarm_orchestrator.execute_crew_pipeline(
+                mission
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=result["is_approved"],
+                output=result["default_filename"],
+                data={"staged_artifact_id": result["task_id"]},
+            )
+        )
+        self.task_store.save_task(task)
 
         return (
             "SWARM PIPELINE COMPLETE!\n"

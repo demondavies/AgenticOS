@@ -25,45 +25,99 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            overflow-x: hidden;
+        }
+
         body {
             background-color: var(--bg-color);
             background-image: radial-gradient(circle at 50% 0%, rgba(5, 217, 232, 0.05), transparent 70%);
             color: var(--text-main);
             font-family: 'Fira Code', monospace;
             margin: 0;
-            padding: 20px;
+            padding: 16px;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
             overflow: hidden;
         }
+
+        /* ============================================================
+           HEADER
+        ============================================================ */
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
             background: var(--panel-bg);
             border: 1px solid var(--border-color);
             backdrop-filter: blur(12px);
-            padding: 12px 20px;
+            padding: 10px 18px;
             border-radius: 10px;
             flex-shrink: 0;
         }
 
         .logo {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             color: var(--accent-pink);
             text-shadow: 0 0 12px rgba(255, 42, 109, 0.4);
             display: flex;
             align-items: center;
             gap: 10px;
+            white-space: nowrap;
+        }
+
+        .hud-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .hud-metrics {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .hud-metric {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .hud-metric b {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            display: inline-block;
+        }
+
+        .status-dot.offline {
+            background: var(--danger);
+            box-shadow: 0 0 8px var(--danger);
         }
 
         .hud-buttons {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
             justify-content: flex-end;
         }
@@ -79,6 +133,11 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 11px;
         }
 
         .btn:hover:not(:disabled) {
@@ -103,7 +162,7 @@
         }
 
         #voiceMicBtn {
-            min-width: 118px;
+            min-width: 110px;
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
         }
@@ -133,28 +192,42 @@
         }
 
         @keyframes pulseListening {
-            50% {
-                box-shadow: 0 0 26px rgba(255, 42, 109, 0.5);
-            }
+            50% { box-shadow: 0 0 26px rgba(255, 42, 109, 0.5); }
         }
 
         @keyframes pulseThinking {
-            50% {
-                box-shadow: 0 0 26px rgba(255, 170, 0, 0.5);
-            }
+            50% { box-shadow: 0 0 26px rgba(255, 170, 0, 0.5); }
         }
 
         @keyframes pulseSpeaking {
-            50% {
-                box-shadow: 0 0 26px rgba(57, 255, 136, 0.5);
-            }
+            50% { box-shadow: 0 0 26px rgba(57, 255, 136, 0.5); }
         }
 
-        .matrix-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+        /* ============================================================
+           MAIN 3-COLUMN LAYOUT
+        ============================================================ */
+
+        .main-layout {
+            display: flex;
             flex: 1;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .col-side {
+            width: 260px;
+            flex: 0 0 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .col-center {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
             min-height: 0;
         }
 
@@ -163,15 +236,15 @@
             border: 1px solid var(--border-color);
             backdrop-filter: blur(12px);
             border-radius: 10px;
-            padding: 16px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             min-height: 0;
         }
 
         .panel-header {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             color: var(--accent-cyan);
             text-transform: uppercase;
@@ -181,43 +254,206 @@
             align-items: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
+            flex-shrink: 0;
+            gap: 8px;
         }
 
-        .editor-area {
+        .panel-header > span:first-child {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .panel-header .status-pill {
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .panel-subheader {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+        }
+
+        /* -------- LEFT COLUMN: tasks + events -------- */
+
+        #tasksPanelEl, #eventsPanelEl {
             flex: 1;
+            min-height: 0;
+        }
+
+        .workspace-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .ws-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .ws-badge-swarm { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .ws-badge-agency { border-color: var(--accent-amber); color: var(--accent-amber); }
+        .ws-badge-media { border-color: var(--accent-pink); color: var(--accent-pink); }
+        .ws-badge-development { border-color: var(--accent-green); color: var(--accent-green); }
+
+        .tasks-filter-select {
             background: rgba(0, 0, 0, 0.4);
             border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 4px 8px;
             border-radius: 6px;
-            color: #fff;
-            font-family: 'Fira Code', monospace;
-            font-size: 13px;
-            padding: 12px;
-            resize: none;
+            font-family: inherit;
+            font-size: 11px;
             outline: none;
+            max-width: 110px;
         }
 
-        .file-list {
+        .tasks-filter-select:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .task-list, .event-list {
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 6px;
-            overflow-y: auto;
-            max-height: 140px;
+            flex: 1;
+            min-height: 0;
         }
 
-        .file-item {
+        .task-item {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border-color);
-            padding: 8px 12px;
             border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: 0.2s;
+            padding: 7px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
         }
 
-        .file-item:hover {
-            border-color: var(--accent-cyan);
-            background: rgba(5, 217, 232, 0.05);
+        .task-item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
         }
+
+        .task-item-title {
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .task-item-meta {
+            color: var(--text-muted);
+            font-size: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .task-status-pill, .event-severity-pill {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .task-status-queued,
+        .task-status-created {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .task-status-running,
+        .task-status-assigned {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .task-status-completed {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .task-status-failed,
+        .task-status-cancelled,
+        .task-status-rejected {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .task-list-empty, .event-list-empty {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        .event-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .event-item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+
+        .event-item-title {
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-item-meta {
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+
+        .event-severity-info {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .event-severity-warning {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .event-severity-error,
+        .event-severity-critical {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* -------- CENTER COLUMN: chat -------- */
 
         .chat-history {
             flex: 1;
@@ -229,6 +465,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-height: 0;
         }
 
         .msg {
@@ -266,6 +503,7 @@
         .chat-input-wrapper {
             display: flex;
             gap: 10px;
+            flex-shrink: 0;
         }
 
         .chat-input {
@@ -283,15 +521,6 @@
             border-color: var(--accent-cyan);
         }
 
-        .staging-card {
-            background: rgba(255, 170, 0, 0.08);
-            border: 1px solid var(--accent-amber);
-            border-radius: 8px;
-            padding: 12px 16px;
-            display: none;
-            flex-shrink: 0;
-        }
-
         .status-pill {
             font-size: 11px;
             padding: 3px 8px;
@@ -299,211 +528,7 @@
             background: rgba(5, 217, 232, 0.1);
             color: var(--accent-cyan);
             border: 1px solid rgba(5, 217, 232, 0.3);
-        }
-
-        .tasks-panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--accent-cyan);
-            backdrop-filter: blur(12px);
-            border-radius: 10px;
-            padding: 12px 16px;
-            display: none;
-            flex-shrink: 0;
-            max-height: 40vh;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .tasks-panel.open {
-            display: flex;
-        }
-
-        .tasks-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .tasks-panel-title {
-            color: var(--accent-cyan);
-            font-weight: 700;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .tasks-panel-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .tasks-filter-select {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 12px;
-            outline: none;
-        }
-
-        .tasks-filter-select:focus {
-            border-color: var(--accent-cyan);
-        }
-
-        .task-list {
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .task-item {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            font-size: 12px;
-        }
-
-        .task-item-main {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-        }
-
-        .task-item-title {
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap;
-        }
-
-        .task-item-meta {
-            color: var(--text-muted);
-            font-size: 11px;
-        }
-
-        .task-status-pill {
-            font-size: 10px;
-            padding: 3px 8px;
-            border-radius: 12px;
-            white-space: nowrap;
-            border: 1px solid var(--text-muted);
-            color: var(--text-muted);
-        }
-
-        .task-status-queued,
-        .task-status-created {
-            border-color: var(--accent-amber);
-            color: var(--accent-amber);
-        }
-
-        .task-status-running,
-        .task-status-assigned {
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
-        }
-
-        .task-status-completed {
-            border-color: var(--accent-green);
-            color: var(--accent-green);
-        }
-
-        .task-status-failed,
-        .task-status-cancelled,
-        .task-status-rejected {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
-
-        .task-list-empty {
-            color: var(--text-muted);
-            font-size: 12px;
-            text-align: center;
-            padding: 10px 0;
-        }
-
-        .event-list {
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .event-item {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 6px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            font-size: 12px;
-        }
-
-        .event-item-main {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-        }
-
-        .event-item-title {
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .event-item-meta {
-            color: var(--text-muted);
-            font-size: 11px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .event-severity-pill {
-            font-size: 10px;
-            padding: 3px 8px;
-            border-radius: 12px;
-            white-space: nowrap;
-            border: 1px solid var(--text-muted);
-            color: var(--text-muted);
-        }
-
-        .event-severity-info {
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
-        }
-
-        .event-severity-warning {
-            border-color: var(--accent-amber);
-            color: var(--accent-amber);
-        }
-
-        .event-severity-error,
-        .event-severity-critical {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
-
-        .event-list-empty {
-            color: var(--text-muted);
-            font-size: 12px;
-            text-align: center;
-            padding: 10px 0;
         }
 
         .voice-hint {
@@ -511,28 +536,127 @@
             font-size: 10px;
             text-align: right;
             margin-top: -5px;
+            flex-shrink: 0;
         }
 
-        @media (max-width: 900px) {
+        /* -------- RIGHT COLUMN: vault + quick capture -------- */
+
+        #vaultPanelEl {
+            flex: 1.3;
+            min-height: 0;
+        }
+
+        #capturePanelEl {
+            flex: 0 0 auto;
+        }
+
+        .vault-preview {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 11px;
+            color: var(--text-main);
+            max-height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            flex-shrink: 0;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .file-item:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(5, 217, 232, 0.05);
+        }
+
+        .capture-area {
+            flex: 1;
+            min-height: 90px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            padding: 10px;
+            resize: none;
+            outline: none;
+        }
+
+        .capture-area:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        /* -------- SWARM APPROVAL: floating overlay modal -------- */
+
+        .staging-card {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            width: 480px;
+            max-width: 92vw;
+            background: rgba(18, 18, 24, 0.97);
+            border: 1px solid var(--accent-amber);
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: none;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 170, 0, 0.15);
+        }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+
+        @media (max-width: 1100px) {
             body {
                 overflow: auto;
                 height: auto;
                 min-height: 100vh;
             }
 
-            .matrix-container {
-                grid-template-columns: 1fr;
-                min-height: 900px;
+            .main-layout {
+                flex-direction: column;
+                min-height: 1400px;
+            }
+
+            .col-side {
+                width: 100%;
+                flex: 0 0 auto;
+            }
+
+            #tasksPanelEl, #eventsPanelEl {
+                flex: 0 0 260px;
             }
 
             header {
                 align-items: flex-start;
-                gap: 12px;
                 flex-direction: column;
             }
 
-            .hud-buttons {
-                justify-content: flex-start;
+            .hud-right {
+                width: 100%;
+                justify-content: space-between;
             }
         }
     </style>
@@ -544,16 +668,27 @@
     <header>
         <div class="logo">⚡ ARNIE // AGENTIC OS</div>
 
-        <div class="hud-buttons">
-            <button class="btn" id="syncVectorBtn">🧠 SYNC RAG</button>
-            <button class="btn" id="tasksBtn">📋 TASKS</button>
-            <button class="btn" id="eventsBtn">📡 EVENTS</button>
-            <button class="btn" id="cronJobsBtn">⏰ CRON LOGS</button>
-            <button class="btn btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
+        <div class="hud-right">
+            <div class="hud-metrics">
+                <span class="hud-metric">CPU <b id="hudCpu">--%</b></span>
+                <span class="hud-metric">RAM <b id="hudRam">--% · --/-- GB</b></span>
+                <span class="hud-metric">MODEL <b>hermes3:8b</b></span>
+                <span class="hud-metric" id="sysStatus" style="display:none;"></span>
+                <span class="hud-metric hud-status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <b id="statusLabel">ONLINE</b>
+                </span>
+            </div>
+
+            <div class="hud-buttons">
+                <button class="btn btn-sm" id="syncVectorBtn">🧠 SYNC RAG</button>
+                <button class="btn btn-sm" id="cronJobsBtn">⏰ CRON LOGS</button>
+                <button class="btn btn-sm btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
+            </div>
         </div>
     </header>
 
-    <!-- STAGING CARD ALERT -->
+    <!-- SWARM STAGING MODAL -->
     <div id="swarmApprovalCard" class="staging-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="color:var(--accent-amber);font-weight:700;">⚠️ SWARM STAGING BUFFER</span>
@@ -573,128 +708,132 @@
         </div>
     </div>
 
-    <!-- TASKS PANEL -->
-    <div id="tasksPanel" class="tasks-panel">
-        <div class="tasks-panel-header">
-            <span class="tasks-panel-title">📋 Task Queue</span>
+    <!-- MAIN 3-COLUMN LAYOUT -->
+    <div class="main-layout">
 
-            <div class="tasks-panel-controls">
-                <select id="tasksStatusFilter" class="tasks-filter-select">
-                    <option value="">All statuses</option>
-                    <option value="queued">Queued</option>
-                    <option value="assigned">Assigned</option>
-                    <option value="running">Running</option>
-                    <option value="completed">Completed</option>
-                    <option value="failed">Failed</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
+        <!-- LEFT COLUMN -->
+        <div class="col-side">
 
-                <button class="btn" id="tasksRefreshBtn">🔄 Refresh</button>
-                <button class="btn" id="tasksCloseBtn">✕ Close</button>
-            </div>
-        </div>
+            <div class="panel" id="tasksPanelEl">
+                <div class="panel-header">
+                    <span>📋 Active Tasks</span>
+                    <select id="tasksStatusFilter" class="tasks-filter-select">
+                        <option value="">All</option>
+                        <option value="queued">Queued</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="running">Running</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
 
-        <div id="taskList" class="task-list">
-            Loading tasks...
-        </div>
-    </div>
+                <div class="workspace-badges" id="workspaceBadges"></div>
 
-    <!-- EVENTS PANEL -->
-    <div id="eventsPanel" class="tasks-panel">
-        <div class="tasks-panel-header">
-            <span class="tasks-panel-title">📡 Live Event Stream</span>
-
-            <div class="tasks-panel-controls">
-                <button class="btn" id="eventsClearBtn">🧹 Clear</button>
-                <button class="btn" id="eventsCloseBtn">✕ Close</button>
-            </div>
-        </div>
-
-        <div id="eventList" class="event-list">
-            <div class="event-list-empty">Waiting for events...</div>
-        </div>
-    </div>
-
-    <!-- MAIN MATRIX GRID -->
-    <div class="matrix-container">
-
-        <!-- LEFT PANEL -->
-        <div class="panel">
-
-            <div class="panel-header">
-                <span id="editorTitle">📝 VAULT EDITOR</span>
-                <span id="sysStatus" class="status-pill">READY</span>
-            </div>
-
-            <textarea
-                id="editorTextArea"
-                class="editor-area"
-                placeholder="Select a note file from the vault repository below to edit..."
-                disabled
-            ></textarea>
-
-            <button
-                id="saveBtn"
-                class="btn"
-                style="display:none;background:var(--accent-cyan);color:#000;font-weight:700;align-self:flex-end;"
-            >
-                💾 SAVE NOTE
-            </button>
-
-            <div class="panel-header" style="margin-top:10px;">
-                <span>📂 VAULT REPOSITORY</span>
-            </div>
-
-            <div id="vaultFileList" class="file-list">
-                Loading vault notes...
-            </div>
-
-        </div>
-
-        <!-- RIGHT PANEL -->
-        <div class="panel">
-
-            <div class="panel-header">
-                <span>💬 TACTICAL CHAT TERMINAL</span>
-                <span class="status-pill" id="chatStatus">ONLINE</span>
-            </div>
-
-            <div id="chatBox" class="chat-history">
-                <div class="msg arnie-msg">
-                    <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                <div id="taskList" class="task-list">
+                    Loading tasks...
                 </div>
             </div>
 
-            <div class="chat-input-wrapper">
-                <input
-                    id="chatInput"
-                    class="chat-input"
-                    type="text"
-                    placeholder="Command Arnie, run swarms, query vector store..."
-                    autocomplete="off"
-                >
+            <div class="panel" id="eventsPanelEl">
+                <div class="panel-header">
+                    <span>📡 Live Events</span>
+                </div>
 
-                <button id="voiceMicBtn" class="btn" type="button">
-                    🎙️ MIC
-                </button>
-
-                <button id="sendChatBtn" class="btn"
-                        type="button"
-                        style="background:var(--accent-pink);border:none;font-weight:700;">
-                    SEND
-                </button>
-            </div>
-
-            <div class="voice-hint">
-                🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS
+                <div id="eventList" class="event-list">
+                    <div class="event-list-empty">Waiting for events...</div>
+                </div>
             </div>
 
         </div>
+
+        <!-- CENTER COLUMN -->
+        <div class="col-center">
+            <div class="panel" style="flex:1;">
+
+                <div class="panel-header">
+                    <span>💬 TACTICAL CHAT TERMINAL</span>
+                    <span class="status-pill" id="chatStatus">ONLINE</span>
+                </div>
+
+                <div id="chatBox" class="chat-history">
+                    <div class="msg arnie-msg">
+                        <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                    </div>
+                </div>
+
+                <div class="chat-input-wrapper">
+                    <input
+                        id="chatInput"
+                        class="chat-input"
+                        type="text"
+                        placeholder="Command Arnie, run swarms, query vector store..."
+                        autocomplete="off"
+                    >
+
+                    <button id="voiceMicBtn" class="btn" type="button">
+                        🎙️ MIC
+                    </button>
+
+                    <button id="sendChatBtn" class="btn"
+                            type="button"
+                            style="background:var(--accent-pink);border:none;font-weight:700;">
+                        SEND
+                    </button>
+                </div>
+
+                <div class="voice-hint">
+                    🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col-side">
+
+            <div class="panel" id="vaultPanelEl">
+                <div class="panel-header">
+                    <span>🗓️ Vault Today</span>
+                    <span id="vaultPreviewTitle" class="status-pill">—</span>
+                </div>
+
+                <div id="vaultPreview" class="vault-preview">Loading...</div>
+
+                <div class="panel-subheader">Recent Files</div>
+
+                <div id="vaultFileList" class="file-list">
+                    Loading vault notes...
+                </div>
+            </div>
+
+            <div class="panel" id="capturePanelEl">
+                <div class="panel-header">
+                    <span>✍️ Quick Capture</span>
+                    <span id="quickCaptureStatus" class="status-pill" style="visibility:hidden;">Saved ✓</span>
+                </div>
+
+                <textarea
+                    id="quickCaptureText"
+                    class="capture-area"
+                    placeholder="Jot a quick note..."
+                ></textarea>
+
+                <button
+                    id="quickCaptureSaveBtn"
+                    class="btn"
+                    style="background:var(--accent-cyan);color:#000;font-weight:700;align-self:flex-end;"
+                >
+                    💾 SAVE NOTE
+                </button>
+            </div>
+
+        </div>
+
     </div>
 
 
     <script>
-        let currentLoadedFile = "";
         let activeStagedTaskId = null;
         let voiceBusy = false;
 
@@ -704,8 +843,6 @@
         // ============================================================
 
         document.addEventListener("DOMContentLoaded", () => {
-
-            fetchVaultFiles();
 
             document.getElementById("sendChatBtn")
                 .addEventListener("click", sendMessage);
@@ -718,8 +855,8 @@
                     }
                 });
 
-            document.getElementById("saveBtn")
-                .addEventListener("click", saveNote);
+            document.getElementById("quickCaptureSaveBtn")
+                .addEventListener("click", quickCaptureSave);
 
             document.getElementById("syncVectorBtn")
                 .addEventListener("click", syncVectorDb);
@@ -727,26 +864,8 @@
             document.getElementById("cronJobsBtn")
                 .addEventListener("click", checkCronJobs);
 
-            document.getElementById("tasksBtn")
-                .addEventListener("click", toggleTasksPanel);
-
-            document.getElementById("tasksCloseBtn")
-                .addEventListener("click", closeTasksPanel);
-
-            document.getElementById("tasksRefreshBtn")
-                .addEventListener("click", () => fetchAndRenderTasks());
-
             document.getElementById("tasksStatusFilter")
                 .addEventListener("change", () => fetchAndRenderTasks());
-
-            document.getElementById("eventsBtn")
-                .addEventListener("click", toggleEventsPanel);
-
-            document.getElementById("eventsCloseBtn")
-                .addEventListener("click", closeEventsPanel);
-
-            document.getElementById("eventsClearBtn")
-                .addEventListener("click", clearEventsList);
 
             document.getElementById("flushMemoryBtn")
                 .addEventListener("click", triggerMemoryFlush);
@@ -757,13 +876,70 @@
             document.getElementById("rejectSwarmBtn")
                 .addEventListener("click", rejectStagedSwarm);
 
-            // 🎙️ THIS WAS MISSING FROM THE ORIGINAL UI
             document.getElementById("voiceMicBtn")
                 .addEventListener("click", handleVoiceInput);
+
+            // ---- Always-on background systems ----
+            fetchSystemMetrics();
+            setInterval(fetchSystemMetrics, 10000);
+
+            fetchAndRenderTasks();
+            setInterval(fetchAndRenderTasks, 5000);
+
+            connectEventStream();
+
+            fetchVaultFiles();
 
             console.log("⚡ ARNIE UI INITIALIZED");
             console.log("🎙️ Voice control connected — THE OAK TTS enabled");
         });
+
+
+        // ============================================================
+        // 🖥️ SYSTEM METRICS
+        // ============================================================
+
+        async function fetchSystemMetrics() {
+
+            try {
+
+                const res = await fetch("/api/system/metrics");
+
+                if (!res.ok) {
+                    throw new Error("Metrics endpoint returned HTTP " + res.status);
+                }
+
+                const data = await res.json();
+
+                document.getElementById("hudCpu").innerText =
+                    Math.round(data.cpu_percent) + "%";
+
+                document.getElementById("hudRam").innerText =
+                    Math.round(data.ram_percent) + "% · " +
+                    data.ram_used_gb + "/" + data.ram_total_gb + " GB";
+
+                setSystemOnline(true);
+
+            } catch (e) {
+
+                console.error("Metrics error:", e);
+                setSystemOnline(false);
+            }
+        }
+
+        function setSystemOnline(online) {
+
+            const dot = document.getElementById("statusDot");
+            const label = document.getElementById("statusLabel");
+
+            if (online) {
+                dot.classList.remove("offline");
+                label.innerText = "ONLINE";
+            } else {
+                dot.classList.add("offline");
+                label.innerText = "OFFLINE";
+            }
+        }
 
 
         // ============================================================
@@ -1062,7 +1238,7 @@
 
 
         // ============================================================
-        // VAULT
+        // VAULT — file list + "Vault Today" preview
         // ============================================================
 
         async function fetchVaultFiles() {
@@ -1080,25 +1256,29 @@
 
                 container.innerHTML = "";
 
-                if (!data.files || data.files.length === 0) {
+                const files = data.files || [];
+
+                if (files.length === 0) {
 
                     container.innerText =
                         "No markdown files found in vault.";
 
-                    return;
+                } else {
+
+                    files.forEach(f => {
+
+                        const div = document.createElement("div");
+
+                        div.className = "file-item";
+                        div.innerText = "📄 " + f;
+
+                        div.addEventListener("click", () => loadNote(f, false));
+
+                        container.appendChild(div);
+                    });
                 }
 
-                data.files.forEach(f => {
-
-                    const div = document.createElement("div");
-
-                    div.className = "file-item";
-                    div.innerText = "📄 " + f;
-
-                    div.addEventListener("click", () => loadNote(f));
-
-                    container.appendChild(div);
-                });
+                await loadTodayNote(files);
 
             } catch (e) {
 
@@ -1110,15 +1290,33 @@
         }
 
 
-        async function loadNote(filename) {
+        async function loadTodayNote(files) {
 
-            const textarea = document.getElementById("editorTextArea");
-            const title = document.getElementById("editorTitle");
-            const saveBtn = document.getElementById("saveBtn");
-            const status = document.getElementById("sysStatus");
+            const now = new Date();
+            const pad = n => String(n).padStart(2, "0");
+            const todayStr =
+                now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
 
-            status.innerText = "STREAMING...";
-            textarea.value = "Reading vault file content...";
+            const match = (files || []).find(f => f.startsWith(todayStr));
+
+            if (!match) {
+                document.getElementById("vaultPreview").innerText =
+                    "No daily note yet.";
+                document.getElementById("vaultPreviewTitle").innerText = "—";
+                return;
+            }
+
+            await loadNote(match, true);
+        }
+
+
+        async function loadNote(filename, isDaily) {
+
+            const preview = document.getElementById("vaultPreview");
+            const title = document.getElementById("vaultPreviewTitle");
+
+            title.innerText = filename;
+            preview.innerText = "Reading vault file content...";
 
             try {
 
@@ -1136,12 +1334,11 @@
 
                 if (data.content !== undefined) {
 
-                    currentLoadedFile = filename;
-                    title.innerText = "📝 " + filename;
-                    textarea.value = data.content;
-                    textarea.disabled = false;
-                    saveBtn.style.display = "block";
-                    status.innerText = "SYNCED";
+                    if (isDaily && data.content.length > 400) {
+                        preview.innerText = data.content.slice(0, 400) + "…";
+                    } else {
+                        preview.innerText = data.content;
+                    }
 
                 } else {
 
@@ -1150,25 +1347,36 @@
 
             } catch (e) {
 
-                textarea.value = "Error loading file content.";
-                status.innerText = "ERROR";
+                preview.innerText = "Error loading file content.";
 
                 console.error("Load note error:", e);
             }
         }
 
 
-        async function saveNote() {
+        // ============================================================
+        // QUICK CAPTURE
+        // ============================================================
 
-            if (!currentLoadedFile) {
+        async function quickCaptureSave() {
+
+            const textarea = document.getElementById("quickCaptureText");
+            const status = document.getElementById("quickCaptureStatus");
+            const saveBtn = document.getElementById("quickCaptureSaveBtn");
+
+            const content = textarea.value.trim();
+
+            if (!content) {
                 return;
             }
 
-            const textarea = document.getElementById("editorTextArea");
-            const status = document.getElementById("sysStatus");
-            const saveBtn = document.getElementById("saveBtn");
+            const now = new Date();
+            const pad = n => String(n).padStart(2, "0");
+            const filename =
+                "capture_" +
+                now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) +
+                "_" + pad(now.getHours()) + "-" + pad(now.getMinutes()) + ".md";
 
-            status.innerText = "COMMITTING...";
             saveBtn.disabled = true;
 
             try {
@@ -1179,8 +1387,8 @@
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        filename: currentLoadedFile,
-                        content: textarea.value
+                        filename: filename,
+                        content: content
                     })
                 });
 
@@ -1188,11 +1396,16 @@
 
                 if (data.status === "success") {
 
-                    status.innerText = "SAVED";
+                    textarea.value = "";
+
+                    status.innerText = "Saved ✓";
+                    status.style.visibility = "visible";
 
                     setTimeout(() => {
-                        status.innerText = "SYNCED";
+                        status.style.visibility = "hidden";
                     }, 2000);
+
+                    fetchVaultFiles();
 
                 } else {
 
@@ -1201,9 +1414,10 @@
 
             } catch (e) {
 
-                status.innerText = "ERROR";
+                status.innerText = "Error";
+                status.style.visibility = "visible";
 
-                console.error("Save error:", e);
+                console.error("Quick capture error:", e);
 
             } finally {
 
@@ -1317,7 +1531,7 @@
         async function syncVectorDb() {
 
             const status = document.getElementById("sysStatus");
-
+            status.style.display = "inline-flex";
             status.innerText = "INDEXING...";
 
             try {
@@ -1409,56 +1623,32 @@
 
 
         // ============================================================
-        // TASKS
+        // TASKS — always-on polling + workspace badges
         // ============================================================
 
-        let tasksPollHandle = null;
-
-        function toggleTasksPanel() {
-
-            const panel = document.getElementById("tasksPanel");
-
-            if (panel.classList.contains("open")) {
-                closeTasksPanel();
-                return;
-            }
-
-            panel.classList.add("open");
-            fetchAndRenderTasks();
-
-            tasksPollHandle = setInterval(fetchAndRenderTasks, 5000);
-        }
-
-        function closeTasksPanel() {
-
-            document.getElementById("tasksPanel")
-                .classList.remove("open");
-
-            if (tasksPollHandle) {
-                clearInterval(tasksPollHandle);
-                tasksPollHandle = null;
-            }
-        }
+        const WORKSPACES = ["swarm", "agency", "media", "development"];
 
         async function fetchAndRenderTasks() {
 
             const listEl = document.getElementById("taskList");
-            const status = document.getElementById("tasksStatusFilter").value;
+            const statusFilter = document.getElementById("tasksStatusFilter").value;
 
             try {
 
-                const url = status
-                    ? "/api/tasks?status=" + encodeURIComponent(status)
-                    : "/api/tasks";
-
-                const res = await fetch(url);
+                const res = await fetch("/api/tasks");
 
                 if (!res.ok) {
                     throw new Error("Tasks endpoint returned HTTP " + res.status);
                 }
 
                 const data = await res.json();
-                const tasks = data.tasks || [];
+                const allTasks = data.tasks || [];
+
+                renderWorkspaceBadges(allTasks);
+
+                const tasks = statusFilter
+                    ? allTasks.filter(t => (t.status || "") === statusFilter)
+                    : allTasks;
 
                 if (tasks.length === 0) {
                     listEl.innerHTML =
@@ -1482,9 +1672,9 @@
                                 escapeHtml(t.title || t.id) +
                             "</span>" +
                             '<span class="task-item-meta">' +
-                                "Agent: " + escapeHtml(t.assigned_agent || "unassigned") +
+                                escapeHtml(t.workspace || "—") +
                                 " &middot; " +
-                                escapeHtml(t.created_at || "") +
+                                escapeHtml(t.assigned_agent || "unassigned") +
                             "</span>" +
                         "</div>" +
                         '<span class="task-status-pill ' + statusClass + '">' +
@@ -1503,43 +1693,33 @@
             }
         }
 
+        function renderWorkspaceBadges(tasks) {
+
+            const container = document.getElementById("workspaceBadges");
+            container.innerHTML = "";
+
+            WORKSPACES.forEach(ws => {
+
+                const count = tasks.filter(
+                    t => (t.workspace || "") === ws && (t.status || "") === "running"
+                ).length;
+
+                const badge = document.createElement("span");
+                badge.className = "ws-badge ws-badge-" + ws;
+                badge.innerText = ws + ": " + count;
+
+                container.appendChild(badge);
+            });
+        }
+
 
         // ============================================================
-        // EVENTS
+        // EVENTS — always-on SSE stream
         // ============================================================
 
-        const MAX_EVENT_ITEMS = 100;
+        const MAX_EVENT_ITEMS = 50;
 
         let eventSource = null;
-
-        function toggleEventsPanel() {
-
-            const panel = document.getElementById("eventsPanel");
-
-            if (panel.classList.contains("open")) {
-                closeEventsPanel();
-                return;
-            }
-
-            panel.classList.add("open");
-            connectEventStream();
-        }
-
-        function closeEventsPanel() {
-
-            document.getElementById("eventsPanel")
-                .classList.remove("open");
-
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-            }
-        }
-
-        function clearEventsList() {
-            document.getElementById("eventList").innerHTML =
-                '<div class="event-list-empty">Waiting for events...</div>';
-        }
 
         function connectEventStream() {
 
@@ -1583,10 +1763,6 @@
             const severityClass =
                 "event-severity-" + (event.severity || "info").toLowerCase();
 
-            const detail = event.task_id
-                ? "task=" + event.task_id
-                : (event.agent_id ? "agent=" + event.agent_id : event.source);
-
             item.innerHTML =
                 '<div class="event-item-main">' +
                     '<span class="event-item-title">' +
@@ -1594,8 +1770,6 @@
                     "</span>" +
                     '<span class="event-item-meta">' +
                         escapeHtml(event.created_at || "") +
-                        " &middot; " +
-                        escapeHtml(detail || "") +
                     "</span>" +
                 "</div>" +
                 '<span class="event-severity-pill ' + severityClass + '">' +
@@ -1612,7 +1786,7 @@
 
 
         // ============================================================
-        // SWARM STAGING
+        // SWARM STAGING (floating overlay modal)
         // ============================================================
 
         function showStagingCard(taskId, filename) {

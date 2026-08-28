@@ -105,6 +105,22 @@ def create_app(
     async def api_voice_speak(payload: VoiceSpeakPayload):
         return await voice_api.speak(payload.text)
 
+    @app.get("/api/system/metrics")
+    async def get_system_metrics():
+        import psutil, os
+        cpu = psutil.cpu_percent(interval=0.3)
+        ram = psutil.virtual_memory()
+        drive = "G:\\" if os.path.exists("G:\\") else "C:\\"
+        disk = psutil.disk_usage(drive)
+        return {
+            "cpu_percent": cpu,
+            "ram_percent": ram.percent,
+            "ram_used_gb": round(ram.used / (1024**3), 1),
+            "ram_total_gb": round(ram.total / (1024**3), 1),
+            "disk_percent": disk.percent,
+            "disk_free_gb": round(disk.free / (1024**3), 1),
+        }
+
     @app.get("/api/tasks")
     async def get_tasks(status: str | None = None, workspace: str | None = None):
         tasks = harness.list_tasks(status=status, workspace=workspace)

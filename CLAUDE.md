@@ -1,4 +1,4 @@
-# ARNIE — AgenticOS · Claude Code Project Context
+﻿# ARNIE — AgenticOS · Claude Code Project Context
 
 ## What this is
 
@@ -175,3 +175,9 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - Do not store critical workflow state only in process memory.
 - Do not commit until `git diff --cached --stat` has been reviewed.
 - Do not skip the validation suite before committing.
+### Phase 17 — Memory Injection (`c381a8d`)
+- `core/config.py`: added MEMORY_INJECTION_ENABLED, TOP_K=5, MIN_SCORE=0.65
+- `capabilities/vault/service.py`: added retrieve_relevant() using Ollama embeddings to match existing index space
+- `core/agent_runtime.py`: injects [MEMORY CONTEXT] block into system prompt on first turn of each conversation
+- Verified live end-to-end: real ChromaDB matches confirmed in LLM system prompt
+

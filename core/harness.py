@@ -7,15 +7,15 @@ This is the first working orchestration layer.
 The Harness coordinates:
 
     Task
-      Ã¢â€ â€œ
+      ↓
     Agent
-      Ã¢â€ â€œ
+      ↓
     Model Provider
-      Ã¢â€ â€œ
+      ↓
     Model
-      Ã¢â€ â€œ
+      ↓
     Result
-      Ã¢â€ â€œ
+      ↓
     Events
 
 IMPORTANT:
@@ -1286,7 +1286,7 @@ def run_tool_tests() -> None:
     # Do not execute real Wave-2 side effects during the core contract test.
     # the legacy runtime into the core test. We only verify routing ownership.
 
-    print("Ã¢Å“â€œ Harness tool-routing contract passed")
+    print("✓ Harness tool-routing contract passed")
 
 
 def run_policy_tests() -> None:
@@ -1454,13 +1454,13 @@ def run_tests() -> None:
 
     print("\nProviders:")
     for provider in harness.models.list_providers():
-        print(f"  Ã¢Å“â€œ {provider}")
+        print(f"  ✓ {provider}")
 
     print("\nAgents:")
 
     for agent in harness.agents.list_agents():
         print(
-            f"  Ã¢Å“â€œ {agent.name} "
+            f"  ✓ {agent.name} "
             f"({agent.model_capability()})"
         )
 
@@ -1537,7 +1537,7 @@ def run_tests() -> None:
 
     for event in captured_events:
         print(
-            f"  Ã¢Å“â€œ {event.name}"
+            f"  ✓ {event.name}"
         )
 
     required_events = {

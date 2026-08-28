@@ -123,9 +123,7 @@ class VoiceHTTPAdapter:
 
     async def speak(self, text: str):
         try:
-            from .oak import speak_text_kokoro
-
-            await asyncio.to_thread(speak_text_kokoro, text)
+            await asyncio.to_thread(self.voice_service.speak, text)
             return JSONResponse(content={"status": "success"})
         except Exception as exc:
             print(f"❌ [TTS Error]: {exc}")

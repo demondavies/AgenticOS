@@ -765,6 +765,14 @@ class AgentHarness:
         """Transcribe captured audio through the Voice capability."""
         return self.voice.transcribe(audio_bytes)
 
+    def speak_text(self, text: str) -> None:
+        """Speak text aloud through the Voice capability's TTS engine."""
+        self.voice.speak(text)
+
+    def configure_voice_agent(self, **kwargs) -> Any:
+        """Configure the Voice capability's conversational agent."""
+        return self.voice.configure_agent(**kwargs)
+
     # ---------------------------------------------------------------------
     # Memory
     # ---------------------------------------------------------------------

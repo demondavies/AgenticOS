@@ -69,7 +69,7 @@ AGENT_RUNTIME = AgentRuntime(
 # Configure the canonical AgenticOS VoiceService only after the canonical
 # tool executor exists. This keeps voice orchestration outside bot.py while
 # ensuring the service has all required AgenticOS dependencies at startup.
-TOOL_HARNESS.voice.configure_agent(
+TOOL_HARNESS.configure_voice_agent(
     harness=TOOL_HARNESS,
     intent_router=AGENT_RUNTIME.intent_router,
     tool_registry=TOOL_REGISTRY,

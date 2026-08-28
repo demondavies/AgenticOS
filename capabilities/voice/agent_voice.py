@@ -339,6 +339,9 @@ class VoiceService:
     def transcribe(self, audio_bytes: bytes) -> str:
         return self.engine.transcribe_audio_bytes(audio_bytes)
 
+    def speak(self, text: str) -> None:
+        speak_text_kokoro(text)
+
     def configure_agent(
         self,
         *,

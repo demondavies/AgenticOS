@@ -15,7 +15,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 
-from core.config import BASE_SYSTEM_PROMPT, DEFAULT_MODEL, OWNER_EXTENSIONS
+from core.config import BASE_SYSTEM_PROMPT, DEFAULT_MODEL, OWNER_EXTENSIONS, DISCORD_VOICE_ENABLED
 
 
 
@@ -199,6 +199,35 @@ async def on_message(message):
                 source="discord",
             )
             await message.reply(reply)
+
+            # Speak the reply in the user's voice channel when enabled.
+            # message.author is a plain User (no .voice attribute) unless
+            # resolved against the guild's member cache. Without the
+            # privileged Members intent that cache can miss, so fall back
+            # to an explicit API fetch rather than trusting message.author.
+            voice_member = None
+            if message.guild:
+                voice_member = message.guild.get_member(message.author.id)
+                if voice_member is None:
+                    try:
+                        voice_member = await message.guild.fetch_member(
+                            message.author.id
+                        )
+                    except discord.HTTPException:
+                        voice_member = None
+            if (
+                DISCORD_VOICE_ENABLED
+                and voice_member
+                and voice_member.voice
+                and voice_member.voice.channel
+            ):
+                from capabilities.voice.discord_voice import DiscordVoiceSpeaker
+                asyncio.create_task(
+                    DiscordVoiceSpeaker().speak(
+                        voice_member.voice.channel,
+                        reply,
+                    )
+                )
         except ToolApprovalRequired as approval:
             view = ToolApprovalView(
                 message.author.id,

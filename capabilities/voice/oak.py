@@ -388,30 +388,27 @@ def _get_kokoro():
     return _kokoro
 
 
-def speak_text_kokoro(text: str) -> None:
-    """Generate and play Oak speech without launching a new Kokoro process."""
-    clean_text = clean_text_for_speech(text)
+def generate_audio_samples(text: str):
+    """Generate Kokoro audio samples without playing them.
 
+    Returns (samples, sample_rate) — a numpy float32 array and int.
+    Returns (None, None) if the cleaned text is empty.
+    """
+    clean_text = clean_text_for_speech(text)
     if not clean_text:
-        print("🔊 [Oak] Nothing useful to speak.")
-        return
+        print("🔊 [Oak] Nothing useful to generate.")
+        return None, None
 
     kokoro = _get_kokoro()
 
-    import soundfile as sf
-    import winsound
-
-    print(f"🔊 [Oak Speech] Cleaned: {clean_text[:220]}")
+    print(f"🔊 [Oak Generate] Cleaned: {clean_text[:220]}")
     with _kokoro_lock:
-        # kokoro-onnx's Python API expects a voice embedding for blends.
-        # Build the canonical Oak embedding from George 70% + Onyx 30%.
         george = kokoro.get_voice_style(OAK_VOICE_BASE)
         onyx = kokoro.get_voice_style(OAK_VOICE_SECONDARY)
         oak_voice = np.add(
             george * OAK_VOICE_BASE_WEIGHT,
             onyx * OAK_VOICE_SECONDARY_WEIGHT,
         )
-
         samples, sample_rate = kokoro.create(
             clean_text,
             voice=oak_voice,
@@ -419,21 +416,33 @@ def speak_text_kokoro(text: str) -> None:
             lang=OAK_LANG,
         )
 
-        with tempfile.NamedTemporaryFile(
-            suffix=".wav",
-            prefix="arnie_oak_",
-            delete=False
-        ) as tmp:
-            temp_wav = tmp.name
+    return samples, sample_rate
 
+
+def speak_text_kokoro(text: str) -> None:
+    """Generate and play Oak speech without launching a new Kokoro process."""
+    import soundfile as sf
+    import winsound
+
+    samples, sample_rate = generate_audio_samples(text)
+    if samples is None:
+        return
+
+    with tempfile.NamedTemporaryFile(
+        suffix=".wav",
+        prefix="arnie_oak_",
+        delete=False
+    ) as tmp:
+        temp_wav = tmp.name
+
+    try:
+        sf.write(temp_wav, samples, sample_rate)
+        winsound.PlaySound(temp_wav, winsound.SND_FILENAME)
+    finally:
         try:
-            sf.write(temp_wav, samples, sample_rate)
-            winsound.PlaySound(temp_wav, winsound.SND_FILENAME)
-        finally:
-            try:
-                os.remove(temp_wav)
-            except OSError:
-                pass
+            os.remove(temp_wav)
+        except OSError:
+            pass
 
     print("🔊 [Oak] Finished speaking.")
 

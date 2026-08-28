@@ -49,3 +49,8 @@ IMAGE_GEN_ENABLED = False
 IMAGE_GEN_HOST = "http://127.0.0.1:7860"
 IMAGE_GEN_OUTPUT_DIR = "./media_output"
 IMAGE_GEN_DEFAULT_STEPS = 20
+
+# Discord voice: ARNIE speaks replies aloud in the user's voice channel.
+# Requires PyNaCl and FFmpeg on PATH.  Off by default.
+DISCORD_VOICE_ENABLED = False
+

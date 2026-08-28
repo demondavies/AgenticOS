@@ -50,6 +50,7 @@ Capability  (capabilities/)
 | 12 | Agency workspace — run_agency_research Tool (workspace="agency") | ✅ Done |
 | 12 | Agency workspace — run_agency_research Tool (workspace="agency" Tasks) | ✅ Done |
 | 13 | Media workspace — generate_image Tool (workspace="media" Tasks) | ✅ Done |
+| 14 | System prompt + intent router completeness (all 13 tools reachable from Discord) | ✅ Done |
 
 ---
 

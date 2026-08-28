@@ -729,6 +729,31 @@ class AgentHarness:
         """Initialize the configured AgenticOS Task store."""
         self.task_store.init_db()
 
+    # ---------------------------------------------------------------------
+    # Tasks
+    # ---------------------------------------------------------------------
+
+    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a persisted Task by id through the Task capability."""
+        return self.task_store.get_task(task_id)
+
+    def list_tasks(
+        self,
+        status: Optional[str] = None,
+        workspace: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """List persisted Tasks through the Task capability."""
+        return self.task_store.list_tasks(
+            status=status,
+            workspace=workspace,
+            limit=limit,
+        )
+
+    def prune_tasks(self, days: int = 30) -> int:
+        """Delete terminal Tasks older than `days` through the Task capability."""
+        return self.task_store.delete_terminal_tasks_older_than(days)
+
     def get_memory(
         self,
         channel_id: str,

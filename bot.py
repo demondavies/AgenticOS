@@ -106,6 +106,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from core.scheduler import (
     init_scheduler,
     scheduled_memory_compaction_job,
+    scheduled_task_cleanup_job,
     scheduled_vault_summary_job,
 )
 
@@ -259,6 +260,9 @@ async def main():
         memory_compaction_job=scheduled_memory_compaction_job(
             compact_memory=TOOL_HARNESS.compact_memory,
             channel_id=WEB_CHANNEL_ID,
+        ),
+        task_cleanup_job=scheduled_task_cleanup_job(
+            prune_tasks=TOOL_HARNESS.prune_tasks,
         ),
     )
 

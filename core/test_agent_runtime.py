@@ -5,14 +5,11 @@ from __future__ import annotations
 import asyncio
 
 from .agent_runtime import AgentRuntime, ToolApprovalRequired
-
-
-class _Risk:
-    PRIVILEGED = "privileged"
+from .tools import ToolRisk
 
 
 class _Tool:
-    risk = _Risk.PRIVILEGED
+    risk = ToolRisk.PRIVILEGED
 
 
 class _Registry:
@@ -38,21 +35,24 @@ class _Harness:
         return "launched"
 
 
-def test_runtime_executes_tools_through_harness_after_approval():
+def test_runtime_executes_tools_through_harness_after_approval() -> None:
     harness = _Harness()
     runtime = AgentRuntime(
         harness=harness,
         tool_registry=_Registry(),
         intent_router=None,
-        model_chat=None,
-        metrics_provider=None,
         base_system_prompt="",
         owner_extensions="",
-        privileged_risk=_Risk.PRIVILEGED,
     )
 
     try:
-        asyncio.run(runtime.execute_tool("launch_swarm", {"mission": "test"}, source="discord"))
+        asyncio.run(
+            runtime.execute_intent_tool(
+                "launch_swarm",
+                {"mission": "test"},
+                source="discord",
+            )
+        )
     except ToolApprovalRequired as error:
         assert error.tool_name == "launch_swarm"
         assert error.arguments == {"mission": "test"}
@@ -60,7 +60,7 @@ def test_runtime_executes_tools_through_harness_after_approval():
         raise AssertionError("An unapproved privileged tool must request approval")
 
     result = asyncio.run(
-        runtime.execute_tool(
+        runtime.execute_intent_tool(
             "launch_swarm",
             {"mission": "test"},
             source="discord",
@@ -76,3 +76,12 @@ def test_runtime_executes_tools_through_harness_after_approval():
     assert harness.executions == [
         ("launch_swarm", {"mission": "test"}, "system", "coordinator", "discord", True)
     ]
+
+
+def run_tests() -> None:
+    test_runtime_executes_tools_through_harness_after_approval()
+    print("agent runtime boundary tests passed")
+
+
+if __name__ == "__main__":
+    run_tests()

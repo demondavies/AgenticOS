@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from core.tasks import Task
@@ -17,6 +18,8 @@ from core.tasks import Task
 DEFAULT_DB_PATH = r"G:\AgenticOS\data\tasks.db"
 
 _JSON_COLUMNS = ("inputs", "result", "metadata")
+
+_TERMINAL_STATUSES = ("completed", "failed", "cancelled", "rejected")
 
 _COLUMNS = (
     "id",
@@ -159,6 +162,27 @@ class TaskStore:
             rows = cursor.fetchall()
 
         return [self._row_to_dict(row) for row in rows]
+
+    def delete_terminal_tasks_older_than(self, days: int = 30) -> int:
+        """Delete completed/failed/cancelled/rejected Tasks older than `days`."""
+        self._ensure_schema()
+
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(days=days)
+        ).isoformat()
+        placeholders = ", ".join("?" for _ in _TERMINAL_STATUSES)
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                f"""DELETE FROM tasks
+                    WHERE status IN ({placeholders})
+                    AND completed_at IS NOT NULL
+                    AND completed_at < ?""",
+                (*_TERMINAL_STATUSES, cutoff),
+            )
+            conn.commit()
+
+        return cursor.rowcount
 
     @staticmethod
     def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:

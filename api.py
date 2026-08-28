@@ -112,6 +112,21 @@ def create_app(
     async def api_voice_speak(payload: VoiceSpeakPayload):
         return await voice_api.speak(payload.text)
 
+    @app.get("/api/tasks")
+    async def get_tasks(status: str | None = None, workspace: str | None = None):
+        tasks = harness.list_tasks(status=status, workspace=workspace)
+        return JSONResponse(content={"tasks": tasks})
+
+    @app.get("/api/tasks/{task_id}")
+    async def get_task(task_id: str):
+        task = harness.get_task(task_id)
+        if task is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Task not found."},
+            )
+        return JSONResponse(content={"task": task})
+
     @app.get("/api/cron/jobs")
     async def get_cron_jobs():
         jobs = []

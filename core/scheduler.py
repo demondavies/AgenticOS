@@ -7,6 +7,7 @@ the Harness, Tools, and capabilities.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Awaitable, Callable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -53,11 +54,32 @@ def scheduled_memory_compaction_job(
     return job
 
 
+def scheduled_task_cleanup_job(
+    *,
+    prune_tasks,
+    days: int = 30,
+):
+    """Create the periodic Task-cleanup trigger.
+
+    `prune_tasks` is the Harness-owned, synchronous SQLite operation; it is
+    run off the event loop thread so the cron tick never blocks it.
+    """
+
+    async def job():
+        print("⏰ [Cron Engine] Running periodic Task cleanup job...")
+        deleted = await asyncio.to_thread(prune_tasks, days)
+        print(f"🧹 [Cron Engine] Task cleanup removed {deleted} terminal Task(s).")
+        return deleted
+
+    return job
+
+
 def init_scheduler(
     *,
     scheduler: AsyncIOScheduler,
     vault_summary_job,
     memory_compaction_job,
+    task_cleanup_job,
 ):
     """Register recurring jobs and start the scheduler."""
 
@@ -72,6 +94,12 @@ def init_scheduler(
         trigger="interval",
         minutes=30,
         id="periodic_memory_compaction",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        task_cleanup_job,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="periodic_task_cleanup",
         replace_existing=True,
     )
     scheduler.start()

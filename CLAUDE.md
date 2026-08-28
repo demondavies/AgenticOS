@@ -196,4 +196,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/intent.py`: deterministic routes for list clients + add client
 - `clients.json` added to .gitignore (runtime data)
 - Verified: Discord requires approval for update_client_status, UI auto-approves; Task lifecycle queryable via list_tasks(workspace=client)
+### Phase 20 — Parallel Agency Execution
+- `core/config.py`: PARALLEL_AGENCY_MAX_WORKERS=4, OWNER_EXTENSIONS updated
+- `core/harness.py`: execute_run_parallel_agency() — asyncio.gather() over execute_agency_research(), per-topic exception isolation, each sub-task gets own workspace=agency Task
+- `core/tools.py`: run_parallel_agency registered as CONTROLLED, stub + expected sets updated
+- `core/intent.py`: deterministic route for parallel/fan-out phrasing, placed before single-topic agency_match
+- Verified live: two sub-tasks interleaved (real concurrency confirmed), each Task queryable, results merged into one report
 

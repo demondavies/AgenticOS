@@ -5,10 +5,12 @@ This module owns HTTP transport and request/response translation only; actual
 work remains owned by AgenticOS Runtime, Harness, capabilities, and scheduler.
 """
 
+import asyncio
+import json
 import os
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from core.agent_runtime import AgentRuntime
@@ -117,6 +119,33 @@ def create_app(
                 content={"error": "Task not found."},
             )
         return JSONResponse(content={"task": task})
+
+    @app.get("/api/events")
+    async def stream_events():
+        """Forward EventBus publications to the client as Server-Sent Events."""
+        queue: asyncio.Queue = asyncio.Queue()
+
+        subscription_id = harness.events.subscribe(
+            lambda event: queue.put_nowait(event.to_dict())
+        )
+
+        async def event_stream():
+            try:
+                while True:
+                    event = await queue.get()
+                    yield f"data: {json.dumps(event)}\n\n"
+            finally:
+                harness.events.unsubscribe(subscription_id)
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.get("/api/cron/jobs")
     async def get_cron_jobs():

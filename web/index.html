@@ -433,6 +433,79 @@
             padding: 10px 0;
         }
 
+        .event-list {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .event-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .event-item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .event-item-title {
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-item-meta {
+            color: var(--text-muted);
+            font-size: 11px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-severity-pill {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .event-severity-info {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .event-severity-warning {
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+        }
+
+        .event-severity-error,
+        .event-severity-critical {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .event-list-empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 10px 0;
+        }
+
         .voice-hint {
             color: var(--text-muted);
             font-size: 10px;
@@ -474,6 +547,7 @@
         <div class="hud-buttons">
             <button class="btn" id="syncVectorBtn">🧠 SYNC RAG</button>
             <button class="btn" id="tasksBtn">📋 TASKS</button>
+            <button class="btn" id="eventsBtn">📡 EVENTS</button>
             <button class="btn" id="cronJobsBtn">⏰ CRON LOGS</button>
             <button class="btn btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
         </div>
@@ -522,6 +596,22 @@
 
         <div id="taskList" class="task-list">
             Loading tasks...
+        </div>
+    </div>
+
+    <!-- EVENTS PANEL -->
+    <div id="eventsPanel" class="tasks-panel">
+        <div class="tasks-panel-header">
+            <span class="tasks-panel-title">📡 Live Event Stream</span>
+
+            <div class="tasks-panel-controls">
+                <button class="btn" id="eventsClearBtn">🧹 Clear</button>
+                <button class="btn" id="eventsCloseBtn">✕ Close</button>
+            </div>
+        </div>
+
+        <div id="eventList" class="event-list">
+            <div class="event-list-empty">Waiting for events...</div>
         </div>
     </div>
 
@@ -648,6 +738,15 @@
 
             document.getElementById("tasksStatusFilter")
                 .addEventListener("change", () => fetchAndRenderTasks());
+
+            document.getElementById("eventsBtn")
+                .addEventListener("click", toggleEventsPanel);
+
+            document.getElementById("eventsCloseBtn")
+                .addEventListener("click", closeEventsPanel);
+
+            document.getElementById("eventsClearBtn")
+                .addEventListener("click", clearEventsList);
 
             document.getElementById("flushMemoryBtn")
                 .addEventListener("click", triggerMemoryFlush);
@@ -1401,6 +1500,113 @@
                     '<div class="task-list-empty">Failed to load tasks.</div>';
 
                 console.error("Tasks error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // EVENTS
+        // ============================================================
+
+        const MAX_EVENT_ITEMS = 100;
+
+        let eventSource = null;
+
+        function toggleEventsPanel() {
+
+            const panel = document.getElementById("eventsPanel");
+
+            if (panel.classList.contains("open")) {
+                closeEventsPanel();
+                return;
+            }
+
+            panel.classList.add("open");
+            connectEventStream();
+        }
+
+        function closeEventsPanel() {
+
+            document.getElementById("eventsPanel")
+                .classList.remove("open");
+
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        function clearEventsList() {
+            document.getElementById("eventList").innerHTML =
+                '<div class="event-list-empty">Waiting for events...</div>';
+        }
+
+        function connectEventStream() {
+
+            if (eventSource) {
+                return;
+            }
+
+            eventSource = new EventSource("/api/events");
+
+            eventSource.onmessage = (message) => {
+
+                let event;
+
+                try {
+                    event = JSON.parse(message.data);
+                } catch (e) {
+                    console.error("Malformed event payload:", e);
+                    return;
+                }
+
+                appendEventItem(event);
+            };
+
+            eventSource.onerror = (e) => {
+                console.error("Event stream error:", e);
+            };
+        }
+
+        function appendEventItem(event) {
+
+            const listEl = document.getElementById("eventList");
+            const empty = listEl.querySelector(".event-list-empty");
+
+            if (empty) {
+                empty.remove();
+            }
+
+            const item = document.createElement("div");
+            item.className = "event-item";
+
+            const severityClass =
+                "event-severity-" + (event.severity || "info").toLowerCase();
+
+            const detail = event.task_id
+                ? "task=" + event.task_id
+                : (event.agent_id ? "agent=" + event.agent_id : event.source);
+
+            item.innerHTML =
+                '<div class="event-item-main">' +
+                    '<span class="event-item-title">' +
+                        escapeHtml(event.name || "event") +
+                    "</span>" +
+                    '<span class="event-item-meta">' +
+                        escapeHtml(event.created_at || "") +
+                        " &middot; " +
+                        escapeHtml(detail || "") +
+                    "</span>" +
+                "</div>" +
+                '<span class="event-severity-pill ' + severityClass + '">' +
+                    escapeHtml((event.severity || "info").toUpperCase()) +
+                "</span>";
+
+            listEl.appendChild(item);
+            listEl.scrollTop = listEl.scrollHeight;
+
+            while (listEl.children.length > MAX_EVENT_ITEMS) {
+                listEl.removeChild(listEl.firstChild);
             }
         }
 

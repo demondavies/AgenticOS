@@ -45,6 +45,7 @@ Capability  (capabilities/)
 | 7 | Interface thinning (bot.py / api.py further cleanup) | ✅ Done |
 | 8 | Persistent Task queue (survive restart, queue depth) | ✅ Done |
 | 9 | Swarm missions tracked as first-class Tasks (workspace="swarm") | ✅ Done |
+| 10 | Live Event Stream dashboard (SSE from EventBus) | ✅ Done |
 
 ---
 
@@ -66,8 +67,8 @@ Capability  (capabilities/)
 | `core/swarm.py` | SwarmManager |
 | `capabilities/tasks/service.py` | TaskStore — SQLite persistence |
 | `bot.py` | Discord interface + composition root (288 lines) |
-| `api.py` | FastAPI endpoints (277 lines) |
-| `web/index.html` | Dashboard — task panel, events, system health |
+| `api.py` | FastAPI endpoints, incl. GET /api/events (SSE) |
+| `web/index.html` | Dashboard — task panel, live event stream, system health |
 
 ---
 
@@ -136,6 +137,8 @@ All five must be green. Architecture contract test is the canonical boundary enf
 ## Git baseline
 
 ```
+1ca9780 feat(web): live EventBus stream on the dashboard (Phase 10)
+8ea6ea5 docs: mark Phase 9 done, update git baseline
 3dcc6e4 arch: track Swarm missions as first-class Tasks (Phase 9)
 0a25d21 docs: mark Phase 8 done, update git baseline
 d210513 arch: recover interrupted Tasks on Harness startup (Phase 8)

@@ -81,6 +81,7 @@ from capabilities.system import (
     get_system_metrics,
     get_current_time,
 )
+from capabilities.system.terminal import run_terminal_command
 
 
 # ============================================================================
@@ -483,26 +484,6 @@ class ToolRegistry:
 
 
 # ============================================================================
-# LAZY LEGACY HANDLER ADAPTER
-# ============================================================================
-
-
-def _legacy_module():
-    """
-    Import bot.py only when a legacy handler actually executes.
-
-    This prevents the Tool Registry from importing bot.py during normal
-    AgenticOS startup and avoids circular imports.
-
-    These adapters are temporary migration seams.
-    """
-
-    import bot
-
-    return bot
-
-
-# ============================================================================
 # WAVE 1 HANDLERS
 # ============================================================================
 
@@ -595,15 +576,9 @@ def _write_obsidian_note(
 def _run_terminal_command(
     command: str = "dir",
 ) -> str:
-    """
-    Temporary compatibility adapter for the legacy terminal runner.
+    """Execute the canonical local terminal capability."""
 
-    PolicyEngine controls whether this handler may execute.
-    """
-
-    bot = _legacy_module()
-
-    return bot.run_terminal_command(
+    return run_terminal_command(
         command
     )
 
@@ -846,12 +821,12 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 2,
-                "legacy_handler": (
-                    "bot.run_terminal_command"
+                "capability_handler": (
+                    "capabilities.system.terminal.run_terminal_command"
                 ),
                 "privileged": True,
                 "approval_required": True,
-                "migration_status": "legacy_adapter",
+                "migration_status": "native",
             },
         )
     )
@@ -1127,7 +1102,7 @@ def run_tests() -> None:
     print("✓ Deterministic routing owned by ToolRegistry")
     print("✓ Privileged tools remain Policy-protected")
     print("✓ UI/Discord approval remains Policy responsibility")
-    print("✓ Legacy adapters retained only for unmigrated handlers")
+    print("✓ Native capability handlers used for migrated Tools")
     print("✓ Async swarm adapter avoids nested event loops")
     print("✓ Direct authoritative vault summary")
     print("✓ Duplicate protection")

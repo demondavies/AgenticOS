@@ -44,6 +44,7 @@ Capability  (capabilities/)
 | 6 | Voice extraction | ✅ Done |
 | 7 | Interface thinning (bot.py / api.py further cleanup) | ✅ Done |
 | 8 | Persistent Task queue (survive restart, queue depth) | ✅ Done |
+| 9 | Swarm missions tracked as first-class Tasks (workspace="swarm") | ✅ Done |
 
 ---
 
@@ -135,6 +136,8 @@ All five must be green. Architecture contract test is the canonical boundary enf
 ## Git baseline
 
 ```
+3dcc6e4 arch: track Swarm missions as first-class Tasks (Phase 9)
+0a25d21 docs: mark Phase 8 done, update git baseline
 d210513 arch: recover interrupted Tasks on Harness startup (Phase 8)
 7c920c4 docs: mark Phase 7 done, advance Phase 8 to next, update git baseline
 57d8336 arch: move Swarm staging/approval logic out of api.py (Phase 7)

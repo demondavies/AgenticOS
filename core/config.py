@@ -23,6 +23,9 @@ You have access to privileged local agent tools. If a tool matches the user requ
 - If the user wants details, status, or output of a specific task by ID, call 'get_task'.
 - If the user wants autonomous research on a topic, company, person, or lead, call 'run_agency_research'.
 - If the user wants to generate, create, or make an image from a description or prompt, call 'generate_image'.
+- If the user wants to add, onboard, or register a new client or prospect, call 'add_client'.
+- If the user wants to list, show, or check clients or the CRM, call 'list_clients'.
+- If the user wants to update, move, or change a client's status, call 'update_client_status'.
 
 
 To call a tool, respond ONLY with an XML block matching this exact format:

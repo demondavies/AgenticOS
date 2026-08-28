@@ -314,6 +314,20 @@ class IntentRouter:
                 arguments={"topic": topic_text.strip()},
             )
 
+        # ------------------------------------------------------------
+        # LIST CLIENTS
+        # ------------------------------------------------------------
+        if re.search(r"\b(?:list|show|display)\s+(?:all\s+)?clients?\b", lower):
+            return Intent(tool_name="list_clients")
+
+        # ------------------------------------------------------------
+        # ADD CLIENT
+        # ------------------------------------------------------------
+        client_match = re.search(r"\badd\s+(?:client|prospect)\s+(.+)", lower)
+        if client_match:
+            name_text = clean[client_match.start(1):]
+            return Intent(tool_name="add_client", arguments={"name": name_text.strip()})
+
         return Intent()
 
 

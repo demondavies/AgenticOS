@@ -246,6 +246,23 @@ class AgentHarness:
             self.execute_generate_image,
         )
 
+        # add_client, list_clients, and update_client_status are canonical
+        # Tools. Bind the Harness-owned Client tracking capability so normal
+        # Policy authorization remains in force before the handler can
+        # execute.
+        self.tools.bind_handler(
+            "add_client",
+            self.execute_add_client,
+        )
+        self.tools.bind_handler(
+            "list_clients",
+            self.execute_list_clients,
+        )
+        self.tools.bind_handler(
+            "update_client_status",
+            self.execute_update_client_status,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -515,6 +532,129 @@ class AgentHarness:
             f"Task ID: {task.id}\n"
             f"{result}"
         )
+
+    async def execute_add_client(
+        self,
+        name: str = "",
+        service: str = "",
+        notes: str = "",
+    ) -> str:
+        """Add a new agency client through the Client capability Tool boundary.
+
+        Client creation is tracked as a first-class Task (workspace="client"),
+        following the same pattern as Swarm, Agency, and Media. The actual
+        JSON persistence is delegated to capabilities.clients.service so
+        core/ never touches the client store file directly.
+        """
+        from capabilities.clients.service import add_client
+
+        task = Task(
+            title=f"Add client: {name[:55]}",
+            description=f"service={service}",
+            workspace="client",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("coordinator")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            client = add_client(name=name, service=service, notes=notes)
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=client.id,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return (
+            f"Client added: {client.name} "
+            f"(ID: {client.id}, status: {client.status})"
+        )
+
+    async def execute_list_clients(
+        self,
+        status: Optional[str] = None,
+    ) -> str:
+        """Execute the canonical list_clients Tool as a human-readable summary."""
+        from capabilities.clients.service import list_clients
+
+        clients = list_clients(status=status)
+
+        if not clients:
+            return "No clients found."
+
+        lines = [
+            f"- {client.name} [{client.status}] — "
+            f"{client.service} (ID: {client.id})"
+            for client in clients
+        ]
+        return "\n".join(lines)
+
+    async def execute_update_client_status(
+        self,
+        client_id: str = "",
+        status: str = "",
+        notes: str = "",
+    ) -> str:
+        """Update a client's status through the Client capability Tool boundary.
+
+        The status change is tracked as a first-class Task (workspace="client"),
+        following the same pattern as Swarm, Agency, and Media.
+        """
+        from capabilities.clients.service import update_client_status
+
+        task = Task(
+            title=f"Update client {client_id} -> {status}",
+            description=notes,
+            workspace="client",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("coordinator")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            client = update_client_status(
+                client_id=client_id,
+                status=status,
+                notes=notes,
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        if client is None:
+            task.fail(f"Client '{client_id}' not found.")
+            self.task_store.save_task(task)
+            return f"Client {client_id} not found."
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=client.status,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return f"Updated {client.name} → {status}"
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
         """List Swarm artifacts awaiting approval through the Swarm capability."""

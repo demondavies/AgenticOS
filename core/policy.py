@@ -758,6 +758,23 @@ class PolicyEngine:
                 allow_state_mutation=True,
                 allow_privileged_tools=True,
             ),
+
+            # ----------------------------------------------------------
+            # Client
+            #
+            # Owner-initiated actions are auto-approved via trusted local
+            # sources (see AUTO_APPROVED_SOURCES). Status changes require
+            # explicit approval. Non-owner requests never reach the Policy
+            # layer at all — they are denied upstream by intent routing.
+            # ----------------------------------------------------------
+
+            "client": WorkspacePolicy(
+                name="client",
+                allow_local_access=True,
+                allow_state_mutation=True,
+                allow_privileged_tools=False,
+                approval_tools=["update_client_status"],
+            ),
         }
 
 

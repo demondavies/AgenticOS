@@ -164,6 +164,7 @@ class Task:
     #   agency
     #   media
     #   development
+    #   client
     workspace: str = "personal"
 
     # Optional parent task for workflows/subtasks.

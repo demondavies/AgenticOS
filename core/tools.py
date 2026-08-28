@@ -48,6 +48,11 @@ Wave 2:
 Agency workspace (Phase 12):
     run_agency_research
 
+Client workspace (Phase 19):
+    add_client
+    list_clients
+    update_client_status
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -648,6 +653,45 @@ async def _run_generate_image(
 
 
 # ============================================================================
+# CLIENT WORKSPACE HANDLERS
+# ============================================================================
+
+
+async def _add_client(
+    name: str = "",
+    service: str = "",
+    notes: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Client tracking handler."""
+    raise RuntimeError(
+        "The add_client Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _list_clients(
+    status: Optional[str] = None,
+) -> str:
+    """Fail clearly until the Harness binds the Client tracking handler."""
+    raise RuntimeError(
+        "The list_clients Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _update_client_status(
+    client_id: str = "",
+    status: str = "",
+    notes: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Client tracking handler."""
+    raise RuntimeError(
+        "The update_client_status Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -663,7 +707,7 @@ def create_default_registry() -> ToolRegistry:
         Four privileged tools.
 
     Total:
-        Thirteen registered capabilities.
+        Seventeen registered capabilities.
     """
 
     registry = ToolRegistry()
@@ -1026,6 +1070,93 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # CLIENT WORKSPACE
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="add_client",
+            description=(
+                "Add a new client to the agency CRM. Arguments: name (str), "
+                "service (str), notes (str, optional)."
+            ),
+            handler=_add_client,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 19,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.clients.service.add_client"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="list_clients",
+            description=(
+                "List all agency clients. Optional argument: status filter "
+                "(prospect/active/paused/completed)."
+            ),
+            handler=_list_clients,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 19,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.clients.service.list_clients"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="update_client_status",
+            description=(
+                "Update a client's status. Arguments: client_id (str), "
+                "status (str: prospect/active/paused/completed), "
+                "notes (str, optional)."
+            ),
+            handler=_update_client_status,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 19,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.clients.service.update_client_status"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+                "workspace_approval_required": True,
+            },
+        )
+    )
+
     return registry
 
 
@@ -1058,6 +1189,9 @@ def run_tests() -> None:
         "launch_swarm",
         "run_agency_research",
         "generate_image",
+        "add_client",
+        "list_clients",
+        "update_client_status",
     }
 
     actual = set(
@@ -1083,6 +1217,7 @@ def run_tests() -> None:
         "get_system_metrics",
         "list_tasks",
         "get_task",
+        "list_clients",
     }
 
     for name in safe_tools:
@@ -1132,6 +1267,8 @@ def run_tests() -> None:
 
     controlled_tools = {
         "run_agency_research",
+        "add_client",
+        "update_client_status",
     }
 
     for name in controlled_tools:
@@ -1165,6 +1302,9 @@ def run_tests() -> None:
         "run_terminal_command",
         "launch_swarm",
         "run_agency_research",
+        "add_client",
+        "list_clients",
+        "update_client_status",
     }
 
     for name in deterministic_tools:

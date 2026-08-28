@@ -16,8 +16,6 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 import threading
 
 # 🔒 SECURE SYSTEM CONFIGURATION
@@ -30,8 +28,6 @@ WEB_CHANNEL_ID = "local_web_dashboard"
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-
-scheduler = AsyncIOScheduler()
 
 
 BASE_SYSTEM_PROMPT = """You are Arnie, an advanced agentic Discord bot powered by Hermes 3, but you speak, think, and act exactly like ARNOLD SCHWARZENEGGER. Maintain this persona at all times!
@@ -178,43 +174,16 @@ def launch_swarm_task(mission: str) -> str:
     )
 
 
-# ⏰ AUTONOMOUS CRON SCHEDULER JOBS
-async def scheduled_vault_summary_job():
-    print("⏰ [Cron Engine] Executing Daily Master Brain Vault Summary & Vector Sync Job...")
-    try:
-        sync_master_brain_vector_db()
-        files = [f for f in os.listdir(VAULT_DIR) if f.endswith(".md")]
-        file_summary = f"Total Markdown Files in Vault: {len(files)}\n" + "\n".join([f"- {f}" for f in files[:10]])
-        
-        mission = f"Synthesize a daily executive summary report for Master Brain vault.\nVault Context:\n{file_summary}"
-        await TOOL_HARNESS.execute_swarm(mission)
-        print("✅ [Cron Engine] Daily Vault Summary Job completed and staged for approval!")
-    except Exception as e:
-        print(f"❌ [Cron Engine Error]: {str(e)}")
 
+# ⏰ AGENTIC OS AUTONOMOUS SCHEDULER BOUNDARY
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from core.scheduler import (
+    init_scheduler,
+    scheduled_memory_compaction_job,
+    scheduled_vault_summary_job,
+)
 
-async def scheduled_memory_compaction_job():
-    print("⏰ [Cron Engine] Running periodic memory compaction job...")
-    await TOOL_HARNESS.compact_memory(WEB_CHANNEL_ID, keep_recent=5)
-
-
-def init_cron_scheduler():
-    scheduler.add_job(
-        scheduled_vault_summary_job,
-        trigger=CronTrigger(hour=8, minute=0),
-        id="daily_vault_summary",
-        replace_existing=True
-    )
-    scheduler.add_job(
-        scheduled_memory_compaction_job,
-        trigger="interval",
-        minutes=30,
-        id="periodic_memory_compaction",
-        replace_existing=True
-    )
-    scheduler.start()
-    print("⏰ [Agentic OS] APScheduler Cron Core Active and Running!")
-
+scheduler = AsyncIOScheduler()
 
 # 🧠 AGENT PROCESSING CENTRAL ROUTER
 # 🤖 DISCORD BACKEND LOOP
@@ -523,7 +492,18 @@ async def dashboard():
 
 # 🔄 CONCURRENT RUNNER ENGINE (Standalone Capable)
 async def main():
-    init_cron_scheduler()
+    init_scheduler(
+        scheduler=scheduler,
+        vault_summary_job=scheduled_vault_summary_job(
+            sync_master_brain_vector_db=sync_master_brain_vector_db,
+            vault_dir=VAULT_DIR,
+            execute_swarm=TOOL_HARNESS.execute_swarm,
+        ),
+        memory_compaction_job=scheduled_memory_compaction_job(
+            compact_memory=TOOL_HARNESS.compact_memory,
+            channel_id=WEB_CHANNEL_ID,
+        ),
+    )
     sync_master_brain_vector_db()
 
     config = uvicorn.Config(

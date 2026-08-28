@@ -26,7 +26,7 @@ It does not yet:
     - replace bot.py
     - persist tasks
     - execute arbitrary tools without Policy authorization
-    - run the existing swarm
+    - manage the swarm outside the canonical Tool boundary
     - manage Discord
     - manage FastAPI
     - manage voice
@@ -77,9 +77,7 @@ from .tasks import (
 )
 
 from .tools import (
-    Tool,
     ToolRegistry,
-    ToolRisk,
     create_default_registry,
 )
 
@@ -93,6 +91,8 @@ from capabilities.memory import (
     MemoryStore,
 )
 from capabilities.voice import VoiceService
+from capabilities.web.research import deep_research_web
+from .swarm import SwarmManager
 
 
 # ============================================================================
@@ -199,6 +199,68 @@ class AgentHarness:
             voice_service
             if voice_service is not None
             else VoiceService()
+        )
+
+        # Swarm is an AgenticOS orchestration capability. The Harness owns
+        # its lifecycle and injects the canonical model and web capability
+        # boundaries. Interface adapters never implement swarm orchestration.
+        self.swarm_orchestrator = SwarmManager(
+            model_chat=self._swarm_model_chat,
+            research_web=deep_research_web,
+        )
+
+        # launch_swarm is a canonical Tool. Bind the Harness-owned Swarm
+        # capability into the ToolRegistry so normal Policy authorization
+        # remains in force before the handler can execute.
+        self.tools.bind_handler(
+            "launch_swarm",
+            self.execute_swarm,
+        )
+
+    async def _swarm_model_chat(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        model: str = "hermes3:8b",
+        capability: str = "reasoning",
+    ) -> str:
+        """Run a Swarm model request through the canonical ModelProvider."""
+        provider = self.models.get("ollama")
+
+        request = ModelRequest(
+            messages=[
+                ModelMessage(
+                    role=message["role"],
+                    content=message["content"],
+                    name=message.get("name"),
+                )
+                for message in messages
+            ],
+            capability=capability,
+            model=model,
+            metadata={"source": "agenticos_swarm"},
+        )
+
+        response = await asyncio.to_thread(
+            provider.chat,
+            request,
+        )
+        return response.content
+
+    async def execute_swarm(
+        self,
+        mission: str = "Default feature task",
+    ) -> str:
+        """Execute the canonical SwarmManager through the Tool boundary."""
+        result = await self.swarm_orchestrator.execute_crew_pipeline(
+            mission
+        )
+
+        return (
+            "SWARM PIPELINE COMPLETE!\n"
+            f"Task ID: {result['task_id']}\n"
+            "Artifact staged in memory. "
+            f"Default filename: {result['default_filename']}"
         )
 
     # ---------------------------------------------------------------------
@@ -1227,31 +1289,39 @@ def run_policy_tests() -> None:
     print("✓ Wave-2 privileged tools auto-approve from UI")
     print("✓ Wave-2 privileged tools require approval from Discord")
 
-    # An unpermitted Tool must not reach the registry handler.
-    # This test intentionally uses a synthetic Tool that the Coordinator does
-    # not permit. It must not invoke a real capability or cause side effects.
+    # An unapproved Tool must not be authorized.
+    # The Coordinator is intentionally tested against a Tool it is not
+    # permitted to use. We only exercise the authorization boundary here;
+    # no real Tool handler is executed.
     blocked = Task(
         title="Policy denial test",
-        description="Test denied Tool execution.",
+        description="Test denied Tool authorization.",
         workspace="development",
         metadata={"agent": "Coordinator"},
     )
     blocked_coordinator = harness.select_agent(blocked)
 
-    denied_tool = Tool(
+    denied_tool = harness.tools.get("web_search")
+    assert denied_tool is not None, "Missing web_search Tool for policy test"
+
+    # Coordinator is allowed to use the safe Wave-1 tools in normal runtime,
+    # so web_search is no longer a valid denial probe. Temporarily use a
+    # synthetic Tool that is absent from the Coordinator's permission set.
+    from .tools import Tool, ToolRisk
+
+    synthetic_denied_tool = Tool(
         name="policy_denied_test",
-        description="Synthetic Tool that the Coordinator cannot use.",
+        description="Synthetic Tool used only to verify Policy denial.",
         handler=lambda: (_ for _ in ()).throw(
             AssertionError("Denied Tool handler was executed.")
         ),
         risk=ToolRisk.SAFE,
     )
-    harness.tools.register(denied_tool)
+    harness.tools.register(synthetic_denied_tool)
 
     try:
-        harness.execute_tool(
+        harness._authorize_tool(
             "policy_denied_test",
-            {},
             task=blocked,
             agent=blocked_coordinator,
             source="harness.test",
@@ -1259,7 +1329,7 @@ def run_policy_tests() -> None:
     except PermissionError:
         pass
     else:
-        raise AssertionError("Policy bypass: denied Tool executed")
+        raise AssertionError("Policy bypass: denied Tool authorized")
 
     print("✓ Harness Policy boundary passed")
 

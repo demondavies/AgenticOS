@@ -69,12 +69,6 @@ AGENTICOS_ROOT = r"G:\AgenticOS"
 if AGENTICOS_ROOT not in sys.path:
     sys.path.insert(0, AGENTICOS_ROOT)
 
-from core.models import (
-    ModelMessage,
-    ModelRequest,
-    create_default_model_registry,
-)
-
 from core.tools import (
     create_default_registry,
     ToolRegistry,
@@ -84,20 +78,20 @@ from core.harness import AgentHarness
 from core.tasks import Task
 from core.tools import ToolRisk
 from capabilities.voice import VoiceService
-from capabilities.web.research import deep_research_web
 from core.swarm import STAGED_ARTIFACTS
 from core.intent import create_default_intent_router
 
 from capabilities.vault import (
     get_daily_vault_summary,
+    get_vault_location,
+    list_vault_notes,
     read_obsidian_note,
+    read_vault_file,
     search_master_brain_vault,
+    save_vault_file,
     sync_master_brain_vector_db,
     write_obsidian_note,
 )
-
-MODEL_REGISTRY = create_default_model_registry()
-LLM_PROVIDER = MODEL_REGISTRY.get("ollama")
 
 # Canonical AgenticOS tool registry.
 # Tool execution is owned by the Harness/Policy/ToolRegistry boundary.
@@ -106,7 +100,6 @@ TOOL_REGISTRY: ToolRegistry = create_default_registry()
 # Canonical AgenticOS Harness. The legacy bot remains an interface adapter;
 # tool execution semantics belong to the Harness/ToolRegistry boundary.
 TOOL_HARNESS = AgentHarness(
-    model_registry=MODEL_REGISTRY,
     tool_registry=TOOL_REGISTRY,
     voice_service=VoiceService(),
 )
@@ -174,70 +167,22 @@ async def execute_intent_tool(
     )
 
 
-print(f"🧠 [Model Provider] Active provider: {LLM_PROVIDER.name}")
+print(
+    "🧠 [Model Provider] Active provider: "
+    + ", ".join(TOOL_HARNESS.models.list_providers())
+)
 print(
     "🛠️ [Tool Registry] Wave 1 active: "
     + ", ".join(TOOL_REGISTRY.names())
 )
 
 
-def _messages_to_model_messages(messages):
-    """Convert legacy message dictionaries into ModelMessage objects."""
-    return [
-        ModelMessage(
-            role=message["role"],
-            content=message["content"],
-            name=message.get("name"),
-        )
-        for message in messages
-    ]
-
-
-async def arnie_model_chat(
-    messages,
-    model: str = "hermes3:8b",
-    capability: str = "conversation",
-):
-    """Send an LLM request through the AgenticOS ModelProvider boundary."""
-    request = ModelRequest(
-        messages=_messages_to_model_messages(messages),
-        capability=capability,
-        model=model,
-        metadata={"source": "arnie_legacy_bot"},
-    )
-
-    response = await asyncio.to_thread(
-        LLM_PROVIDER.chat,
-        request,
-    )
-
-    return response.content
-
-
 # AgenticOS Memory owns persistence. The bot supplies only the model callback
 # required for LLM-assisted compaction.
 from capabilities.memory import configure_memory_summarizer
-configure_memory_summarizer(arnie_model_chat)
+configure_memory_summarizer(TOOL_HARNESS.chat)
 TOOL_HARNESS.memory.init_db()
 
-
-def arnie_model_stream(
-    messages,
-    model: str = "hermes3:8b",
-    capability: str = "conversation",
-):
-    """Return a provider-independent model stream."""
-    request = ModelRequest(
-        messages=_messages_to_model_messages(messages),
-        capability=capability,
-        model=model,
-        metadata={"source": "arnie_voice_stream"},
-    )
-
-    return LLM_PROVIDER.stream(request)
-
-# 🧠 PERSISTENT MEMORY CAPABILITY
-# Conversation persistence is owned by AgenticOS.
 
 # 🧠 CHROMADB VECTOR SEARCH RAG ENGINE
 # NOTE: nomic-embed-text is an embedding workload, not LLM chat.
@@ -750,9 +695,7 @@ def launch_swarm_task(mission: str) -> str:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(
-            TOOL_HARNESS.execute_swarm(mission)
-        )
+        return asyncio.run(TOOL_HARNESS.execute_swarm(mission))
 
     raise RuntimeError(
         "launch_swarm_task cannot run synchronously inside an active event loop."
@@ -929,7 +872,7 @@ async def execute_agent_logic(channel_id, user_id, clean_content, is_owner, sour
                     }
                 )
 
-                bot_reply = await arnie_model_chat(
+                bot_reply = await TOOL_HARNESS.chat(
                     history,
                     model="hermes3:8b",
                     capability="tool_synthesis",
@@ -1001,7 +944,7 @@ async def execute_agent_logic(channel_id, user_id, clean_content, is_owner, sour
             f'"arguments": {{"command": "{extracted_cmd}"}}}}</tool_call>'
         )
     else:
-        bot_reply = await arnie_model_chat(
+        bot_reply = await TOOL_HARNESS.chat(
             history,
             model="hermes3:8b",
             capability="conversation",
@@ -1064,7 +1007,7 @@ async def execute_agent_logic(channel_id, user_id, clean_content, is_owner, sour
                 {"role": "system", "content": tool_context}
             )
 
-            bot_reply = await arnie_model_chat(
+            bot_reply = await TOOL_HARNESS.chat(
                 history,
                 model="hermes3:8b",
                 capability="conversation",
@@ -1230,11 +1173,12 @@ class ApprovalPayload(BaseModel):
 
 @app.get("/api/vault/files")
 async def get_vault_files():
-    try:
-        files = [f for f in os.listdir(VAULT_DIR) if f.endswith(".md")]
-    except Exception:
-        files = []
-    return JSONResponse(content={"path": VAULT_DIR, "files": files})
+    return JSONResponse(
+        content={
+            "path": get_vault_location(),
+            "files": list_vault_notes(),
+        }
+    )
 
 
 
@@ -1278,7 +1222,7 @@ def _split_speech_sentences(buffer: str):
 
 def _stream_chat_sync(messages):
     """Yield provider model chunks from a worker thread."""
-    return arnie_model_stream(
+    return TOOL_HARNESS.stream(
         messages,
         model="hermes3:8b",
         capability="conversation",
@@ -1401,7 +1345,7 @@ async def voice_agent_stream(clean_content: str, is_owner=True):
                     }
                 )
 
-                final_text = await arnie_model_chat(
+                final_text = await TOOL_HARNESS.chat(
                     history,
                     model="hermes3:8b",
                     capability="tool_synthesis",
@@ -1713,14 +1657,12 @@ async def approve_staged_artifact(payload: ApprovalPayload):
     if not safe_name.endswith(".md") and not safe_name.endswith(".py"):
         safe_name += ".md"
 
-    full_path = os.path.join(VAULT_DIR, safe_name)
-
     try:
-        with open(full_path, "w", encoding="utf-8") as f:
-            f.write(artifact["content"])
-            
+        save_result = save_vault_file(safe_name, artifact["content"])
+        if save_result.startswith("Failed to save file:"):
+            return JSONResponse(status_code=500, content={"error": save_result})
+
         del STAGED_ARTIFACTS[payload.task_id]
-        sync_master_brain_vector_db()
         print(f"💾 [Swarm Approval] Written to Master_Brain: {safe_name}")
         return JSONResponse(content={
             "status": "success",
@@ -1742,57 +1684,36 @@ async def reject_staged_artifact(task_id: str):
 @app.post("/api/get_note")
 async def api_get_note(payload: GetNotePayload):
     try:
-        safe_name = re.sub(r'[\\/*?:"<>|]', "", payload.filename).strip()
-        if not safe_name.endswith(".md"):
-            safe_name += ".md"
+        result = read_vault_file(payload.filename)
+        if result.startswith("Error: Note file ") and result.endswith(" missing."):
+            return JSONResponse(status_code=404, content={"error": "File missing"})
+        if result.startswith("Error: Note filename is empty"):
+            return JSONResponse(status_code=400, content={"error": result})
+        if result.startswith("Failed to read file:"):
+            return JSONResponse(status_code=500, content={"error": result})
 
-        full_path = os.path.join(VAULT_DIR, safe_name)
-
-        if not os.path.exists(full_path):
-            return JSONResponse(
-                status_code=404,
-                content={"error": "File missing"},
-            )
-
-        with open(full_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        return JSONResponse(content={"content": content})
+        return JSONResponse(content={"content": result})
 
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)},
-        )
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.post("/api/save_note")
 async def api_save_note(payload: SaveNotePayload):
     try:
-        safe_name = re.sub(r'[\\/*?:"<>|]', "", payload.filename).strip()
-        if not safe_name.endswith(".md"):
-            safe_name += ".md"
-
-        full_path = os.path.join(VAULT_DIR, safe_name)
-
-        with open(full_path, "w", encoding="utf-8") as f:
-            f.write(payload.content)
-
-        sync_master_brain_vector_db()
-        print(f"💾 [Agentic OS] Saved structural update to file: {safe_name}")
+        result = save_vault_file(payload.filename, payload.content)
+        if result.startswith("Failed to save file:"):
+            return JSONResponse(status_code=500, content={"error": result})
 
         return JSONResponse(
             content={
                 "status": "success",
-                "message": f"Saved {safe_name}",
+                "message": result,
             }
         )
 
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)},
-        )
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.get("/", response_class=FileResponse)

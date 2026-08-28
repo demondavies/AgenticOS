@@ -311,3 +311,68 @@ def read_obsidian_note(filename: str) -> str:
 
     except Exception as exc:
         return f"Failed to read file: {exc}"
+
+
+
+def list_vault_notes() -> list[str]:
+    """Return Markdown note filenames currently present in the Master Brain."""
+    try:
+        if not os.path.exists(VAULT_DIR):
+            return []
+        return sorted(
+            filename
+            for filename in os.listdir(VAULT_DIR)
+            if filename.lower().endswith(".md")
+        )
+    except Exception:
+        return []
+
+
+def get_vault_location() -> str:
+    """Return the configured Master Brain vault directory."""
+    return VAULT_DIR
+
+
+def read_vault_file(filename: str) -> str:
+    """Read a Markdown/Python file from the configured vault and return raw content."""
+    try:
+        safe_name = re.sub(r'[\\/*?:"<>|]', "", str(filename or "")).strip()
+        if not safe_name:
+            return "Error: Note filename is empty."
+
+        if not (safe_name.lower().endswith(".md") or safe_name.lower().endswith(".py")):
+            safe_name += ".md"
+
+        file_path = os.path.join(VAULT_DIR, safe_name)
+        if not os.path.exists(file_path):
+            return f"Error: Note file '{safe_name}' missing."
+
+        with open(file_path, "r", encoding="utf-8") as file_obj:
+            return file_obj.read()
+
+    except Exception as exc:
+        return f"Failed to read file: {exc}"
+
+
+def save_vault_file(filename: str, content: str) -> str:
+    """Replace a vault Markdown/Python file and re-index Markdown content."""
+    try:
+        safe_name = re.sub(r'[\\/*?:"<>|]', "", str(filename or "")).strip()
+        if not safe_name:
+            return "Failed to save file: filename is empty."
+
+        if not (safe_name.lower().endswith(".md") or safe_name.lower().endswith(".py")):
+            safe_name += ".md"
+
+        file_path = os.path.join(VAULT_DIR, safe_name)
+
+        with open(file_path, "w", encoding="utf-8") as file_obj:
+            file_obj.write(str(content or ""))
+
+        sync_result = sync_master_brain_vector_db()
+        print(f"💾 [Vault] Saved file: {safe_name}")
+
+        return f"Saved {safe_name}. {sync_result}"
+
+    except Exception as exc:
+        return f"Failed to save file: {exc}"

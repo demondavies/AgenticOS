@@ -41,8 +41,8 @@ Capability  (capabilities/)
 | 3 | SQLite-backed TaskStore, real Task lifecycle | ✅ Done |
 | 4 | Task Queue dashboard panel (live, filtered, auto-refresh) | ✅ Done |
 | 5 | Memory interface (SQLite/ChromaDB/Brain behind service boundary) | ✅ Done |
-| 6 | Voice extraction | 🔜 Next |
-| 7 | Interface thinning (bot.py / api.py further cleanup) | 🔜 Queued |
+| 6 | Voice extraction | ✅ Done |
+| 7 | Interface thinning (bot.py / api.py further cleanup) | 🔜 Next |
 | 8 | Persistent Task queue (survive restart, queue depth) | 🔜 Queued |
 
 ---
@@ -135,6 +135,8 @@ All five must be green. Architecture contract test is the canonical boundary enf
 ## Git baseline
 
 ```
+f309b9e  arch: voice boundary — VoiceService.speak + Harness facades + fix http adapter
+e53137f  docs: mark Phase 5 done, advance Phase 6 to next, update git baseline
 4d3b6cb  arch: bot.py uses Harness memory/task facade, not internal stores
 6ffbe5e  docs: add CLAUDE.md project context + gitignore IJFW scaffolding
 afb35b4  feat(web): add live Task Queue panel to dashboard

@@ -539,6 +539,8 @@ def create_coordinator_agent() -> Agent:
     agent.allow_tool("read_obsidian_note")
     agent.allow_tool("search_vault")
     agent.allow_tool("web_search")
+    agent.allow_tool("list_tasks")
+    agent.allow_tool("get_task")
 
     # Privileged local capabilities are explicitly granted to the Coordinator.
     # The PolicyEngine remains responsible for workspace and approval gates.

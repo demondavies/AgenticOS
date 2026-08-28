@@ -238,6 +238,18 @@ class AgentHarness:
             self.execute_daily_vault_summary,
         )
 
+        # list_tasks and get_task need the Harness's own Task store instance
+        # (which a caller may have injected), so the Harness binds them
+        # rather than letting the Tool call a module-level store directly.
+        self.tools.bind_handler(
+            "list_tasks",
+            self.execute_list_tasks,
+        )
+        self.tools.bind_handler(
+            "get_task",
+            self.execute_get_task,
+        )
+
     async def _swarm_model_chat(
         self,
         messages: List[Dict[str, str]],
@@ -282,6 +294,42 @@ class AgentHarness:
         return await get_daily_vault_summary(
             model_provider=provider,
             model=model,
+        )
+
+    async def execute_list_tasks(
+        self,
+        status: Optional[str] = None,
+        workspace: Optional[str] = None,
+        limit: int = 10,
+    ) -> str:
+        """Execute the canonical list_tasks Tool as a human-readable summary."""
+        tasks = self.list_tasks(status=status, workspace=workspace, limit=limit)
+
+        if not tasks:
+            return "No matching Tasks found."
+
+        lines = [
+            f"- [{task['status']}] {task['title']} "
+            f"(id={task['id']}, workspace={task['workspace']})"
+            for task in tasks
+        ]
+        return "Tasks:\n" + "\n".join(lines)
+
+    async def execute_get_task(self, task_id: str = "") -> str:
+        """Execute the canonical get_task Tool as a human-readable summary."""
+        task = self.get_task(task_id)
+
+        if task is None:
+            return f"No Task found with id '{task_id}'."
+
+        return (
+            f"Task {task['id']}\n"
+            f"Title: {task['title']}\n"
+            f"Status: {task['status']}\n"
+            f"Workspace: {task['workspace']}\n"
+            f"Created: {task['created_at']}\n"
+            f"Completed: {task.get('completed_at')}\n"
+            f"Error: {task.get('error')}"
         )
 
     async def execute_swarm(

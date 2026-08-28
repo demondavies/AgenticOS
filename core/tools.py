@@ -36,6 +36,8 @@ Wave 1:
     search_vault
     get_daily_vault_summary
     get_system_metrics
+    list_tasks
+    get_task
 
 Wave 2:
     launch_app
@@ -528,6 +530,28 @@ def _system_metrics() -> str:
     return get_system_metrics()
 
 
+async def _list_tasks(
+    status: Optional[str] = None,
+    workspace: Optional[str] = None,
+    limit: int = 10,
+) -> str:
+    """Fail clearly until the Harness binds the Task-store-aware handler."""
+    raise RuntimeError(
+        "The list_tasks Tool has not been bound to the AgenticOS "
+        "Harness Task store."
+    )
+
+
+async def _get_task(
+    task_id: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Task-store-aware handler."""
+    raise RuntimeError(
+        "The get_task Tool has not been bound to the AgenticOS "
+        "Harness Task store."
+    )
+
+
 # ============================================================================
 # WAVE 2 HANDLERS
 # ============================================================================
@@ -603,13 +627,13 @@ def create_default_registry() -> ToolRegistry:
     Create the canonical production Tool Registry.
 
     Wave 1:
-        Six safe/read-oriented tools.
+        Eight safe/read-oriented tools.
 
     Wave 2:
         Four privileged tools.
 
     Total:
-        Ten registered capabilities.
+        Twelve registered capabilities.
     """
 
     registry = ToolRegistry()
@@ -751,6 +775,56 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    registry.register(
+        Tool(
+            name="list_tasks",
+            description=(
+                "List recent AgenticOS Tasks, optionally filtered by "
+                "status or workspace."
+            ),
+            handler=_list_tasks,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 1,
+                "capability_handler": (
+                    "capabilities.tasks.TaskStore.list_tasks"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_task",
+            description=(
+                "Retrieve the full detail of a single AgenticOS Task "
+                "by its id."
+            ),
+            handler=_get_task,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 1,
+                "capability_handler": (
+                    "capabilities.tasks.TaskStore.get_task"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     # ========================================================================
     # WAVE 2 — PRIVILEGED
     # ========================================================================
@@ -883,6 +957,8 @@ def run_tests() -> None:
         "search_vault",
         "get_daily_vault_summary",
         "get_system_metrics",
+        "list_tasks",
+        "get_task",
         "launch_app",
         "write_obsidian_note",
         "run_terminal_command",
@@ -910,6 +986,8 @@ def run_tests() -> None:
         "search_vault",
         "get_daily_vault_summary",
         "get_system_metrics",
+        "list_tasks",
+        "get_task",
     }
 
     for name in safe_tools:
@@ -962,6 +1040,8 @@ def run_tests() -> None:
         "get_current_time",
         "get_system_metrics",
         "get_daily_vault_summary",
+        "list_tasks",
+        "get_task",
         "launch_app",
         "write_obsidian_note",
         "run_terminal_command",
@@ -1007,6 +1087,14 @@ def run_tests() -> None:
 
     assert inspect.iscoroutinefunction(
         _launch_swarm
+    )
+
+    assert inspect.iscoroutinefunction(
+        _list_tasks
+    )
+
+    assert inspect.iscoroutinefunction(
+        _get_task
     )
 
     # ========================================================================
@@ -1096,7 +1184,7 @@ def run_tests() -> None:
         )
 
     print()
-    print("✓ Six Wave-1 safe tools registered")
+    print("✓ Eight Wave-1 safe tools registered")
     print("✓ Four Wave-2 privileged tools registered")
     print("✓ Canonical Tool domain objects")
     print("✓ Deterministic routing owned by ToolRegistry")

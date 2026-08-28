@@ -54,3 +54,9 @@ IMAGE_GEN_DEFAULT_STEPS = 20
 # Requires PyNaCl and FFmpeg on PATH.  Off by default.
 DISCORD_VOICE_ENABLED = False
 
+# Memory injection: retrieve relevant Master Brain vault context and inject
+# it into the system prompt so every conversation carries personal context.
+MEMORY_INJECTION_ENABLED = True
+MEMORY_INJECTION_TOP_K = 5
+MEMORY_INJECTION_MIN_SCORE = 0.65
+

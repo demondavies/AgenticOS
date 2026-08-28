@@ -12,6 +12,11 @@ import json
 import re
 from typing import Any, Awaitable, Callable, Dict, Optional
 
+from .config import (
+    MEMORY_INJECTION_ENABLED,
+    MEMORY_INJECTION_MIN_SCORE,
+    MEMORY_INJECTION_TOP_K,
+)
 from .harness import AgentHarness
 from .tasks import Task
 from .tools import ToolRegistry, ToolRisk
@@ -111,10 +116,27 @@ class AgentRuntime:
         """Run the complete conversational AgenticOS execution path."""
         history = self.harness.get_memory(channel_id)
 
+        # --- PHASE 17: MEMORY INJECTION ---
+        memory_context = ""
+        if MEMORY_INJECTION_ENABLED:
+            try:
+                from capabilities.vault import retrieve_relevant
+                snippets = retrieve_relevant(
+                    query=clean_content,
+                    top_k=MEMORY_INJECTION_TOP_K,
+                    min_score=MEMORY_INJECTION_MIN_SCORE,
+                )
+                if snippets:
+                    memory_context = "\n\n[MEMORY CONTEXT — what you already know about the user and their world]\n"
+                    memory_context += "\n".join(f"• {s[:400]}" for s in snippets)
+                    memory_context += "\n[END MEMORY CONTEXT]"
+            except Exception as _mem_err:
+                pass  # memory injection is best-effort; never block the response
+
         if not history:
             full_prompt = self.base_system_prompt + (
                 self.owner_extensions if is_owner else ""
-            )
+            ) + memory_context
             history.append({"role": "system", "content": full_prompt})
 
         self.harness.save_memory(channel_id, user_id, "user", clean_content)

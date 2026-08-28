@@ -143,6 +143,47 @@ def search_master_brain_vault(query: str, n_results: int = 3) -> str:
         return f"Vault search error: {exc}"
 
 
+def retrieve_relevant(
+    query: str,
+    top_k: int = 5,
+    min_score: float = 0.65,
+) -> list[str]:
+    """Return Master Brain vault documents relevant to `query`.
+
+    ChromaDB returns L2 distance (lower is better), so `min_score` (0..1,
+    higher means stricter similarity) is converted to a maximum allowed
+    distance before filtering. Documents are embedded manually via Ollama
+    (see sync_master_brain_vector_db), so the query is embedded the same
+    way rather than through ChromaDB's own default embedding function.
+    """
+    try:
+        query_result = ollama.embed(
+            model=EMBEDDING_MODEL,
+            input=query,
+        )
+        query_embedding = query_result["embeddings"][0]
+
+        results = _vault_collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k,
+        )
+
+        documents = results.get("documents", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+
+        max_distance = 1 - min_score
+
+        return [
+            document
+            for document, distance in zip(documents, distances)
+            if distance <= max_distance
+        ]
+
+    except Exception as exc:
+        print(f"❌ [Vault] retrieve_relevant error: {exc}")
+        return []
+
+
 async def _summarize_vault(
     prompt: str,
     *,

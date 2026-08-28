@@ -44,6 +44,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from .config import DEFAULT_MODEL
+
 from .agents import (
     Agent,
     AgentRegistry,
@@ -229,7 +231,7 @@ class AgentHarness:
         self,
         messages: List[Dict[str, str]],
         *,
-        model: str = "hermes3:8b",
+        model: str = DEFAULT_MODEL,
         capability: str = "reasoning",
     ) -> str:
         """Run a Swarm model request through the canonical ModelProvider."""
@@ -264,7 +266,7 @@ class AgentHarness:
             raise RuntimeError("No Coordinator Agent is registered.")
 
         provider = self.select_model_provider(agent)
-        model = agent.preferred_model() or "hermes3:8b"
+        model = agent.preferred_model() or DEFAULT_MODEL
 
         return await get_daily_vault_summary(
             model_provider=provider,

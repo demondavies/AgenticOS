@@ -37,3 +37,11 @@ OPENAI_COMPAT_PROVIDER_NAME = "lmstudio"
 OPENAI_COMPAT_HOST = "http://127.0.0.1:1234/v1"
 OPENAI_COMPAT_API_KEY = "not-needed"
 OPENAI_COMPAT_MODEL = "local-model"
+
+# Optional image generation provider: any Stable Diffusion-compatible API
+# (Automatic1111, ComfyUI, etc.).  Disabled by default — the Harness only
+# constructs ImageGenService when IMAGE_GEN_ENABLED is True.
+IMAGE_GEN_ENABLED = False
+IMAGE_GEN_HOST = "http://127.0.0.1:7860"
+IMAGE_GEN_OUTPUT_DIR = "./media_output"
+IMAGE_GEN_DEFAULT_STEPS = 20

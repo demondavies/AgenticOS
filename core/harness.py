@@ -238,6 +238,14 @@ class AgentHarness:
             self.execute_agency_research,
         )
 
+        # generate_image is a canonical Tool. Bind the Harness-owned Media
+        # capability so normal Policy authorization remains in force before
+        # the handler can execute.
+        self.tools.bind_handler(
+            "generate_image",
+            self.execute_generate_image,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -438,6 +446,74 @@ class AgentHarness:
             "AGENCY RESEARCH COMPLETE\n"
             f"Task ID: {task.id}\n\n"
             f"{report}"
+        )
+
+    async def execute_generate_image(
+        self,
+        prompt: str = "",
+        negative_prompt: str = "",
+        steps: int = 0,
+    ) -> str:
+        """Generate an image through the Media capability Tool boundary.
+
+        Image generation is tracked as a first-class Task
+        (workspace="media"), following the same pattern as Swarm and
+        Agency.  The actual HTTP call is delegated to ImageGenService
+        so core/ never touches the image generation API directly.
+        """
+        from capabilities.media.service import ImageGenService
+        from core.config import (
+            IMAGE_GEN_ENABLED,
+            IMAGE_GEN_HOST,
+            IMAGE_GEN_OUTPUT_DIR,
+            IMAGE_GEN_DEFAULT_STEPS,
+        )
+
+        effective_steps = steps if steps > 0 else IMAGE_GEN_DEFAULT_STEPS
+
+        task = Task(
+            title=f"Generate image: {prompt[:55]}",
+            description=prompt,
+            workspace="media",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("media")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            service = ImageGenService(
+                host=IMAGE_GEN_HOST,
+                output_dir=IMAGE_GEN_OUTPUT_DIR,
+                enabled=IMAGE_GEN_ENABLED,
+            )
+            result = service.generate(
+                prompt,
+                negative_prompt=negative_prompt,
+                steps=effective_steps,
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=result.path,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return (
+            "IMAGE GENERATION COMPLETE\n"
+            f"Task ID: {task.id}\n"
+            f"{result}"
         )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:

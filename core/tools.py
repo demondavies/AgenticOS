@@ -635,6 +635,18 @@ async def _run_agency_research(
     )
 
 
+async def _run_generate_image(
+    prompt: str = "",
+    negative_prompt: str = "",
+    steps: int = 20,
+) -> str:
+    """Fail clearly until the Harness binds the image generation handler."""
+    raise RuntimeError(
+        "The generate_image Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
 # ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
@@ -651,7 +663,7 @@ def create_default_registry() -> ToolRegistry:
         Four privileged tools.
 
     Total:
-        Twelve registered capabilities.
+        Thirteen registered capabilities.
     """
 
     registry = ToolRegistry()
@@ -983,6 +995,37 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # MEDIA WORKSPACE
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="generate_image",
+            description=(
+                "Generate an image from a text prompt using the local "
+                "Stable Diffusion-compatible API, and track it as a "
+                "workspace='media' Task."
+            ),
+            handler=_run_generate_image,
+            risk=ToolRisk.CONTROLLED,
+            local_access=False,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={
+                "phase": 13,
+                "workspace": "media",
+                "capability_handler": (
+                    "capabilities.media.service.ImageGenService.generate"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -1014,6 +1057,7 @@ def run_tests() -> None:
         "run_terminal_command",
         "launch_swarm",
         "run_agency_research",
+        "generate_image",
     }
 
     actual = set(

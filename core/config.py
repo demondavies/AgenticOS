@@ -22,6 +22,7 @@ You have access to privileged local agent tools. If a tool matches the user requ
 - If the user wants to see their tasks, list running tasks, check what ARNIE is working on, or ask about the task queue, call 'list_tasks'.
 - If the user wants details, status, or output of a specific task by ID, call 'get_task'.
 - If the user wants autonomous research on a topic, company, person, or lead, call 'run_agency_research'.
+- If the user wants to research multiple topics at once, run parallel research tasks, or fan out agency work across several subjects simultaneously, call 'run_parallel_agency'.
 - If the user wants to generate, create, or make an image from a description or prompt, call 'generate_image'.
 - If the user wants to add, onboard, or register a new client or prospect, call 'add_client'.
 - If the user wants to list, show, or check clients or the CRM, call 'list_clients'.
@@ -72,4 +73,8 @@ OLLAMA_HOST = "http://localhost:11434"
 OLLAMA_LIGHT_MODEL = "phi3:mini"
 OLLAMA_VRAM_HEADROOM_GB = 2.0
 AGENT_ROUTING_ENABLED = True
+
+# Parallel agency execution: cap on concurrent agency research tasks fanned
+# out by run_parallel_agency via asyncio.gather().
+PARALLEL_AGENCY_MAX_WORKERS = 4
 

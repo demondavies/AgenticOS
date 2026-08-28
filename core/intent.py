@@ -301,6 +301,17 @@ class IntentRouter:
             return Intent(tool_name="list_tasks")
 
         # ------------------------------------------------------------
+        # PARALLEL AGENCY RESEARCH
+        # ------------------------------------------------------------
+        parallel_match = re.search(
+            r"\b(?:parallel|simultaneously|at once|fan.?out)\b.*"
+            r"\b(?:research|agency|tasks?)\b",
+            lower,
+        )
+        if parallel_match:
+            return Intent(tool_name="run_parallel_agency", arguments={"topics": []})
+
+        # ------------------------------------------------------------
         # AGENCY RESEARCH
         # ------------------------------------------------------------
         agency_match = re.search(

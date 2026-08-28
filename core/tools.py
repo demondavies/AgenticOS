@@ -48,6 +48,9 @@ Wave 2:
 Agency workspace (Phase 12):
     run_agency_research
 
+Parallel agency execution (Phase 20):
+    run_parallel_agency
+
 Client workspace (Phase 19):
     add_client
     list_clients
@@ -640,6 +643,17 @@ async def _run_agency_research(
     )
 
 
+async def _run_parallel_agency(
+    topics: list | None = None,
+    context: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the parallel Agency handler."""
+    raise RuntimeError(
+        "The run_parallel_agency Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
 async def _run_generate_image(
     prompt: str = "",
     negative_prompt: str = "",
@@ -1039,6 +1053,35 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    registry.register(
+        Tool(
+            name="run_parallel_agency",
+            description=(
+                "Run multiple Agency research missions in parallel. "
+                "Arguments: topics (list of strings), optional context "
+                "(str). Each topic is tracked as its own workspace='agency' "
+                "Task."
+            ),
+            handler=_run_parallel_agency,
+            risk=ToolRisk.CONTROLLED,
+            local_access=False,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 20,
+                "workspace": "agency",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_run_parallel_agency"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     # MEDIA WORKSPACE
     # ========================================================================
 
@@ -1188,6 +1231,7 @@ def run_tests() -> None:
         "run_terminal_command",
         "launch_swarm",
         "run_agency_research",
+        "run_parallel_agency",
         "generate_image",
         "add_client",
         "list_clients",
@@ -1267,6 +1311,7 @@ def run_tests() -> None:
 
     controlled_tools = {
         "run_agency_research",
+        "run_parallel_agency",
         "add_client",
         "update_client_status",
     }
@@ -1302,6 +1347,7 @@ def run_tests() -> None:
         "run_terminal_command",
         "launch_swarm",
         "run_agency_research",
+        "run_parallel_agency",
         "add_client",
         "list_clients",
         "update_client_status",

@@ -238,6 +238,13 @@ class AgentHarness:
             self.execute_agency_research,
         )
 
+        # run_parallel_agency reuses the same Harness-owned Agency research
+        # capability, fanning multiple missions out concurrently.
+        self.tools.bind_handler(
+            "run_parallel_agency",
+            self.execute_run_parallel_agency,
+        )
+
         # generate_image is a canonical Tool. Bind the Harness-owned Media
         # capability so normal Policy authorization remains in force before
         # the handler can execute.
@@ -464,6 +471,41 @@ class AgentHarness:
             f"Task ID: {task.id}\n\n"
             f"{report}"
         )
+
+    async def execute_run_parallel_agency(
+        self,
+        topics: List[str] | None = None,
+        context: str = "",
+    ) -> str:
+        """Fan multiple Agency research missions out concurrently.
+
+        Each topic reuses execute_agency_research, so every sub-mission
+        gets its own first-class Task (workspace="agency") exactly as a
+        single run_agency_research call would. Concurrency is capped by
+        PARALLEL_AGENCY_MAX_WORKERS; one sub-mission's failure is caught
+        individually so it cannot cancel the others.
+        """
+        from .config import PARALLEL_AGENCY_MAX_WORKERS
+
+        topics = (topics or [])[:PARALLEL_AGENCY_MAX_WORKERS]
+
+        if not topics:
+            return "No topics provided."
+
+        async def _run_one(topic: str) -> str:
+            mission = f"{topic}\n\nContext: {context}" if context else topic
+            try:
+                return await self.execute_agency_research(topic=mission)
+            except Exception as err:
+                return f"[{topic}] failed: {err}"
+
+        results = await asyncio.gather(*[_run_one(topic) for topic in topics])
+
+        sections = [
+            f"## {topic}\n{result}"
+            for topic, result in zip(topics, results)
+        ]
+        return "\n\n---\n\n".join(sections)
 
     async def execute_generate_image(
         self,

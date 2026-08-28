@@ -123,6 +123,72 @@ class IntentRouter:
             )
 
         # ------------------------------------------------------------
+        # LOCAL APPLICATION LAUNCH
+        #
+        # The router identifies obvious application-launch requests.
+        # Policy/Harness remains responsible for authorization.
+        # ------------------------------------------------------------
+        app_match = re.search(
+            r"\b(?:open|launch|start|run)\s+"
+            r"(?:the\s+)?(?:app|application|program|software)\s+"
+            r"(.+?)(?:\s*[?.!]\s*)?$",
+            clean,
+            flags=re.IGNORECASE,
+        )
+
+        if not app_match:
+            app_match = re.search(
+                r"\b(?:open|launch|start|run)\s+"
+                r"(?:the\s+)?"
+                r"(notepad|calculator|calc|chrome|google\s+chrome|"
+                r"obsidian|vscode|vs\s*code|code|terminal|windows\s+terminal|"
+                r"cmd|command\s+prompt|explorer|file\s+explorer)"
+                r"(?:\s*[?.!]\s*)?$",
+                clean,
+                flags=re.IGNORECASE,
+            )
+
+        if app_match:
+            target = app_match.group(1).strip()
+
+            target = re.sub(
+                r"^(?:the\s+)?(?:app|application|program|software)\s+",
+                "",
+                target,
+                flags=re.IGNORECASE,
+            ).strip()
+
+            aliases = {
+                "google chrome": "chrome",
+                "vs code": "vscode",
+                "windows terminal": "terminal",
+                "command prompt": "cmd",
+                "file explorer": "explorer",
+                "calculator": "calc",
+            }
+            target = aliases.get(target.lower(), target)
+
+            # Normalize known application aliases and canonical targets so
+            # deterministic intent routing remains stable regardless of
+            # capitalization in the user's request.
+            canonical_targets = {
+                "notepad": "Notepad",
+                "calc": "calc",
+                "chrome": "chrome",
+                "vscode": "vscode",
+                "obsidian": "obsidian",
+                "terminal": "terminal",
+                "cmd": "cmd",
+                "explorer": "explorer",
+            }
+            target = canonical_targets.get(target.lower(), target)
+
+            return Intent(
+                tool_name="launch_app",
+                arguments={"target": target},
+            )
+
+        # ------------------------------------------------------------
         # READ OBSIDIAN NOTE
         #
         # Examples:
@@ -279,6 +345,26 @@ def run_tests() -> None:
             "Show me Inbox.md",
             "read_obsidian_note",
             {"filename": "Inbox"},
+        ),
+        (
+            "Open Notepad",
+            "launch_app",
+            {"target": "Notepad"},
+        ),
+        (
+            "Arnie, open Notepad.",
+            "launch_app",
+            {"target": "Notepad"},
+        ),
+        (
+            "Launch VS Code",
+            "launch_app",
+            {"target": "vscode"},
+        ),
+        (
+            "Start Chrome",
+            "launch_app",
+            {"target": "chrome"},
         ),
         (
             "Search the web for the latest Ollama release",

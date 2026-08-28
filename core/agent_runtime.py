@@ -1,17 +1,25 @@
-"""Interface-independent AgenticOS chat and tool execution runtime."""
+"""ARNIE Agentic OS — Agent Runtime.
+
+Owns conversational orchestration previously embedded in bot.py.
+Interface adapters provide input/output; this module owns the decision and
+execution flow between memory, intent routing, tools, policy, and model.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import re
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Dict, Optional
 
+from .harness import AgentHarness
 from .tasks import Task
+from .tools import ToolRegistry, ToolRisk
+from .intent import IntentRouter
 
 
 class ToolApprovalRequired(Exception):
-    """A request from an untrusted interface needs human approval."""
+    """Raised when a request needs human approval before Tool execution."""
 
     def __init__(self, tool_name: str, arguments: dict, message: str):
         super().__init__(message)
@@ -21,30 +29,26 @@ class ToolApprovalRequired(Exception):
 
 
 class AgentRuntime:
-    """Own the legacy chat orchestration outside of a transport adapter."""
+    """AgenticOS conversational runtime used by all interface adapters."""
 
     def __init__(
         self,
         *,
-        harness: Any,
-        tool_registry: Any,
-        intent_router: Any,
-        model_chat: Callable[..., Awaitable[str]],
-        metrics_provider: Callable[[], str],
+        harness: AgentHarness,
+        tool_registry: ToolRegistry,
+        intent_router: IntentRouter,
         base_system_prompt: str,
         owner_extensions: str,
-        privileged_risk: Any,
+        model: str = "hermes3:8b",
     ) -> None:
         self.harness = harness
-        self.tool_registry = tool_registry
+        self.tools = tool_registry
         self.intent_router = intent_router
-        self.model_chat = model_chat
-        self.metrics_provider = metrics_provider
         self.base_system_prompt = base_system_prompt
         self.owner_extensions = owner_extensions
-        self.privileged_risk = privileged_risk
+        self.model = model
 
-    async def execute_tool(
+    async def execute_intent_tool(
         self,
         tool_name: str,
         arguments: dict,
@@ -52,19 +56,25 @@ class AgentRuntime:
         source: str,
         user_approved: bool = False,
     ) -> Any:
-        """Execute a registered tool through the Harness/Policy boundary."""
-        tool = self.tool_registry.require(tool_name)
+        """Execute a registered Tool through the canonical Harness/Policy boundary."""
+        tool = self.tools.require(tool_name)
+
         workspace = (
             "system"
-            if tool.risk == self.privileged_risk
+            if tool.risk == ToolRisk.PRIVILEGED
             else "development"
         )
+
         task = Task(
             title=f"Tool request: {tool_name}",
             description=f"Execute AgenticOS Tool '{tool_name}'.",
             workspace=workspace,
-            metadata={"source": source, "intent_routed": True},
+            metadata={
+                "source": source,
+                "intent_routed": True,
+            },
         )
+
         agent = self.harness.select_agent(task)
         policy_result = self.harness._authorize_tool(
             tool_name,
@@ -73,12 +83,14 @@ class AgentRuntime:
             source=source,
             user_approved=user_approved,
         )
+
         if policy_result.approval_required:
             raise ToolApprovalRequired(
                 tool_name,
                 arguments,
                 policy_result.message,
             )
+
         return await self.harness.execute_tool_async(
             tool_name,
             arguments,
@@ -90,19 +102,20 @@ class AgentRuntime:
 
     async def execute(
         self,
-        channel_id: str | int,
-        user_id: str | int,
+        channel_id: str,
+        user_id: str,
         clean_content: str,
         is_owner: bool,
         source: str = "ui",
     ) -> str:
-        """Process one chat request without knowing its UI transport."""
+        """Run the complete conversational AgenticOS execution path."""
         history = self.harness.get_memory(channel_id)
+
         if not history:
-            prompt = self.base_system_prompt + (
+            full_prompt = self.base_system_prompt + (
                 self.owner_extensions if is_owner else ""
             )
-            history.append({"role": "system", "content": prompt})
+            history.append({"role": "system", "content": full_prompt})
 
         self.harness.save_memory(channel_id, user_id, "user", clean_content)
         history.append({"role": "user", "content": clean_content})
@@ -112,150 +125,280 @@ class AgentRuntime:
             clean_content,
             re.IGNORECASE,
         )
-        metrics_keywords = [
-            "cpu", "ram", "memory", "hardware", "system status",
-            "telemetry", "metrics",
-        ]
-        if (
-            is_owner
-            and any(word in clean_content.lower() for word in metrics_keywords)
-            and not clean_content.lower().startswith("launch swarm")
-        ):
-            try:
-                telemetry = await asyncio.wait_for(
-                    asyncio.to_thread(self.metrics_provider), timeout=5.0
-                )
-                reply = f"Here is your live system breakdown:\n\n{telemetry}"
-            except asyncio.TimeoutError:
-                reply = "I couldn't retrieve live system metrics within 5 seconds."
-            except Exception as error:
-                reply = f"I couldn't retrieve live system metrics: {error}"
-            self.harness.save_memory(channel_id, user_id, "assistant", reply)
-            return reply
+
+        # Metrics are now routed through the canonical AgenticOS intent/tool
+        # boundary instead of a second implementation inside bot.py.
+        intent = self.intent_router.route(
+            clean_content,
+            is_owner=is_owner,
+        )
+
+        print(
+            f"🧭 [Intent Router] input={clean_content!r} "
+            f"tool={intent.tool_name!r} args={intent.arguments!r}"
+        )
 
         if is_owner and swarm_match:
-            result = await self.execute_tool(
-                "launch_swarm", {"mission": swarm_match.group(1).strip()}, source=source
+            mission = swarm_match.group(1).strip()
+            print(f"⚡ [Agent Action] Direct Swarm Intent Triggered: {mission}")
+            tool_output = await self.execute_intent_tool(
+                "launch_swarm",
+                {"mission": mission},
+                source=source,
             )
-            reply = str(result)
-            self.harness.save_memory(channel_id, user_id, "assistant", reply)
-            return reply
+            bot_reply = str(tool_output)
+            self.harness.save_memory(
+                channel_id,
+                user_id,
+                "assistant",
+                bot_reply,
+            )
+            return bot_reply
 
-        intent = self.intent_router.route(clean_content, is_owner=is_owner)
         direct_tool_name = intent.tool_name
         direct_tool_args = dict(intent.arguments)
+
         if direct_tool_name:
+            print(
+                f"🛠️ [Agent Action] Deterministic Wave-1 Tool: "
+                f"{direct_tool_name}"
+            )
+
             try:
-                result = await self.execute_tool(
-                    direct_tool_name, direct_tool_args, source=source
+                tool_output = await self.execute_intent_tool(
+                    direct_tool_name,
+                    direct_tool_args,
+                    source=source,
                 )
-                if (
-                    direct_tool_name == "get_daily_vault_summary"
-                    or self.harness.tool_execution_mode(direct_tool_name) == "direct"
-                ):
-                    reply = str(result)
+
+                if direct_tool_name == "get_daily_vault_summary":
+                    bot_reply = str(tool_output)
+
+                elif self.harness.tool_execution_mode(direct_tool_name) == "direct":
+                    bot_reply = str(tool_output)
+
                 else:
-                    history.append({
-                        "role": "system",
-                        "content": self._synthesis_prompt(direct_tool_name, result),
-                    })
-                    reply = self._strip_tool_call(await self.model_chat(
-                        history, model="hermes3:8b", capability="tool_synthesis"
-                    ))
-                    if not reply:
-                        reply = str(result)
-                self.harness.save_memory(channel_id, user_id, "assistant", reply)
-                return reply
+                    synthesis_prompt = (
+                        "TOOL RESULT — AUTHORITATIVE EVIDENCE\n"
+                        "====================================\n"
+                        f"Tool: {direct_tool_name}\n\n"
+                        f"{tool_output}\n\n"
+                        "SYNTHESIS RULES:\n"
+                        "1. Answer the user's request using the tool result above.\n"
+                        "2. Treat the tool result as the current factual source.\n"
+                        "3. Do not claim you lack access to information that this "
+                        "tool has just retrieved.\n"
+                        "4. Do not replace retrieved facts with your training "
+                        "knowledge or knowledge cutoff.\n"
+                        "5. Do not invent facts, dates, versions, or sources.\n"
+                        "6. If the tool result is insufficient, say exactly what "
+                        "is missing rather than guessing.\n"
+                        "7. For web results, identify the relevant source/title "
+                        "when useful.\n"
+                    )
+
+                    history.append(
+                        {"role": "system", "content": synthesis_prompt}
+                    )
+
+                    bot_reply = await self.harness.chat(
+                        history,
+                        model=self.model,
+                        capability="tool_synthesis",
+                    )
+
+                    bot_reply = re.sub(
+                        r"<tool_call>.*?</tool_call>",
+                        "",
+                        bot_reply,
+                        flags=re.DOTALL,
+                    ).strip()
+
+                    if not bot_reply:
+                        bot_reply = str(tool_output)
+
+                self.harness.save_memory(
+                    channel_id,
+                    user_id,
+                    "assistant",
+                    bot_reply,
+                )
+                return bot_reply
+
             except ToolApprovalRequired:
                 raise
-            except Exception as error:
-                reply = f"I couldn't execute the {direct_tool_name} capability: {error}"
-                self.harness.save_memory(channel_id, user_id, "assistant", reply)
-                return reply
+            except Exception as err:
+                print(
+                    f"❌ Deterministic Tool Routing Error "
+                    f"[{direct_tool_name}]: {err}"
+                )
+                bot_reply = (
+                    f"I couldn't execute the {direct_tool_name} capability: "
+                    f"{err}"
+                )
+                self.harness.save_memory(
+                    channel_id,
+                    user_id,
+                    "assistant",
+                    bot_reply,
+                )
+                return bot_reply
 
         forced_command = False
-        if is_owner and any(word in clean_content.lower() for word in ["terminal", "command"]):
+        if is_owner and any(
+            kw in clean_content.lower()
+            for kw in ["terminal", "command"]
+        ):
             forced_command = True
-            command = "dir"
-            if any(word in clean_content.lower() for word in ["ping", "internet", "connected"]):
-                command = "ping google.com"
-            elif any(word in clean_content.lower() for word in ["ipconfig", "network", "configuration"]):
-                command = "ipconfig"
-            reply = '<tool_call>{"name": "run_terminal_command", "arguments": {"command": "' + command + '"}}</tool_call>'
-        else:
-            reply = await self.model_chat(
-                history, model="hermes3:8b", capability="conversation"
+            extracted_cmd = "dir"
+
+            if (
+                "ping" in clean_content.lower()
+                or "internet" in clean_content.lower()
+                or "connected" in clean_content.lower()
+            ):
+                extracted_cmd = "ping google.com"
+            elif (
+                "ipconfig" in clean_content.lower()
+                or "network" in clean_content.lower()
+                or "configuration" in clean_content.lower()
+            ):
+                extracted_cmd = "ipconfig"
+            elif (
+                "dir" in clean_content.lower()
+                or "files" in clean_content.lower()
+            ):
+                extracted_cmd = "dir"
+
+            bot_reply = (
+                f'<tool_call>{{"name": "run_terminal_command", '
+                f'"arguments": {{"command": "{extracted_cmd}"}}}}</tool_call>'
             )
+        else:
+            bot_reply = await self.harness.chat(
+                history,
+                model=self.model,
+                capability="conversation",
+            )
+
+        has_tool = False
+        tool_json_str = ""
 
         if is_owner:
-            tool_match = self._tool_call_match(reply)
-            if tool_match:
-                try:
-                    tool_data = json.loads(tool_match)
-                    tool_name = tool_data.get("name")
-                    arguments = tool_data.get("arguments", {}) or {}
-                    if not isinstance(arguments, dict):
-                        raise TypeError("Tool arguments must be a JSON object.")
-                    if not self.tool_registry.has(tool_name):
-                        raise KeyError(f"Unknown Tool: {tool_name}")
-                    if tool_name == "search_vault":
-                        arguments = dict(arguments)
-                        arguments.setdefault("query", clean_content)
-                    result = await self.execute_tool(tool_name, arguments, source=source)
-                    if not forced_command:
-                        self.harness.save_memory(channel_id, user_id, "assistant", reply)
-                        history.append({"role": "assistant", "content": reply})
-                    context = f"Tool output received:\n\n{result}\n\nPlease generate your final response."
-                    self.harness.save_memory(channel_id, user_id, "system", context)
-                    history.append({"role": "system", "content": context})
-                    reply = await self.model_chat(
-                        history, model="hermes3:8b", capability="conversation"
-                    )
-                except ToolApprovalRequired:
-                    raise
-                except Exception:
-                    pass
-
-        reply = self._strip_tool_call(reply)
-        if not reply:
-            reply = "🤖 Action completed successfully!"
-        self.harness.save_memory(channel_id, user_id, "assistant", reply)
-        return reply
-
-    @staticmethod
-    def _tool_call_match(reply: str) -> str | None:
-        match = (
-            re.search(r"<tool_call>(.*?)</tool_call>", reply, re.DOTALL)
-            or re.search(
-                r'(\{\s*"name"\s*:\s*".*?"\s*,\s*"arguments"\s*:\s*\{.*?\}\s*\})',
-                reply,
-                re.DOTALL,
+            match = (
+                re.search(
+                    r"<tool_call>(.*?)</tool_call>",
+                    bot_reply,
+                    re.DOTALL,
+                )
+                or re.search(
+                    r'(\{\s*"name"\s*:\s*".*?"\s*,\s*"arguments"\s*:\s*\{.*?\}\s*\})',
+                    bot_reply,
+                    re.DOTALL,
+                )
             )
-        )
-        return match.group(1).strip() if match else None
+            if match:
+                tool_json_str = match.group(1).strip()
+                has_tool = True
 
-    @staticmethod
-    def _strip_tool_call(reply: str) -> str:
-        reply = re.sub(r"<tool_call>.*?</tool_call>", "", reply, flags=re.DOTALL)
-        return re.sub(
+        if has_tool and is_owner:
+            try:
+                tool_data = json.loads(tool_json_str)
+                tool_name = tool_data.get("name")
+                args = tool_data.get("arguments", {}) or {}
+
+                if not isinstance(args, dict):
+                    raise TypeError("Tool arguments must be a JSON object.")
+
+                if not self.tools.has(tool_name):
+                    raise KeyError(f"Unknown Tool: {tool_name}")
+
+                if tool_name == "search_vault":
+                    args = dict(args)
+                    args.setdefault("query", clean_content)
+
+                tool_output = await self.execute_intent_tool(
+                    tool_name,
+                    args,
+                    source=source,
+                )
+
+                if not forced_command:
+                    self.harness.save_memory(
+                        channel_id,
+                        user_id,
+                        "assistant",
+                        bot_reply,
+                    )
+                    history.append(
+                        {"role": "assistant", "content": bot_reply}
+                    )
+
+                tool_context = (
+                    f"Tool output received:\n\n{tool_output}\n\n"
+                    "Please generate your final response."
+                )
+                self.harness.save_memory(
+                    channel_id,
+                    user_id,
+                    "system",
+                    tool_context,
+                )
+                history.append(
+                    {"role": "system", "content": tool_context}
+                )
+
+                bot_reply = await self.harness.chat(
+                    history,
+                    model=self.model,
+                    capability="conversation",
+                )
+
+            except ToolApprovalRequired:
+                raise
+            except Exception as err:
+                print(f"❌ Tool Routing Error: {err}")
+                tool_output = f"Tool execution failed: {err}"
+
+        bot_reply = re.sub(
+            r"<tool_call>.*?</tool_call>",
+            "",
+            bot_reply,
+            flags=re.DOTALL,
+        ).strip()
+        bot_reply = re.sub(
             r'\{\s*"name"\s*:\s*".*?"\s*,\s*"arguments"\s*:\s*\{.*?\}\s*\}',
             "",
-            reply,
+            bot_reply,
             flags=re.DOTALL,
         ).strip()
 
-    @staticmethod
-    def _synthesis_prompt(tool_name: str, result: Any) -> str:
-        return (
-            "TOOL RESULT — AUTHORITATIVE EVIDENCE\n"
-            "====================================\n"
-            f"Tool: {tool_name}\n\n{result}\n\n"
-            "SYNTHESIS RULES:\n"
-            "1. Answer the user's request using the tool result above.\n"
-            "2. Treat the tool result as the current factual source.\n"
-            "3. Do not claim you lack access to information that this tool has just retrieved.\n"
-            "4. Do not replace retrieved facts with your training knowledge or knowledge cutoff.\n"
-            "5. Do not invent facts, dates, versions, or sources.\n"
-            "6. If the tool result is insufficient, say exactly what is missing rather than guessing.\n"
-            "7. For web results, identify the relevant source/title when useful.\n"
+        if not bot_reply:
+            bot_reply = "🤖 Action completed successfully!"
+
+        self.harness.save_memory(
+            channel_id,
+            user_id,
+            "assistant",
+            bot_reply,
         )
+        return bot_reply
+
+
+def create_agent_runtime(
+    *,
+    harness: AgentHarness,
+    tool_registry: ToolRegistry,
+    intent_router: IntentRouter,
+    base_system_prompt: str,
+    owner_extensions: str,
+    model: str = "hermes3:8b",
+) -> AgentRuntime:
+    return AgentRuntime(
+        harness=harness,
+        tool_registry=tool_registry,
+        intent_router=intent_router,
+        base_system_prompt=base_system_prompt,
+        owner_extensions=owner_extensions,
+        model=model,
+    )

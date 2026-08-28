@@ -530,6 +530,23 @@ def create_coordinator_agent() -> Agent:
         )
     )
 
+    # The Coordinator is the primary conversational/runtime Agent, so it
+    # must be explicitly permitted to use the canonical safe Wave-1 tools.
+    # PolicyEngine remains the authority for all authorization decisions.
+    agent.allow_tool("get_current_time")
+    agent.allow_tool("get_daily_vault_summary")
+    agent.allow_tool("get_system_metrics")
+    agent.allow_tool("read_obsidian_note")
+    agent.allow_tool("search_vault")
+    agent.allow_tool("web_search")
+
+    # Privileged local capabilities are explicitly granted to the Coordinator.
+    # The PolicyEngine remains responsible for workspace and approval gates.
+    agent.allow_tool("launch_app")
+    agent.allow_tool("write_obsidian_note")
+    agent.allow_tool("run_terminal_command")
+    agent.allow_tool("launch_swarm")
+
     return agent
 
 
@@ -629,6 +646,10 @@ def create_coder_agent() -> Agent:
     )
 
     agent.allow_tool("search_vault")
+    agent.allow_tool("read_obsidian_note")
+    agent.allow_tool("run_terminal_command")
+    agent.allow_tool("write_obsidian_note")
+    agent.allow_tool("launch_app")
 
     return agent
 
@@ -868,7 +889,39 @@ def run_tests() -> None:
     assert "Coder" in names
     assert "Reviewer" in names
 
+    coordinator = default_registry.find_by_name("Coordinator")
+    assert coordinator is not None
+
+    for tool_name in {
+        "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
+    }:
+        assert coordinator.can_use_tool(tool_name)
+
+    assert researcher.can_use_tool("web_search")
+    assert researcher.can_use_tool("get_current_time")
+    assert not researcher.can_use_tool("launch_app")
+
+    coder = default_registry.find_by_name("Coder")
+    assert coder is not None
+    assert coder.can_use_tool("search_vault")
+    assert coder.can_use_tool("read_obsidian_note")
+    assert coder.can_use_tool("run_terminal_command")
+    assert coder.can_use_tool("write_obsidian_note")
+    assert coder.can_use_tool("launch_app")
+    assert not coder.can_use_tool("launch_swarm")
+
+    reviewer = default_registry.find_by_name("Reviewer")
+    assert reviewer is not None
+    assert not reviewer.can_use_tool("launch_app")
+    assert not reviewer.can_use_tool("run_terminal_command")
+
     print("✓ Default Agent registry")
+    print("✓ Coordinator Wave-2 privileged permissions")
+    print("✓ Coder Wave-2 local permissions")
+    print("✓ Researcher/Reviewer privilege isolation")
 
     # ------------------------------------------------------------------
     # Test 11: Serialization

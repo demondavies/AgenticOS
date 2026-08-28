@@ -77,7 +77,9 @@ from .tasks import (
 )
 
 from .tools import (
+    Tool,
     ToolRegistry,
+    ToolRisk,
     create_default_registry,
 )
 
@@ -91,8 +93,6 @@ from capabilities.memory import (
     MemoryStore,
 )
 from capabilities.voice import VoiceService
-from capabilities.web.research import deep_research_web
-from core.swarm import SwarmManager
 
 
 # ============================================================================
@@ -199,65 +199,6 @@ class AgentHarness:
             voice_service
             if voice_service is not None
             else VoiceService()
-        )
-
-        # Swarm is an AgenticOS orchestration capability. The Harness owns
-        # its lifecycle and injects the model and web capability boundaries.
-        self.swarm_orchestrator = SwarmManager(
-            model_chat=self._swarm_model_chat,
-            research_web=deep_research_web,
-        )
-
-        # The ToolRegistry owns the Tool object and routing metadata; the
-        # Harness owns the runtime capability instance that executes it.
-        self.tools.bind_handler(
-            "launch_swarm",
-            self.execute_swarm,
-        )
-
-    async def _swarm_model_chat(
-        self,
-        messages: List[Dict[str, str]],
-        *,
-        model: str = "hermes3:8b",
-        capability: str = "reasoning",
-    ) -> str:
-        """Run a Swarm model request through the canonical ModelProvider boundary."""
-        provider = self.models.get("ollama")
-        request = ModelRequest(
-            messages=[
-                ModelMessage(
-                    role=message["role"],
-                    content=message["content"],
-                    name=message.get("name"),
-                )
-                for message in messages
-            ],
-            capability=capability,
-            model=model,
-            metadata={"source": "agenticos_swarm"},
-        )
-
-        response = await asyncio.to_thread(
-            provider.chat,
-            request,
-        )
-        return response.content
-
-    async def execute_swarm(
-        self,
-        mission: str = "Default feature task",
-    ) -> str:
-        """Execute the canonical SwarmManager and format its interface result."""
-        result = await self.swarm_orchestrator.execute_crew_pipeline(
-            mission
-        )
-
-        return (
-            "SWARM PIPELINE COMPLETE!\n"
-            f"Task ID: {result['task_id']}\n"
-            "Artifact staged in memory. "
-            f"Default filename: {result['default_filename']}"
         )
 
     # ---------------------------------------------------------------------
@@ -404,6 +345,110 @@ class AgentHarness:
         # Otherwise use the first available provider.
 
         return self.models.get(providers[0])
+
+    # ---------------------------------------------------------------------
+    # Model interface
+    # ---------------------------------------------------------------------
+
+    @staticmethod
+    def _coerce_model_messages(messages: List[Any]) -> List[ModelMessage]:
+        """Convert interface message dictionaries into canonical messages."""
+        result: List[ModelMessage] = []
+
+        for message in messages:
+            if isinstance(message, ModelMessage):
+                result.append(message)
+                continue
+
+            if not isinstance(message, dict):
+                raise TypeError(
+                    "Model messages must be ModelMessage objects or dictionaries."
+                )
+
+            result.append(
+                ModelMessage(
+                    role=str(message["role"]),
+                    content=str(message["content"]),
+                    name=message.get("name"),
+                )
+            )
+
+        return result
+
+    async def chat(
+        self,
+        messages: List[Any],
+        model: Optional[str] = None,
+        capability: str = "conversation",
+        source: str = "harness.chat",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Execute a non-streaming model request through AgenticOS."""
+        task = Task(
+            title="Model chat",
+            description="Execute a conversational model request.",
+            workspace="development",
+            metadata={
+                "source": source,
+                "capability": capability,
+            },
+        )
+        agent = self.select_agent(task)
+        provider = self.select_model_provider(agent)
+        selected_model = model or agent.preferred_model()
+
+        request_metadata = dict(metadata or {})
+        request_metadata.update({
+            "source": source,
+            "capability": capability,
+        })
+
+        request = ModelRequest(
+            messages=self._coerce_model_messages(messages),
+            capability=capability,
+            model=selected_model,
+            metadata=request_metadata,
+        )
+
+        response = await asyncio.to_thread(provider.chat, request)
+        return response.content
+
+    def stream(
+        self,
+        messages: List[Any],
+        model: Optional[str] = None,
+        capability: str = "conversation",
+        source: str = "harness.stream",
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """Return a provider-independent model stream through AgenticOS."""
+        task = Task(
+            title="Model stream",
+            description="Execute a streaming conversational model request.",
+            workspace="development",
+            metadata={
+                "source": source,
+                "capability": capability,
+            },
+        )
+        agent = self.select_agent(task)
+        provider = self.select_model_provider(agent)
+        selected_model = model or agent.preferred_model()
+
+        request_metadata = dict(metadata or {})
+        request_metadata.update({
+            "source": source,
+            "capability": capability,
+        })
+
+        request = ModelRequest(
+            messages=self._coerce_model_messages(messages),
+            capability=capability,
+            model=selected_model,
+            metadata=request_metadata,
+        )
+
+        return provider.stream(request)
 
     # ---------------------------------------------------------------------
     # Tool execution and post-tool routing
@@ -1069,8 +1114,6 @@ def run_tool_tests() -> None:
     assert callable(harness.get_memory)
     assert callable(harness.save_memory)
     assert callable(harness.compact_memory)
-    assert isinstance(harness.swarm_orchestrator, SwarmManager)
-    assert harness.tools.require("launch_swarm").handler == harness.execute_swarm
 
     assert harness.tool_execution_mode("web_search") == "direct"
     assert harness.tool_execution_mode("get_current_time") == "direct"
@@ -1184,7 +1227,9 @@ def run_policy_tests() -> None:
     print("✓ Wave-2 privileged tools auto-approve from UI")
     print("✓ Wave-2 privileged tools require approval from Discord")
 
-    # An unapproved Tool must not reach the registry handler.
+    # An unpermitted Tool must not reach the registry handler.
+    # This test intentionally uses a synthetic Tool that the Coordinator does
+    # not permit. It must not invoke a real capability or cause side effects.
     blocked = Task(
         title="Policy denial test",
         description="Test denied Tool execution.",
@@ -1193,10 +1238,20 @@ def run_policy_tests() -> None:
     )
     blocked_coordinator = harness.select_agent(blocked)
 
+    denied_tool = Tool(
+        name="policy_denied_test",
+        description="Synthetic Tool that the Coordinator cannot use.",
+        handler=lambda: (_ for _ in ()).throw(
+            AssertionError("Denied Tool handler was executed.")
+        ),
+        risk=ToolRisk.SAFE,
+    )
+    harness.tools.register(denied_tool)
+
     try:
         harness.execute_tool(
-            "web_search",
-            {"query": "policy test"},
+            "policy_denied_test",
+            {},
             task=blocked,
             agent=blocked_coordinator,
             source="harness.test",

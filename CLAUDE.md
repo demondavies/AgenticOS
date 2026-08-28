@@ -52,6 +52,7 @@ Capability  (capabilities/)
 | 13 | Media workspace — generate_image Tool (workspace="media" Tasks) | ✅ Done |
 | 14 | System prompt + intent router completeness (all 13 tools reachable from Discord) | ✅ Done |
 | 15 | Discord Voice — ARNIE speaks replies in voice channel via Kokoro TTS | ✅ Done |
+| 16 | Dashboard mothership redesign — 3-column layout, live metrics, always-on tasks + events, vault today (Phase 16) | ✅ Done |
 
 ---
 

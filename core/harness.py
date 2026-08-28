@@ -235,7 +235,7 @@ class AgentHarness:
         capability: str = "reasoning",
     ) -> str:
         """Run a Swarm model request through the canonical ModelProvider."""
-        provider = self.models.get("ollama")
+        provider = self.select_model_provider()
 
         request = ModelRequest(
             messages=[
@@ -403,20 +403,14 @@ class AgentHarness:
 
     def select_model_provider(
         self,
-        agent: Agent,
+        agent: Optional[Agent] = None,
     ) -> ModelProvider:
         """
         Select a ModelProvider for an Agent.
 
-        Version 1:
-
-            Use Ollama.
-
-        The provider is still abstracted behind ModelProvider, so future
-        routing can be introduced without changing the Harness interface.
+        Currently returns the first registered provider.
+        Future versions will route by agent capability profile.
         """
-
-        # For now ARNIE has one provider.
 
         providers = self.models.list_providers()
 
@@ -424,13 +418,6 @@ class AgentHarness:
             raise RuntimeError(
                 "No Model Providers are registered."
             )
-
-        # Prefer Ollama while it is our current local provider.
-
-        if "ollama" in providers:
-            return self.models.get("ollama")
-
-        # Otherwise use the first available provider.
 
         return self.models.get(providers[0])
 

@@ -1,8 +1,12 @@
 import discord
 import json
+import os
 import sys
 import asyncio
 import uvicorn
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # 🔒 SECURE SYSTEM CONFIGURATION
@@ -306,7 +310,7 @@ async def main():
         "\n🖥️  Web UI Chat Dashboard: http://127.0.0.1:8000"
     )
 
-    DISCORD_BOT_TOKEN = ""  # Paste token here if using Discord, or leave empty!
+    DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 
     if DISCORD_BOT_TOKEN.strip():
         print("🤖 Connecting to Discord Gateway...")

@@ -39,6 +39,8 @@ The purpose of this module is to prove the central architectural loop.
 
 from __future__ import annotations
 
+import asyncio
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -89,6 +91,8 @@ from capabilities.memory import (
     MemoryStore,
 )
 from capabilities.voice import VoiceService
+from capabilities.web.research import deep_research_web
+from core.swarm import SwarmManager
 
 
 # ============================================================================
@@ -195,6 +199,65 @@ class AgentHarness:
             voice_service
             if voice_service is not None
             else VoiceService()
+        )
+
+        # Swarm is an AgenticOS orchestration capability. The Harness owns
+        # its lifecycle and injects the model and web capability boundaries.
+        self.swarm_orchestrator = SwarmManager(
+            model_chat=self._swarm_model_chat,
+            research_web=deep_research_web,
+        )
+
+        # The ToolRegistry owns the Tool object and routing metadata; the
+        # Harness owns the runtime capability instance that executes it.
+        self.tools.bind_handler(
+            "launch_swarm",
+            self.execute_swarm,
+        )
+
+    async def _swarm_model_chat(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        model: str = "hermes3:8b",
+        capability: str = "reasoning",
+    ) -> str:
+        """Run a Swarm model request through the canonical ModelProvider boundary."""
+        provider = self.models.get("ollama")
+        request = ModelRequest(
+            messages=[
+                ModelMessage(
+                    role=message["role"],
+                    content=message["content"],
+                    name=message.get("name"),
+                )
+                for message in messages
+            ],
+            capability=capability,
+            model=model,
+            metadata={"source": "agenticos_swarm"},
+        )
+
+        response = await asyncio.to_thread(
+            provider.chat,
+            request,
+        )
+        return response.content
+
+    async def execute_swarm(
+        self,
+        mission: str = "Default feature task",
+    ) -> str:
+        """Execute the canonical SwarmManager and format its interface result."""
+        result = await self.swarm_orchestrator.execute_crew_pipeline(
+            mission
+        )
+
+        return (
+            "SWARM PIPELINE COMPLETE!\n"
+            f"Task ID: {result['task_id']}\n"
+            "Artifact staged in memory. "
+            f"Default filename: {result['default_filename']}"
         )
 
     # ---------------------------------------------------------------------
@@ -1006,6 +1069,8 @@ def run_tool_tests() -> None:
     assert callable(harness.get_memory)
     assert callable(harness.save_memory)
     assert callable(harness.compact_memory)
+    assert isinstance(harness.swarm_orchestrator, SwarmManager)
+    assert harness.tools.require("launch_swarm").handler == harness.execute_swarm
 
     assert harness.tool_execution_mode("web_search") == "direct"
     assert harness.tool_execution_mode("get_current_time") == "direct"
@@ -1015,7 +1080,20 @@ def run_tool_tests() -> None:
     assert harness.tool_execution_mode("read_obsidian_note") == "synthesize"
     assert harness.tool_execution_mode("get_daily_vault_summary") == "direct"
 
-    # Do not execute the legacy-backed tools here; importing bot.py would pull
+    # Wave-2 privileged tools must be registered centrally.
+    for name in {
+        "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
+    }:
+        tool = harness.tools.get(name)
+        assert tool is not None
+        assert tool.risk.value == "privileged"
+        assert tool.local_access is True
+        assert tool.mutates_state is True
+
+    # Do not execute real Wave-2 side effects during the core contract test.
     # the legacy runtime into the core test. We only verify routing ownership.
 
     print("Ã¢Å“â€œ Harness tool-routing contract passed")
@@ -1042,6 +1120,70 @@ def run_policy_tests() -> None:
     )
     assert result.decision == PolicyDecision.ALLOW
 
+    # ------------------------------------------------------------------
+    # Wave 2: privileged tools
+    #
+    # The UI/local interface is trusted and therefore auto-approved after
+    # all normal Policy DENY checks pass. Discord is intentionally NOT a
+    # trusted source and must stop at APPROVAL_REQUIRED.
+    # ------------------------------------------------------------------
+    trusted_local = Task(
+        title="Trusted local Wave-2 policy test",
+        description="Test source-aware approval for privileged tools.",
+        workspace="system",
+        metadata={"agent": "Coordinator"},
+    )
+    coordinator = harness.select_agent(trusted_local)
+
+    privileged_tools = {
+        "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
+    }
+
+    for tool_name in privileged_tools:
+        tool = harness.tools.get(tool_name)
+        assert tool is not None, f"Missing Wave-2 Tool: {tool_name}"
+        assert tool.risk.value == "privileged"
+        assert tool.local_access is True
+        assert tool.mutates_state is True
+
+        local_result = harness._authorize_tool(
+            tool_name,
+            task=trusted_local,
+            agent=coordinator,
+            source="ui",
+        )
+        assert local_result.decision == PolicyDecision.ALLOW
+        assert local_result.metadata.get("source_auto_approved") is True
+
+        try:
+            harness._authorize_tool(
+                tool_name,
+                task=trusted_local,
+                agent=coordinator,
+                source="discord",
+            )
+        except PermissionError as error:
+            assert "requires human approval" in str(error)
+        else:
+            raise AssertionError(
+                f"Policy bypass: Discord auto-approved {tool_name}"
+            )
+
+        approved_result = harness._authorize_tool(
+            tool_name,
+            task=trusted_local,
+            agent=coordinator,
+            source="discord",
+            user_approved=True,
+        )
+        assert approved_result.decision == PolicyDecision.ALLOW
+
+    print("✓ Wave-2 privileged tools auto-approve from UI")
+    print("✓ Wave-2 privileged tools require approval from Discord")
+
     # An unapproved Tool must not reach the registry handler.
     blocked = Task(
         title="Policy denial test",
@@ -1049,14 +1191,14 @@ def run_policy_tests() -> None:
         workspace="development",
         metadata={"agent": "Coordinator"},
     )
-    coordinator = harness.select_agent(blocked)
+    blocked_coordinator = harness.select_agent(blocked)
 
     try:
         harness.execute_tool(
             "web_search",
             {"query": "policy test"},
             task=blocked,
-            agent=coordinator,
+            agent=blocked_coordinator,
             source="harness.test",
         )
     except PermissionError:

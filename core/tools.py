@@ -1,19 +1,36 @@
 """
 ARNIE AgenticOS
-Safe Tool Registry
+Canonical Tool Registry
 
-This module is the canonical registry for the first migration wave of
-ARNIE's existing read-oriented tools.
+This module defines the canonical executable capability layer for
+AgenticOS.
+
+Architecture:
+
+    Agent
+        ↓
+    Task
+        ↓
+    PolicyEngine
+        ↓
+    ToolRegistry
+        ↓
+    Tool Handler / Capability
 
 Important:
+
 - Tool is the canonical executable capability.
 - ToolRegistry is the canonical collection.
 - PolicyEngine remains responsible for authorization.
-- The legacy bot implementation remains the handler owner for now.
-- Lazy handler adapters avoid importing bot.py during AgenticOS startup,
-  preventing a circular import while we migrate the monolith incrementally.
+- The Harness owns managed execution.
+- Interface layers such as bot.py must not bypass the Harness for
+  policy-protected execution.
+- Lazy legacy adapters are retained temporarily for capabilities that
+  have not yet been extracted from bot.py.
 
-Migration wave 1:
+Migration status:
+
+Wave 1:
     web_search
     get_current_time
     read_obsidian_note
@@ -21,7 +38,21 @@ Migration wave 1:
     get_daily_vault_summary
     get_system_metrics
 
-Privileged/state-changing tools are intentionally NOT registered here yet.
+Wave 2:
+    launch_app
+    write_obsidian_note
+    run_terminal_command
+    launch_swarm
+
+Wave-2 tools are privileged and state-changing. Their registration here
+does NOT bypass PolicyEngine.
+
+Source-aware approval is handled by PolicyEngine:
+
+    UI/local interface  -> auto-approved after normal policy checks
+    Discord             -> requires human approval
+
+The registry itself never makes authorization decisions.
 """
 
 from __future__ import annotations
@@ -30,36 +61,41 @@ from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isawaitable
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+
+
+# ============================================================================
+# NATIVE AGENTICOS CAPABILITIES
+# ============================================================================
+
 from capabilities.system.applications import launch_windows_app
 
-
-
-def _launch_app(args: Optional[Dict[str, Any]] = None, **kwargs: Any) -> str:
-    """Launch a local application through the system capability."""
-    arguments = dict(args or {})
-    arguments.update(kwargs)
-    target = (
-        arguments.get("app_name")
-        or arguments.get("target")
-        or arguments.get("name")
-        or ""
-    )
-    return launch_windows_app(str(target))
-
-# Canonical AgenticOS Vault capability.
-# Vault is no longer owned by bot.py.
 from capabilities.vault import (
     get_daily_vault_summary,
     read_obsidian_note,
     search_master_brain_vault,
+    write_obsidian_note,
 )
-from capabilities.web import web_search
-from capabilities.system import get_system_metrics, get_current_time
 
+from capabilities.web import web_search
+
+from capabilities.system import (
+    get_system_metrics,
+    get_current_time,
+)
+
+
+# ============================================================================
+# TOOL TYPES
+# ============================================================================
 
 ToolHandler = Callable[..., Any]
 AsyncToolHandler = Callable[..., Awaitable[Any]]
 ToolHandlerType = Union[ToolHandler, AsyncToolHandler]
+
+
+# ============================================================================
+# TOOL RISK
+# ============================================================================
 
 
 class ToolRisk(str, Enum):
@@ -68,61 +104,121 @@ class ToolRisk(str, Enum):
     PRIVILEGED = "privileged"
 
 
+# ============================================================================
+# TOOL STATUS
+# ============================================================================
+
+
 class ToolStatus(str, Enum):
     ENABLED = "enabled"
     DISABLED = "disabled"
 
 
+# ============================================================================
+# TOOL PERMISSION POLICY
+# ============================================================================
+
+
 @dataclass(frozen=True)
 class ToolPermissionPolicy:
+    """
+    Declarative permission metadata attached to a Tool.
+
+    PolicyEngine remains the authority that interprets this metadata.
+    """
+
     requires_approval: bool = False
+
     allow_owner: bool = True
+
     allow_agents: bool = True
+
     require_approval_for_privileged_tools: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    metadata: Dict[str, Any] = field(
+        default_factory=dict
+    )
+
+
+# ============================================================================
+# TOOL DOMAIN OBJECT
+# ============================================================================
 
 
 @dataclass
 class Tool:
+    """
+    Canonical executable capability.
+
+    Tool execution itself does NOT perform authorization.
+
+    Authorization belongs to:
+
+        Harness -> PolicyEngine -> ToolRegistry
+    """
+
     name: str
+
     description: str
+
     handler: ToolHandlerType
+
     risk: ToolRisk = ToolRisk.SAFE
+
     status: ToolStatus = ToolStatus.ENABLED
+
     local_access: bool = False
+
     mutates_state: bool = False
+
     requires_approval: bool = False
 
-    # Execution semantics belong to the Tool contract, not to bot.py.
     # Deterministic tools return authoritative runtime results directly.
-    # Tools marked synthesis_required may be passed to a model after execution.
+    # Synthesis-capable tools may be passed through a model after execution.
     deterministic: bool = False
+
     synthesis_required: bool = True
 
     permission_policy: ToolPermissionPolicy = field(
         default_factory=ToolPermissionPolicy
     )
-    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    metadata: Dict[str, Any] = field(
+        default_factory=dict
+    )
 
     def __post_init__(self) -> None:
         self.name = self.name.strip()
+
         if not self.name:
-            raise ValueError("Tool name cannot be empty.")
+            raise ValueError(
+                "Tool name cannot be empty."
+            )
+
         self.description = self.description.strip()
+
         if not callable(self.handler):
             raise TypeError(
                 f"Handler for Tool '{self.name}' must be callable."
             )
 
-        if self.requires_approval and not self.permission_policy.requires_approval:
+        # Keep the legacy requires_approval field and the canonical
+        # permission policy synchronized.
+        if (
+            self.requires_approval
+            and not self.permission_policy.requires_approval
+        ):
             self.permission_policy = ToolPermissionPolicy(
                 requires_approval=True,
                 allow_owner=self.permission_policy.allow_owner,
                 allow_agents=self.permission_policy.allow_agents,
                 require_approval_for_privileged_tools=(
-                    self.permission_policy.require_approval_for_privileged_tools
+                    self.permission_policy
+                    .require_approval_for_privileged_tools
                 ),
-                metadata=dict(self.permission_policy.metadata),
+                metadata=dict(
+                    self.permission_policy.metadata
+                ),
             )
 
     @property
@@ -139,20 +235,35 @@ class Tool:
     def disable(self) -> None:
         self.status = ToolStatus.DISABLED
 
-    def execute(self, arguments: Optional[Dict[str, Any]] = None) -> Any:
+    def execute(
+        self,
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
-        Execute the handler.
+        Execute the underlying handler.
 
-        Authorization is deliberately NOT performed here.
-        The Harness / PolicyEngine owns that responsibility.
+        IMPORTANT:
+
+        This method intentionally does not authorize the Tool.
+
+        Managed execution must happen through AgentHarness.
         """
+
         if not self.enabled:
-            raise RuntimeError(f"Tool '{self.name}' is disabled.")
+            raise RuntimeError(
+                f"Tool '{self.name}' is disabled."
+            )
 
-        arguments = {} if arguments is None else arguments
+        arguments = (
+            {}
+            if arguments is None
+            else arguments
+        )
 
         if not isinstance(arguments, dict):
-            raise TypeError("Tool arguments must be a dictionary.")
+            raise TypeError(
+                "Tool arguments must be a dictionary."
+            )
 
         return self.handler(**arguments)
 
@@ -168,6 +279,12 @@ class Tool:
         return result
 
     def describe(self) -> Dict[str, Any]:
+        """
+        Return the public Tool description.
+
+        Handler implementation details are intentionally hidden.
+        """
+
         return {
             "name": self.name,
             "description": self.description,
@@ -185,18 +302,34 @@ class Tool:
         }
 
 
+# ============================================================================
+# TOOL REGISTRY
+# ============================================================================
+
+
 class ToolRegistry:
     """
     Canonical registry of AgenticOS Tools.
 
-    It knows what exists and how to invoke it.
-    It does not decide whether execution is permitted.
+    Responsibilities:
+
+        - know which Tools exist
+        - register Tools
+        - retrieve Tools
+        - invoke Tool handlers
+        - expose Tool metadata
+        - expose execution mode
+
+    It does NOT decide whether a Tool is authorized.
     """
 
     def __init__(self) -> None:
         self._tools: Dict[str, Tool] = {}
 
-    def register(self, tool: Tool) -> Tool:
+    def register(
+        self,
+        tool: Tool,
+    ) -> Tool:
         if not isinstance(tool, Tool):
             raise TypeError(
                 "ToolRegistry.register() requires a Tool object."
@@ -208,41 +341,89 @@ class ToolRegistry:
             )
 
         self._tools[tool.name] = tool
+
         return tool
 
-    def register_many(self, tools: List[Tool]) -> None:
+    def register_many(
+        self,
+        tools: List[Tool],
+    ) -> None:
         for tool in tools:
             self.register(tool)
 
-    def unregister(self, name: str) -> Optional[Tool]:
-        return self._tools.pop(name, None)
+    def bind_handler(
+        self,
+        name: str,
+        handler: ToolHandlerType,
+    ) -> Tool:
+        """Bind a runtime-owned capability handler to a registered Tool."""
+        if not callable(handler):
+            raise TypeError(
+                f"Handler for Tool '{name}' must be callable."
+            )
 
-    def get(self, name: str) -> Optional[Tool]:
+        tool = self.require(name)
+        tool.handler = handler
+        return tool
+
+    def unregister(
+        self,
+        name: str,
+    ) -> Optional[Tool]:
+        return self._tools.pop(
+            name,
+            None,
+        )
+
+    def get(
+        self,
+        name: str,
+    ) -> Optional[Tool]:
         return self._tools.get(name)
 
-    def require(self, name: str) -> Tool:
+    def require(
+        self,
+        name: str,
+    ) -> Tool:
         tool = self.get(name)
 
         if tool is None:
-            raise KeyError(f"Unknown tool: {name}")
+            raise KeyError(
+                f"Unknown tool: {name}"
+            )
 
         return tool
 
-    def has(self, name: str) -> bool:
+    def has(
+        self,
+        name: str,
+    ) -> bool:
         return name in self._tools
 
-    def list(self, include_disabled: bool = True) -> List[Tool]:
-        tools = list(self._tools.values())
+    def list(
+        self,
+        include_disabled: bool = True,
+    ) -> List[Tool]:
+        tools = list(
+            self._tools.values()
+        )
 
         if not include_disabled:
-            tools = [tool for tool in tools if tool.enabled]
+            tools = [
+                tool
+                for tool in tools
+                if tool.enabled
+            ]
 
         return sorted(
             tools,
             key=lambda tool: tool.name.lower(),
         )
 
-    def names(self, include_disabled: bool = True) -> List[str]:
+    def names(
+        self,
+        include_disabled: bool = True,
+    ) -> List[str]:
         return [
             tool.name
             for tool in self.list(
@@ -266,46 +447,70 @@ class ToolRegistry:
         name: str,
         arguments: Optional[Dict[str, Any]] = None,
     ) -> Any:
-        return self.require(name).execute(arguments)
+        return self.require(name).execute(
+            arguments
+        )
 
     async def execute_async(
         self,
         name: str,
         arguments: Optional[Dict[str, Any]] = None,
     ) -> Any:
-        return await self.require(name).execute_async(arguments)
+        return await self.require(name).execute_async(
+            arguments
+        )
 
-    def execution_mode(self, name: str) -> str:
+    def execution_mode(
+        self,
+        name: str,
+    ) -> str:
         """
         Return the canonical post-execution routing mode.
 
-        This is intentionally a property of the registered Tool rather than
-        a hard-coded list in bot.py.
+        Deterministic authoritative Tools are returned directly.
+
+        Knowledge retrieval Tools are sent through model synthesis.
         """
+
         tool = self.require(name)
 
-        if tool.deterministic and not tool.synthesis_required:
+        if (
+            tool.deterministic
+            and not tool.synthesis_required
+        ):
             return "direct"
 
         return "synthesize"
 
 
 # ============================================================================
-# LAZY LEGACY HANDLER ADAPTERS
+# LAZY LEGACY HANDLER ADAPTER
 # ============================================================================
+
 
 def _legacy_module():
     """
-    Import the legacy bot only when a registered tool is actually executed.
+    Import bot.py only when a legacy handler actually executes.
 
-    This is a temporary migration seam. Once the handlers move into
-    AgenticOS tool modules, these adapters disappear.
+    This prevents the Tool Registry from importing bot.py during normal
+    AgenticOS startup and avoids circular imports.
+
+    These adapters are temporary migration seams.
     """
+
     import bot
+
     return bot
 
 
-def _web_search(query: str = "") -> str:
+# ============================================================================
+# WAVE 1 HANDLERS
+# ============================================================================
+
+
+def _web_search(
+    query: str = "",
+) -> str:
     return web_search(query)
 
 
@@ -313,8 +518,12 @@ def _current_time() -> str:
     return get_current_time()
 
 
-def _read_obsidian_note(filename: str = "Inbox") -> str:
-    return read_obsidian_note(filename)
+def _read_obsidian_note(
+    filename: str = "Inbox",
+) -> str:
+    return read_obsidian_note(
+        filename
+    )
 
 
 def _search_vault(
@@ -336,17 +545,100 @@ def _system_metrics() -> str:
 
 
 # ============================================================================
-# SAFE TOOL DEFINITIONS
+# WAVE 2 HANDLERS
 # ============================================================================
+
+
+def _launch_app(
+    args: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> str:
+    """
+    Launch a local Windows application through the native
+    AgenticOS system capability.
+    """
+
+    arguments = dict(
+        args or {}
+    )
+
+    arguments.update(kwargs)
+
+    target = (
+        arguments.get("app_name")
+        or arguments.get("target")
+        or arguments.get("name")
+        or ""
+    )
+
+    return launch_windows_app(
+        str(target)
+    )
+
+
+def _write_obsidian_note(
+    filename: str = "Inbox",
+    content: str = "",
+    text: str = "",
+) -> str:
+    """Execute the canonical AgenticOS vault note writer."""
+    note_content = content or text or ""
+    return write_obsidian_note(
+        filename,
+        note_content,
+    )
+
+
+def _run_terminal_command(
+    command: str = "dir",
+) -> str:
+    """
+    Temporary compatibility adapter for the legacy terminal runner.
+
+    PolicyEngine controls whether this handler may execute.
+    """
+
+    bot = _legacy_module()
+
+    return bot.run_terminal_command(
+        command
+    )
+
+
+async def _launch_swarm(
+    mission: str = "Default feature task",
+) -> str:
+    """Fail clearly if the Harness has not bound the canonical Swarm handler."""
+    raise RuntimeError(
+        "The launch_swarm Tool has not been bound to the AgenticOS "
+        "Harness SwarmManager."
+    )
+
+
+# ============================================================================
+# DEFAULT REGISTRY
+# ============================================================================
+
 
 def create_default_registry() -> ToolRegistry:
     """
-    Create the first real production registry.
+    Create the canonical production Tool Registry.
 
-    Only read-oriented tools are included in migration wave 1.
+    Wave 1:
+        Six safe/read-oriented tools.
+
+    Wave 2:
+        Four privileged tools.
+
+    Total:
+        Ten registered capabilities.
     """
 
     registry = ToolRegistry()
+
+    # ========================================================================
+    # WAVE 1 — SAFE
+    # ========================================================================
 
     registry.register(
         Tool(
@@ -363,7 +655,9 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 1,
-                "capability_handler": "capabilities.web.web_search",
+                "capability_handler": (
+                    "capabilities.web.web_search"
+                ),
             },
         )
     )
@@ -382,7 +676,9 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "get_current_time",
+                "capability_handler": (
+                    "capabilities.system.get_current_time"
+                ),
             },
         )
     )
@@ -402,7 +698,9 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=True,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "read_obsidian_note",
+                "capability_handler": (
+                    "capabilities.vault.read_obsidian_note"
+                ),
             },
         )
     )
@@ -422,7 +720,9 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=True,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "search_master_brain_vault",
+                "capability_handler": (
+                    "capabilities.vault.search_master_brain_vault"
+                ),
             },
         )
     )
@@ -442,8 +742,11 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "get_daily_vault_summary",
+                "capability_handler": (
+                    "capabilities.vault.get_daily_vault_summary"
+                ),
                 "async": True,
+                "authoritative": True,
             },
         )
     )
@@ -462,10 +765,17 @@ def create_default_registry() -> ToolRegistry:
             synthesis_required=False,
             metadata={
                 "migration_wave": 1,
-                "legacy_handler": "get_system_metrics_telemetry",
+                "capability_handler": (
+                    "capabilities.system.get_system_metrics"
+                ),
+                "authoritative": True,
             },
         )
     )
+
+    # ========================================================================
+    # WAVE 2 — PRIVILEGED
+    # ========================================================================
 
     registry.register(
         Tool(
@@ -492,6 +802,85 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    registry.register(
+        Tool(
+            name="write_obsidian_note",
+            description=(
+                "Write or update a Markdown note in the Master Brain vault."
+            ),
+            handler=_write_obsidian_note,
+            risk=ToolRisk.PRIVILEGED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=True,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 2,
+                "capability_handler": (
+                    "capabilities.vault.write_obsidian_note"
+                ),
+                "privileged": True,
+                "approval_required": True,
+                "migration_status": "native",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="run_terminal_command",
+            description=(
+                "Execute an approved Windows terminal command on the "
+                "local AgenticOS machine."
+            ),
+            handler=_run_terminal_command,
+            risk=ToolRisk.PRIVILEGED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=True,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 2,
+                "legacy_handler": (
+                    "bot.run_terminal_command"
+                ),
+                "privileged": True,
+                "approval_required": True,
+                "migration_status": "legacy_adapter",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="launch_swarm",
+            description=(
+                "Launch the AgenticOS multi-agent swarm pipeline for a "
+                "research, coding, review, or implementation mission."
+            ),
+            handler=_launch_swarm,
+            risk=ToolRisk.PRIVILEGED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=True,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "migration_wave": 2,
+                "capability_handler": (
+                    "core.swarm.SwarmManager.execute_crew_pipeline"
+                ),
+                "privileged": True,
+                "approval_required": True,
+                "migration_status": "native",
+                "async": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -499,8 +888,13 @@ def create_default_registry() -> ToolRegistry:
 # SELF TEST
 # ============================================================================
 
+
 def run_tests() -> None:
-    import asyncio
+    """
+    Validate the complete canonical Tool Registry.
+
+    No privileged handlers are executed by this test.
+    """
 
     registry = create_default_registry()
 
@@ -512,72 +906,148 @@ def run_tests() -> None:
         "get_daily_vault_summary",
         "get_system_metrics",
         "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
     }
 
-    actual = set(registry.names())
-
-    assert actual == expected, (
-        f"Registry mismatch.\nExpected: {sorted(expected)}"
-        f"\nActual: {sorted(actual)}"
+    actual = set(
+        registry.names()
     )
 
-    safe_tools = expected - {"launch_app"}
+    assert actual == expected, (
+        "Registry mismatch.\n"
+        f"Expected: {sorted(expected)}\n"
+        f"Actual: {sorted(actual)}"
+    )
+
+    # ========================================================================
+    # SAFE TOOLS
+    # ========================================================================
+
+    safe_tools = {
+        "web_search",
+        "get_current_time",
+        "read_obsidian_note",
+        "search_vault",
+        "get_daily_vault_summary",
+        "get_system_metrics",
+    }
 
     for name in safe_tools:
         tool = registry.require(name)
 
         assert tool.enabled
+
         assert tool.risk == ToolRisk.SAFE
+
         assert tool.permission_policy.allow_owner
+
         assert not tool.mutates_state
 
-    launch_app = registry.require("launch_app")
+    # ========================================================================
+    # PRIVILEGED TOOLS
+    # ========================================================================
 
-    assert launch_app.enabled
-    assert launch_app.risk == ToolRisk.PRIVILEGED
-    assert launch_app.local_access
-    assert launch_app.mutates_state
-    assert launch_app.requires_approval
-    assert launch_app.permission_policy.allow_owner
-    assert registry.execution_mode("launch_app") == "direct"
+    privileged_tools = {
+        "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
+    }
 
-    # Deterministic runtime capabilities must bypass model synthesis.
-    for name in {"web_search", "get_current_time", "get_system_metrics"}:
+    for name in privileged_tools:
         tool = registry.require(name)
-        assert tool.deterministic
-        assert not tool.synthesis_required
+
+        assert tool.enabled
+
+        assert tool.risk == ToolRisk.PRIVILEGED
+
+        assert tool.local_access
+
+        assert tool.mutates_state
+
+        assert tool.requires_approval
+
+        assert tool.permission_policy.allow_owner
+
+        assert tool.permission_policy.requires_approval
+
         assert registry.execution_mode(name) == "direct"
 
-    # Knowledge retrieval remains synthesis-capable, while the vault
-    # summary is already a complete authoritative response.
-    for name in {
+    # ========================================================================
+    # DETERMINISTIC TOOLS
+    # ========================================================================
+
+    deterministic_tools = {
+        "web_search",
+        "get_current_time",
+        "get_system_metrics",
+        "get_daily_vault_summary",
+        "launch_app",
+        "write_obsidian_note",
+        "run_terminal_command",
+        "launch_swarm",
+    }
+
+    for name in deterministic_tools:
+        tool = registry.require(name)
+
+        assert tool.deterministic
+
+        assert not tool.synthesis_required
+
+        assert registry.execution_mode(name) == "direct"
+
+    # ========================================================================
+    # KNOWLEDGE TOOLS
+    # ========================================================================
+
+    synthesis_tools = {
         "read_obsidian_note",
         "search_vault",
-    }:
+    }
+
+    for name in synthesis_tools:
         tool = registry.require(name)
+
         assert not tool.deterministic
+
         assert tool.synthesis_required
+
         assert registry.execution_mode(name) == "synthesize"
 
-    daily_summary = registry.require("get_daily_vault_summary")
-    assert daily_summary.deterministic
-    assert not daily_summary.synthesis_required
-    assert registry.execution_mode("get_daily_vault_summary") == "direct"
+    # ========================================================================
+    # ASYNC HANDLERS
+    # ========================================================================
 
-    # Verify the async adapter shape without importing bot.py.
     import inspect
-    assert inspect.iscoroutinefunction(_daily_vault_summary)
 
-    # Verify all descriptions are serializable and handlers are hidden.
+    assert inspect.iscoroutinefunction(
+        _daily_vault_summary
+    )
+
+    assert inspect.iscoroutinefunction(
+        _launch_swarm
+    )
+
+    # ========================================================================
+    # PUBLIC DESCRIPTIONS
+    # ========================================================================
+
     for description in registry.describe():
         assert "handler" not in description
 
-    for name in safe_tools:
-        assert registry.require(name).describe()["risk"] == "safe"
+        assert "risk" in description
 
-    assert registry.require("launch_app").describe()["risk"] == "privileged"
+        assert "name" in description
 
-    # Verify duplicate protection.
+        assert "description" in description
+
+    # ========================================================================
+    # DUPLICATE PROTECTION
+    # ========================================================================
+
     duplicate_rejected = False
 
     try:
@@ -588,38 +1058,84 @@ def run_tests() -> None:
                 handler=_web_search,
             )
         )
+
     except ValueError:
         duplicate_rejected = True
 
     assert duplicate_rejected
 
-    print("=" * 64)
-    print("ARNIE SAFE TOOL REGISTRY TEST")
-    print("=" * 64)
+    # ========================================================================
+    # DISABLED TOOL FILTERING
+    # ========================================================================
+
+    test_registry = ToolRegistry()
+
+    disabled_tool = Tool(
+        name="disabled_test",
+        description="Disabled test Tool.",
+        handler=lambda: "disabled",
+    )
+
+    disabled_tool.disable()
+
+    test_registry.register(
+        disabled_tool
+    )
+
+    assert "disabled_test" in (
+        test_registry.names(
+            include_disabled=True
+        )
+    )
+
+    assert "disabled_test" not in (
+        test_registry.names(
+            include_disabled=False
+        )
+    )
+
+    # ========================================================================
+    # OUTPUT
+    # ========================================================================
+
+    print("=" * 72)
+    print(
+        "ARNIE AGENTIC OS — CANONICAL TOOL REGISTRY TEST"
+    )
+    print("=" * 72)
+
     print()
-    print("Registered migration-wave-1 tools:")
+    print("Registered Wave-1 + Wave-2 Tools:")
+    print()
 
     for tool in registry.list():
         print(
-            f"  âœ“ {tool.name:<24}"
-            f" risk={tool.risk.value:<8}"
-            f" local={str(tool.local_access):<5}"
-            f" mutates={str(tool.mutates_state):<5}"
+            f"  ✓ {tool.name:<26}"
+            f"risk={tool.risk.value:<11}"
+            f"local={str(tool.local_access):<5}"
+            f"mutates={str(tool.mutates_state):<5}"
+            f"mode={registry.execution_mode(tool.name)}"
         )
 
     print()
-    print("âœ“ Six safe tools registered")
-    print("âœ“ One privileged tool registered behind Policy")
-    print("âœ“ Canonical Tool domain objects")
-    print("âœ“ Legacy seam retained only for unmigrated capabilities")
-    print("âœ“ Vault handlers now live in AgenticOS")
-    print("âœ“ Direct authoritative vault summary")
-    print("âœ“ Duplicate protection")
-    print("âœ“ Policy metadata preserved")
+    print("✓ Six Wave-1 safe tools registered")
+    print("✓ Four Wave-2 privileged tools registered")
+    print("✓ Canonical Tool domain objects")
+    print("✓ Deterministic routing owned by ToolRegistry")
+    print("✓ Privileged tools remain Policy-protected")
+    print("✓ UI/Discord approval remains Policy responsibility")
+    print("✓ Legacy adapters retained only for unmigrated handlers")
+    print("✓ Async swarm adapter avoids nested event loops")
+    print("✓ Direct authoritative vault summary")
+    print("✓ Duplicate protection")
+    print("✓ Disabled-tool filtering")
+    print("✓ Policy metadata preserved")
     print()
-    print("==============================================================")
-    print("SAFE TOOL REGISTRY TEST PASSED")
-    print("==============================================================")
+    print("=" * 72)
+    print(
+        "CANONICAL TOOL REGISTRY TEST PASSED"
+    )
+    print("=" * 72)
 
 
 if __name__ == "__main__":

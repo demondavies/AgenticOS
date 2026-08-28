@@ -802,8 +802,21 @@ class AgentHarness:
         self.memory.init_db()
 
     def initialize_tasks(self) -> None:
-        """Initialize the configured AgenticOS Task store."""
+        """Initialize the configured AgenticOS Task store and recover any
+        Tasks left QUEUED or RUNNING when the process last stopped."""
         self.task_store.init_db()
+        self.recover_incomplete_tasks()
+
+    def recover_incomplete_tasks(self) -> int:
+        """Re-enqueue Tasks that did not reach a terminal status.
+
+        RUNNING Tasks were interrupted mid-execution and are reset to
+        QUEUED. QUEUED Tasks are already durable in the store and require
+        no change; both are surfaced here as recovered.
+        """
+        recovered = self.task_store.recover_interrupted_tasks()
+        still_queued = self.task_store.list_tasks(status=TaskStatus.QUEUED.value)
+        return recovered + len(still_queued)
 
     # ---------------------------------------------------------------------
     # Tasks

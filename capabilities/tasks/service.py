@@ -163,6 +163,24 @@ class TaskStore:
 
         return [self._row_to_dict(row) for row in rows]
 
+    def recover_interrupted_tasks(self) -> int:
+        """Reset RUNNING Tasks to QUEUED so they survive a process restart.
+
+        Tasks left RUNNING were interrupted mid-execution when the process
+        died; they never reached a terminal status. QUEUED tasks are already
+        durable and need no change.
+        """
+        self._ensure_schema()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """UPDATE tasks SET status = 'queued', updated_at = CURRENT_TIMESTAMP
+                    WHERE status = 'running'"""
+            )
+            conn.commit()
+
+        return cursor.rowcount
+
     def delete_terminal_tasks_older_than(self, days: int = 30) -> int:
         """Delete completed/failed/cancelled/rejected Tasks older than `days`."""
         self._ensure_schema()

@@ -6,7 +6,6 @@ work remains owned by AgenticOS Runtime, Harness, capabilities, and scheduler.
 """
 
 import os
-import re
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,7 +13,6 @@ from pydantic import BaseModel
 
 from core.agent_runtime import AgentRuntime
 from core.harness import AgentHarness
-from core.swarm import STAGED_ARTIFACTS
 from capabilities.voice.http import VoiceHTTPAdapter
 from capabilities.vault import (
     get_vault_location,
@@ -80,14 +78,7 @@ def create_app(
             source="ui",
         )
 
-        latest_staged = None
-        if STAGED_ARTIFACTS:
-            t_id, data = list(STAGED_ARTIFACTS.items())[-1]
-            latest_staged = {
-                "task_id": t_id,
-                "filename": data["default_filename"],
-                "mission": data["mission"],
-            }
+        latest_staged = harness.get_latest_staged_artifact()
 
         return JSONResponse(
             content={
@@ -168,49 +159,33 @@ def create_app(
 
     @app.get("/api/swarm/staged")
     async def get_staged_artifacts():
-        return JSONResponse(content={"artifacts": STAGED_ARTIFACTS})
+        return JSONResponse(content={"artifacts": harness.list_staged_artifacts()})
 
     @app.post("/api/swarm/approve")
     async def approve_staged_artifact(payload: ApprovalPayload):
-        artifact = STAGED_ARTIFACTS.get(payload.task_id)
-        if not artifact:
+        result = harness.approve_staged_artifact(
+            payload.task_id,
+            payload.target_filename,
+        )
+        if not result["ok"]:
+            status_code = 404 if result["reason"] == "not_found" else 500
             return JSONResponse(
-                status_code=404,
-                content={"error": "Staged artifact not found or expired."},
+                status_code=status_code,
+                content={"error": result["error"]},
             )
 
-        target_name = payload.target_filename or artifact["default_filename"]
-        safe_name = re.sub(r'[\\/*?:"<>|]', "", target_name).strip()
-        if not safe_name.endswith(".md") and not safe_name.endswith(".py"):
-            safe_name += ".md"
-
-        try:
-            save_result = save_vault_file(safe_name, artifact["content"])
-            if save_result.startswith("Failed to save file:"):
-                return JSONResponse(
-                    status_code=500,
-                    content={"error": save_result},
-                )
-
-            del STAGED_ARTIFACTS[payload.task_id]
-            print(f"💾 [Swarm Approval] Written to Master_Brain: {safe_name}")
-            return JSONResponse(
-                content={
-                    "status": "success",
-                    "message": f"APPROVED! Saved swarm output to {safe_name}",
-                    "filename": safe_name,
-                }
-            )
-        except Exception as e:
-            return JSONResponse(
-                status_code=500,
-                content={"error": f"Failed disk commit: {str(e)}"},
-            )
+        print(f"💾 [Swarm Approval] Written to Master_Brain: {result['filename']}")
+        return JSONResponse(
+            content={
+                "status": "success",
+                "message": result["message"],
+                "filename": result["filename"],
+            }
+        )
 
     @app.delete("/api/swarm/reject/{task_id}")
     async def reject_staged_artifact(task_id: str):
-        if task_id in STAGED_ARTIFACTS:
-            del STAGED_ARTIFACTS[task_id]
+        if harness.reject_staged_artifact(task_id):
             return JSONResponse(
                 content={
                     "status": "success",

@@ -348,6 +348,26 @@ class AgentHarness:
             f"Default filename: {result['default_filename']}"
         )
 
+    def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
+        """List Swarm artifacts awaiting approval through the Swarm capability."""
+        return self.swarm_orchestrator.list_staged_artifacts()
+
+    def get_latest_staged_artifact(self) -> Optional[Dict[str, Any]]:
+        """Return the most recently staged Swarm artifact, if any."""
+        return self.swarm_orchestrator.get_latest_staged_artifact()
+
+    def approve_staged_artifact(
+        self,
+        task_id: str,
+        target_filename: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Approve and commit a staged Swarm artifact through the Swarm capability."""
+        return self.swarm_orchestrator.approve_staged_artifact(task_id, target_filename)
+
+    def reject_staged_artifact(self, task_id: str) -> bool:
+        """Discard a staged Swarm artifact through the Swarm capability."""
+        return self.swarm_orchestrator.reject_staged_artifact(task_id)
+
     # ---------------------------------------------------------------------
     # Agent selection
     # ---------------------------------------------------------------------

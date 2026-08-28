@@ -332,6 +332,63 @@ Do not include markdown wrappers outside the JSON block!""",
             "full_content": full_content,
         }
 
+    def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
+        """Return all Swarm artifacts currently awaiting approval."""
+        return STAGED_ARTIFACTS
+
+    def get_latest_staged_artifact(self) -> Dict[str, Any] | None:
+        """Return a summary of the most recently staged artifact, if any."""
+        if not STAGED_ARTIFACTS:
+            return None
+
+        task_id, data = list(STAGED_ARTIFACTS.items())[-1]
+        return {
+            "task_id": task_id,
+            "filename": data["default_filename"],
+            "mission": data["mission"],
+        }
+
+    def approve_staged_artifact(
+        self,
+        task_id: str,
+        target_filename: str | None = None,
+    ) -> Dict[str, Any]:
+        """Sanitize the target filename, commit the staged artifact to the
+        Vault, and remove it from staging on success."""
+        artifact = STAGED_ARTIFACTS.get(task_id)
+        if not artifact:
+            return {"ok": False, "reason": "not_found", "error": "Staged artifact not found or expired."}
+
+        name = target_filename or artifact["default_filename"]
+        safe_name = re.sub(r'[\\/*?:"<>|]', "", name).strip()
+        if not safe_name.endswith(".md") and not safe_name.endswith(".py"):
+            safe_name += ".md"
+
+        from capabilities.vault import save_vault_file
+
+        try:
+            save_result = save_vault_file(safe_name, artifact["content"])
+        except Exception as exc:
+            return {"ok": False, "reason": "save_failed", "error": f"Failed disk commit: {exc}"}
+
+        if save_result.startswith("Failed to save file:"):
+            return {"ok": False, "reason": "save_failed", "error": save_result}
+
+        del STAGED_ARTIFACTS[task_id]
+        return {
+            "ok": True,
+            "filename": safe_name,
+            "message": f"APPROVED! Saved swarm output to {safe_name}",
+        }
+
+    def reject_staged_artifact(self, task_id: str) -> bool:
+        """Discard a staged artifact without writing it. False if not found."""
+        if task_id not in STAGED_ARTIFACTS:
+            return False
+
+        del STAGED_ARTIFACTS[task_id]
+        return True
+
 
 def validate_dependencies() -> None:
     """Validate SwarmManager's injected capability contract."""

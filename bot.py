@@ -38,7 +38,6 @@ from core.agent_runtime import AgentRuntime, ToolApprovalRequired
 from core.intent import create_default_intent_router
 from capabilities.voice import VoiceService
 from capabilities.voice.http import VoiceHTTPAdapter
-from core.swarm import STAGED_ARTIFACTS
 
 
 # Canonical AgenticOS tool registry.

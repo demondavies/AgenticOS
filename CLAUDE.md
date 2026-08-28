@@ -53,6 +53,13 @@ Capability  (capabilities/)
 | 14 | System prompt + intent router completeness (all 13 tools reachable from Discord) | ✅ Done |
 | 15 | Discord Voice — ARNIE speaks replies in voice channel via Kokoro TTS | ✅ Done |
 | 16 | Dashboard mothership redesign — 3-column layout, live metrics, always-on tasks + events, vault today (Phase 16) | ✅ Done |
+| 17 | Memory injection — vault context retrieved via Ollama embeddings, injected into system prompt | ✅ Done |
+| 18 | Agent routing + Ollama load balancing — VRAM-aware model selection | ✅ Done |
+| 19 | Client workspace — CRM tools for tracking agency clients | ✅ Done |
+| 20 | Parallel agency execution — run_parallel_agency fans out concurrent research | ✅ Done |
+| 21 | Dashboard 2.0 (particle neural net centre, micro-apps panel, YouTube Studio widget, agent status feed) | ⏳ Queued |
+| 22 | Bot token moved out of bot.py into .env / secrets manager | ✅ Done |
+| 23 | Per-turn memory injection (currently first-turn only) | ⏳ Queued |
 
 ---
 
@@ -202,4 +209,7 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/tools.py`: run_parallel_agency registered as CONTROLLED, stub + expected sets updated
 - `core/intent.py`: deterministic route for parallel/fan-out phrasing, placed before single-topic agency_match
 - Verified live: two sub-tasks interleaved (real concurrency confirmed), each Task queryable, results merged into one report
-
+### Phase 22 — Bot Token Out of bot.py (`bfaf7a3`)
+- `bot.py`: DISCORD_BOT_TOKEN now read via `os.environ.get("DISCORD_BOT_TOKEN", "")` with `python-dotenv` loading `.env` at import time; empty/missing token still falls through to LOCAL-ONLY MODE
+- `.env.example` added documenting the expected key; `.env` already covered by `.gitignore`
+- Trigger: a real token had been pasted directly into bot.py in a prior uncommitted local edit — confirmed via full `git log --all -p` scan that it was never pushed to GitHub, then stripped before any commit

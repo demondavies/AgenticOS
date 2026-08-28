@@ -15,7 +15,7 @@ from typing import Optional
 import chromadb
 import ollama
 
-from core.models import ModelMessage, ModelRequest, create_default_model_registry
+from core.models import ModelMessage, ModelProvider, ModelRequest
 
 
 VAULT_DIR = os.environ.get("ARNIE_VAULT_DIR", r"G:\Master_Brain\Master_Brain")
@@ -24,16 +24,11 @@ CHROMA_DB_DIR = os.environ.get(
     r"G:\AgenticOS\data\chroma_db",
 )
 EMBEDDING_MODEL = os.environ.get("ARNIE_EMBEDDING_MODEL", "nomic-embed-text")
-SUMMARY_MODEL = os.environ.get("ARNIE_SUMMARY_MODEL", "hermes3:8b")
 
 _chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 _vault_collection = _chroma_client.get_or_create_collection(
     name="master_brain_vault"
 )
-
-
-def _get_summary_provider():
-    return create_default_model_registry().get("ollama")
 
 
 def sync_master_brain_vector_db() -> str:
@@ -148,9 +143,14 @@ def search_master_brain_vault(query: str, n_results: int = 3) -> str:
         return f"Vault search error: {exc}"
 
 
-async def _summarize_vault(prompt: str) -> str:
-    """Run exactly one model pass for a vault summary."""
-    provider = _get_summary_provider()
+async def _summarize_vault(
+    prompt: str,
+    *,
+    model_provider: ModelProvider,
+    model: str,
+) -> str:
+    """Run exactly one model pass using the injected model boundary."""
+    provider = model_provider
 
     request = ModelRequest(
         messages=[
@@ -160,7 +160,7 @@ async def _summarize_vault(prompt: str) -> str:
             )
         ],
         capability="summarization",
-        model=SUMMARY_MODEL,
+        model=model,
         metadata={"source": "agenticos_vault"},
     )
 
@@ -171,8 +171,12 @@ async def _summarize_vault(prompt: str) -> str:
     return response.content.strip()
 
 
-async def get_daily_vault_summary() -> str:
-    """Build an on-demand executive summary of the current Master Brain."""
+async def get_daily_vault_summary(
+    *,
+    model_provider: ModelProvider,
+    model: str,
+) -> str:
+    """Build an executive summary using the caller-owned model provider."""
     print("📚 [Vault] Building on-demand Master Brain summary...")
 
     try:
@@ -251,7 +255,11 @@ VAULT CONTENT:
 {vault_context}
 """
 
-        summary = await _summarize_vault(prompt)
+        summary = await _summarize_vault(
+            prompt,
+            model_provider=model_provider,
+            model=model,
+        )
 
         return (
             f"Here is your current Master Brain vault summary "

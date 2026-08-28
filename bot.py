@@ -8,7 +8,6 @@ import uvicorn
 # 🔒 SECURE SYSTEM CONFIGURATION
 ALLOWED_USERS = [319548579163144192]  # Optional: Paste numeric Discord User ID here when using Discord
 DB_PATH = r"G:\AgenticOS\data\memory.db"
-VAULT_DIR = r"G:\Master_Brain\Master_Brain"
 WEB_CHANNEL_ID = "local_web_dashboard"
 
 # Client, Scheduler & Chroma Vector DB Initialization
@@ -35,13 +34,13 @@ from core.tools import (
 )
 
 from core.harness import AgentHarness
+from core.tasks import Task
 from core.agent_runtime import AgentRuntime, ToolApprovalRequired
 from core.intent import create_default_intent_router
 from capabilities.voice import VoiceService
 from capabilities.voice.http import VoiceHTTPAdapter
 from core.swarm import STAGED_ARTIFACTS
 
-from capabilities.vault import sync_master_brain_vector_db
 
 # Canonical AgenticOS tool registry.
 # Tool execution is owned by the Harness/Policy/ToolRegistry boundary.
@@ -231,20 +230,36 @@ app = create_app(
 
 
 # 🔄 CONCURRENT RUNNER ENGINE (Standalone Capable)
+async def run_scheduled_vault_summary():
+    """Run the canonical daily summary Tool through the Harness boundary."""
+    task = Task(
+        title="Daily Master Brain Vault Summary",
+        description=(
+            "Run the canonical daily Master Brain vault summary "
+            "operation on the scheduled system cycle."
+        ),
+        workspace="system",
+        metadata={"agent": "Coordinator"},
+    )
+
+    return await TOOL_HARNESS.execute_tool_for_task_async(
+        task,
+        "get_daily_vault_summary",
+        source="scheduler",
+    )
+
+
 async def main():
     init_scheduler(
         scheduler=scheduler,
         vault_summary_job=scheduled_vault_summary_job(
-            sync_master_brain_vector_db=sync_master_brain_vector_db,
-            vault_dir=VAULT_DIR,
-            execute_swarm=TOOL_HARNESS.execute_swarm,
+            execute_vault_summary=run_scheduled_vault_summary,
         ),
         memory_compaction_job=scheduled_memory_compaction_job(
             compact_memory=TOOL_HARNESS.compact_memory,
             channel_id=WEB_CHANNEL_ID,
         ),
     )
-    sync_master_brain_vector_db()
 
     config = uvicorn.Config(
         app,

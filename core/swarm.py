@@ -16,11 +16,7 @@ import re
 import subprocess
 import sys
 import uuid
-import random
 
-from ddgs import DDGS
-from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
 from typing import Awaitable, Callable, Dict, Any
 
 
@@ -68,10 +64,12 @@ class SwarmManager:
     def __init__(
         self,
         model_chat: Callable[..., Awaitable[str]],
+        research_web: Callable[..., Awaitable[str]] | None = None,
         max_retries: int = 3,
         sandbox_dir: str = r"G:\AgenticOS\data",
     ):
         self.model_chat = model_chat
+        self.research_web = research_web
         self.max_retries = max_retries
         self.sandbox_dir = sandbox_dir
         self.agents = {
@@ -102,88 +100,11 @@ Do not include markdown wrappers outside the JSON block!""",
             ),
         }
 
-    async def _scrape_web_page(self, url: str, max_chars: int = 4000) -> str:
-        print(f"🕷️ [Stealth Scraper] Initiating target bypass for: {url}")
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
-        ]
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=[
-                        "--disable-blink-features=AutomationControlled",
-                        "--disable-web-security",
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                    ],
-                )
-                context = await browser.new_context(
-                    user_agent=random.choice(user_agents),
-                    viewport={
-                        "width": random.randint(1366, 1920),
-                        "height": random.randint(768, 1080),
-                    },
-                    locale="en-US",
-                    timezone_id="America/New_York",
-                )
-                page = await context.new_page()
-                await page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    window.navigator.chrome = { runtime: {} };
-                    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-                """)
-                await page.goto(url, wait_until="domcontentloaded", timeout=12000)
-                await page.wait_for_timeout(1200)
-                html_content = await page.content()
-                await browser.close()
-
-                soup = BeautifulSoup(html_content, "html.parser")
-                for tag in soup(["script", "style", "nav", "footer", "header", "svg", "iframe", "noscript"]):
-                    tag.decompose()
-                text = soup.get_text(separator="\n").strip()
-                clean_text = re.sub(r"\n{3,}", "\n\n", text)
-                return clean_text[:max_chars]
-        except Exception as exc:
-            return f"Stealth Scrape Failure ({url}): {str(exc)}"
-
-    async def deep_research_web(self, query: str, crawl_top_n: int = 2) -> str:
-        print(f"🔍 [Deep Researcher] Executing web search: {query}")
-        try:
-            with DDGS() as ddgs:
-                results = [r for r in ddgs.text(query, max_results=5)]
-            if not results:
-                return "No search results found."
-
-            research_report = f"# SEARCH RESULTS FOR: '{query}'\n\n"
-            urls_to_scrape = []
-            for idx, result in enumerate(results, start=1):
-                title = result.get("title")
-                url = result.get("href")
-                snippet = result.get("body")
-                research_report += (
-                    f"### {idx}. {title}\n"
-                    f"**URL:** {url}\n"
-                    f"**Snippet:** {snippet}\n\n"
-                )
-                if idx <= crawl_top_n and url:
-                    urls_to_scrape.append(url)
-
-            if urls_to_scrape:
-                research_report += "## DEEP PAGE CONTENT EXTRACTS\n\n"
-                scraped_pages = await asyncio.gather(
-                    *(self._scrape_web_page(url) for url in urls_to_scrape)
-                )
-                for url, content in zip(urls_to_scrape, scraped_pages):
-                    research_report += (
-                        f"--- PAGE EXTRACT FROM: {url} ---\n"
-                        f"{content}\n\n"
-                    )
-            return research_report
-        except Exception as exc:
-            return f"Deep research failed: {str(exc)}"
+    async def _research_web(self, query: str, crawl_top_n: int = 2) -> str:
+        """Delegate web research to the injected web capability."""
+        if self.research_web is None:
+            raise RuntimeError("SwarmManager requires a research_web capability.")
+        return await self.research_web(query, crawl_top_n=crawl_top_n)
 
     async def _audit_code(self, code_content: str) -> dict:
         review_raw = await self.agents["reviewer"].run_task(
@@ -284,7 +205,7 @@ Do not include markdown wrappers outside the JSON block!""",
             f"\n🚀 [Swarm Engine] Deep Mission Initiated: '{mission_prompt}'"
         )
 
-        raw_web_data = await self.deep_research_web(mission_prompt, crawl_top_n=2)
+        raw_web_data = await self._research_web(mission_prompt, crawl_top_n=2)
 
         researcher_input = (
             f"USER MISSION: {mission_prompt}\n\n"
@@ -410,3 +331,27 @@ Do not include markdown wrappers outside the JSON block!""",
             "code": current_code,
             "full_content": full_content,
         }
+
+
+def validate_dependencies() -> None:
+    """Validate SwarmManager's injected capability contract."""
+
+    async def _model_chat(*args: Any, **kwargs: Any) -> str:
+        return ""
+
+    async def _research_web(*args: Any, **kwargs: Any) -> str:
+        return ""
+
+    manager = SwarmManager(
+        model_chat=_model_chat,
+        research_web=_research_web,
+    )
+
+    assert manager.model_chat is _model_chat
+    assert manager.research_web is _research_web
+    assert manager.max_retries == 3
+
+
+if __name__ == "__main__":
+    validate_dependencies()
+    print("SWARM DEPENDENCY TEST PASSED")

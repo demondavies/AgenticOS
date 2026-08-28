@@ -217,6 +217,14 @@ class AgentHarness:
             self.execute_swarm,
         )
 
+        # get_daily_vault_summary needs a model provider, so the Harness owns
+        # the provider selection and binds the capability through the Tool
+        # Registry. The Vault capability never constructs its own registry.
+        self.tools.bind_handler(
+            "get_daily_vault_summary",
+            self.execute_daily_vault_summary,
+        )
+
     async def _swarm_model_chat(
         self,
         messages: List[Dict[str, str]],
@@ -246,6 +254,22 @@ class AgentHarness:
             request,
         )
         return response.content
+
+    async def execute_daily_vault_summary(self) -> str:
+        """Execute the canonical Vault summary with Harness-owned model routing."""
+        from capabilities.vault import get_daily_vault_summary
+
+        agent = self.agents.find_by_name("Coordinator")
+        if agent is None:
+            raise RuntimeError("No Coordinator Agent is registered.")
+
+        provider = self.select_model_provider(agent)
+        model = agent.preferred_model() or "hermes3:8b"
+
+        return await get_daily_vault_summary(
+            model_provider=provider,
+            model=model,
+        )
 
     async def execute_swarm(
         self,
@@ -1184,6 +1208,8 @@ def run_tool_tests() -> None:
     assert harness.tool_execution_mode("search_vault") == "synthesize"
     assert harness.tool_execution_mode("read_obsidian_note") == "synthesize"
     assert harness.tool_execution_mode("get_daily_vault_summary") == "direct"
+    assert harness.tools.require("get_daily_vault_summary").handler.__self__ is harness
+    assert harness.tools.require("get_daily_vault_summary").handler.__func__ is AgentHarness.execute_daily_vault_summary
 
     # Wave-2 privileged tools must be registered centrally.
     for name in {

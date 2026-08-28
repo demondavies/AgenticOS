@@ -1,6 +1,6 @@
 """AgenticOS local voice capability."""
 
-from .agent_voice import VoiceService
+from .agent_voice import VoiceAgent, VoiceService
 from .service import (
     VoiceConfig,
     VoiceEngine,
@@ -10,6 +10,7 @@ from .service import (
 )
 
 __all__ = [
+    "VoiceAgent",
     "VoiceConfig",
     "VoiceEngine",
     "VoiceService",

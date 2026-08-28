@@ -55,6 +55,18 @@ from .tasks import Task
 from .tools import Tool, ToolRisk
 
 
+# Sources set by trusted local interface adapters. These satisfy approval
+# prompts, but only after all DENY checks have passed.
+AUTO_APPROVED_SOURCES = frozenset(
+    {
+        "ui",
+        "voice",
+        "bot.intent",
+        "bot.voice_intent",
+    }
+)
+
+
 # ============================================================================
 # POLICY DECISION
 # ============================================================================
@@ -128,7 +140,7 @@ class PolicyRequest:
     # Optional indication that the user explicitly approved this action.
     user_approved: bool = False
 
-    # Optional source/interface information.
+    # Source/interface information supplied by the Harness boundary.
     source: str = "harness"
 
     metadata: Dict[str, Any] = field(
@@ -312,7 +324,7 @@ class PolicyEngine:
         7. Privileged-tool restrictions
         8. Tool approval requirements
         9. Workspace approval requirements
-        10. Explicit user approval
+        10. Explicit user approval or trusted local source
         11. ALLOW
 
     The engine NEVER executes the Tool.
@@ -514,9 +526,18 @@ class PolicyEngine:
             )
         )
 
+        source_auto_approved = (
+            self.source_is_auto_approved(request.source)
+        )
+
+        approval_satisfied = (
+            request.user_approved
+            or source_auto_approved
+        )
+
         if requires_approval:
 
-            if not request.user_approved:
+            if not approval_satisfied:
                 return self._approval_required(
                     request,
                     (
@@ -545,6 +566,16 @@ class PolicyEngine:
             metadata={
                 "workspace": workspace,
                 "source": request.source,
+                "source_auto_approved": source_auto_approved,
+                "approval_satisfied_by": (
+                    "explicit_user"
+                    if request.user_approved
+                    else (
+                        "trusted_source"
+                        if source_auto_approved
+                        else None
+                    )
+                ),
             },
         )
 
@@ -561,6 +592,19 @@ class PolicyEngine:
         """
 
         return self.evaluate(request).allowed
+
+    @staticmethod
+    def source_is_auto_approved(
+        source: str,
+    ) -> bool:
+        """
+        Return True when the request came from a trusted local interface.
+        """
+
+        if not isinstance(source, str):
+            return False
+
+        return source.strip().lower() in AUTO_APPROVED_SOURCES
 
     # ---------------------------------------------------------------------
     # Workspace management

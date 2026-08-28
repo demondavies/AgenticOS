@@ -25,8 +25,7 @@ Important:
 - The Harness owns managed execution.
 - Interface layers such as bot.py must not bypass the Harness for
   policy-protected execution.
-- Lazy legacy adapters are retained temporarily for capabilities that
-  have not yet been extracted from bot.py.
+- Registered Tools bind to canonical AgenticOS capabilities.
 
 Migration status:
 
@@ -537,7 +536,11 @@ def _search_vault(
 
 
 async def _daily_vault_summary() -> str:
-    return await get_daily_vault_summary()
+    """Fail clearly until the Harness binds the model-aware handler."""
+    raise RuntimeError(
+        "The get_daily_vault_summary Tool has not been bound to the "
+        "AgenticOS Harness model provider."
+    )
 
 
 def _system_metrics() -> str:

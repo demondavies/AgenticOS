@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .config import (
+    AGENT_ROUTING_ENABLED,
     MEMORY_INJECTION_ENABLED,
     MEMORY_INJECTION_MIN_SCORE,
     MEMORY_INJECTION_TOP_K,
@@ -21,6 +23,8 @@ from .harness import AgentHarness
 from .tasks import Task
 from .tools import ToolRegistry, ToolRisk
 from .intent import IntentRouter
+
+log = logging.getLogger(__name__)
 
 
 class ToolApprovalRequired(Exception):
@@ -133,8 +137,28 @@ class AgentRuntime:
             except Exception as _mem_err:
                 pass  # memory injection is best-effort; never block the response
 
+        # --- PHASE 18: AGENT ROUTING ---
+        # execute() is the conversational entrypoint and has no Task of its
+        # own (Tasks are created per-tool-call in execute_intent_tool), so
+        # there is no workspace to inspect yet — ordinary chat is treated
+        # as the "personal" workspace.
+        _task_workspace = "personal"
+        agent_prefix = ""
+        _model = self.model
+        if AGENT_ROUTING_ENABLED:
+            try:
+                from core.model_router import get_model_for_workspace
+                _agent_prompt = self.harness.agents.get_system_prompt_for_workspace(
+                    _task_workspace
+                )
+                if _agent_prompt:
+                    agent_prefix = _agent_prompt + "\n\n"
+                _model, _provider = get_model_for_workspace(_task_workspace)
+            except Exception as _routing_err:
+                log.warning(f"Agent routing failed (best-effort): {_routing_err}")
+
         if not history:
-            full_prompt = self.base_system_prompt + (
+            full_prompt = agent_prefix + self.base_system_prompt + (
                 self.owner_extensions if is_owner else ""
             ) + memory_context
             history.append({"role": "system", "content": full_prompt})
@@ -299,7 +323,7 @@ class AgentRuntime:
         else:
             bot_reply = await self.harness.chat(
                 history,
-                model=self.model,
+                model=_model,
                 capability="conversation",
             )
 

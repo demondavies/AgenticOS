@@ -480,6 +480,33 @@ class AgentRegistry:
             if agent.status == AgentStatus.IDLE
         ]
 
+    def get_system_prompt_for_workspace(
+        self,
+        workspace: str,
+    ) -> Optional[str]:
+        """
+        Return the best agent system prompt for this workspace type.
+        """
+
+        mapping = {
+            "agency": "Researcher",
+            "swarm": "Coordinator",
+            "development": "Coder",
+            "media": "Coordinator",
+            "personal": "Coordinator",
+            "system": "Coordinator",
+            "client": "Researcher",
+        }
+
+        agent_name = mapping.get(workspace)
+
+        if agent_name:
+            agent = self.find_by_name(agent_name)
+            if agent:
+                return agent.system_prompt
+
+        return None
+
 
 # ============================================================================
 # BUILT-IN AGENT FACTORIES

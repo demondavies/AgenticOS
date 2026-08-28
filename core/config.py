@@ -60,3 +60,13 @@ MEMORY_INJECTION_ENABLED = True
 MEMORY_INJECTION_TOP_K = 5
 MEMORY_INJECTION_MIN_SCORE = 0.65
 
+# Agent routing: pick a lighter local Ollama model for light workspaces
+# when there is enough free VRAM headroom, instead of always using
+# DEFAULT_MODEL. This codebase has no cloud provider — routing chooses
+# between two local Ollama models, never a remote API.
+OLLAMA_ENABLED = True
+OLLAMA_HOST = "http://localhost:11434"
+OLLAMA_LIGHT_MODEL = "phi3:mini"
+OLLAMA_VRAM_HEADROOM_GB = 2.0
+AGENT_ROUTING_ENABLED = True
+

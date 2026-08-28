@@ -585,6 +585,252 @@ class OllamaProvider:
 
 
 # ============================================================================
+# OPENAI-COMPATIBLE PROVIDER
+# ============================================================================
+
+
+class OpenAICompatibleProvider:
+    """
+    ModelProvider implementation for any OpenAI-API-compatible inference
+    server (LM Studio, vLLM, and similar local runtimes).
+
+    The provider's identity (`name`) is configurable rather than hardcoded,
+    since this same class backs multiple distinct providers depending on
+    which server it is pointed at.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        default_model: str,
+        provider_name: str,
+        api_key: str = "not-needed",
+        timeout: float = 60.0,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.default_model = default_model
+        self.api_key = api_key
+        self.timeout = timeout
+        self._provider_name = provider_name.strip().lower()
+
+        if not self._provider_name:
+            raise ValueError("OpenAICompatibleProvider requires a provider_name.")
+
+        import requests  # type: ignore
+
+        self._session = requests.Session()
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+        )
+
+    @property
+    def name(self) -> str:
+        return self._provider_name
+
+    def _build_payload(self, request: ModelRequest) -> Dict[str, Any]:
+        model_name = request.model or self.default_model
+
+        prepared_messages = prepare_capability_messages(
+            request.messages,
+            request.capability,
+        )
+
+        messages: List[Dict[str, str]] = []
+
+        for message in prepared_messages:
+            item: Dict[str, str] = {
+                "role": message.role,
+                "content": message.content,
+            }
+
+            if message.name:
+                item["name"] = message.name
+
+            messages.append(item)
+
+        payload: Dict[str, Any] = dict(request.options)
+        payload["model"] = model_name
+        payload["messages"] = messages
+
+        if request.temperature is not None:
+            payload["temperature"] = request.temperature
+
+        if request.max_tokens is not None:
+            payload["max_tokens"] = request.max_tokens
+
+        return payload
+
+    def chat(self, request: ModelRequest) -> ModelResponse:
+        """
+        Execute a non-streaming chat completion request.
+        """
+
+        payload = self._build_payload(request)
+
+        response = self._session.post(
+            f"{self.base_url}/chat/completions",
+            json=payload,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        content = ""
+        returned_model = payload["model"]
+
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except Exception:
+            content = str(data)
+
+        try:
+            returned_model = data.get("model", returned_model)
+        except Exception:
+            pass
+
+        prompt_tokens = None
+        completion_tokens = None
+        total_tokens = None
+
+        try:
+            usage = data.get("usage") or {}
+            prompt_tokens = usage.get("prompt_tokens")
+            completion_tokens = usage.get("completion_tokens")
+            total_tokens = usage.get("total_tokens")
+        except Exception:
+            pass
+
+        return ModelResponse(
+            content=content,
+            model=returned_model,
+            provider=self.name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            raw=data,
+            metadata={
+                "capability": request.capability,
+                "request_metadata": request.metadata,
+            },
+        )
+
+    def stream(
+        self,
+        request: ModelRequest,
+    ) -> Iterable[ModelStreamChunk]:
+        """
+        Execute a streaming chat completion request over server-sent events.
+        """
+
+        import json
+
+        payload = self._build_payload(request)
+        payload["stream"] = True
+
+        response = self._session.post(
+            f"{self.base_url}/chat/completions",
+            json=payload,
+            timeout=self.timeout,
+            stream=True,
+        )
+        response.raise_for_status()
+
+        model_name = payload["model"]
+
+        for line in response.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data:"):
+                continue
+
+            data_str = line[len("data:"):].strip()
+
+            if data_str == "[DONE]":
+                yield ModelStreamChunk(
+                    content="",
+                    model=model_name,
+                    provider=self.name,
+                    done=True,
+                    metadata={
+                        "capability": request.capability,
+                        "request_metadata": request.metadata,
+                    },
+                )
+                break
+
+            try:
+                chunk_data = json.loads(data_str)
+            except Exception:
+                continue
+
+            content = ""
+
+            try:
+                content = chunk_data["choices"][0]["delta"].get("content", "")
+            except Exception:
+                content = ""
+
+            yield ModelStreamChunk(
+                content=content,
+                model=chunk_data.get("model", model_name),
+                provider=self.name,
+                done=False,
+                metadata={
+                    "capability": request.capability,
+                    "request_metadata": request.metadata,
+                },
+            )
+
+    def list_models(self) -> List[ModelInfo]:
+        """
+        Ask the server for its currently available models.
+        """
+
+        response = self._session.get(
+            f"{self.base_url}/models",
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        models: List[ModelInfo] = []
+
+        for item in data.get("data", []):
+            name = item.get("id") or item.get("name") or ""
+
+            if not name:
+                continue
+
+            models.append(
+                ModelInfo(
+                    name=name,
+                    provider=self.name,
+                    capabilities=[],
+                    metadata=item,
+                )
+            )
+
+        return models
+
+    def health_check(self) -> bool:
+        """
+        Check whether the server is reachable.
+        """
+
+        try:
+            response = self._session.get(
+                f"{self.base_url}/models",
+                timeout=self.timeout,
+            )
+            return response.ok
+        except Exception:
+            return False
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -593,9 +839,10 @@ def create_default_model_registry() -> ModelRegistry:
     """
     Create the initial ARNIE model registry.
 
-    At this stage Ollama is the only provider.
-
-    Future providers can be registered without changing the harness API.
+    Ollama is always registered. A second OpenAI-compatible provider
+    (LM Studio, vLLM, etc.) is registered when enabled via config, so
+    agents can be routed to either provider by name without any
+    provider-name string appearing in the harness.
     """
 
     registry = ModelRegistry()
@@ -606,6 +853,23 @@ def create_default_model_registry() -> ModelRegistry:
             default_model="hermes3:8b",
         )
     )
+
+    try:
+        from core import config as _config
+
+        if getattr(_config, "OPENAI_COMPAT_ENABLED", False):
+            registry.register(
+                OpenAICompatibleProvider(
+                    base_url=_config.OPENAI_COMPAT_HOST,
+                    default_model=_config.OPENAI_COMPAT_MODEL,
+                    provider_name=_config.OPENAI_COMPAT_PROVIDER_NAME,
+                    api_key=_config.OPENAI_COMPAT_API_KEY,
+                )
+            )
+    except Exception:
+        # A misconfigured or unreachable second provider must not prevent
+        # the registry from returning a working Ollama-backed registry.
+        pass
 
     return registry
 

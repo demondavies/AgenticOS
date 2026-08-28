@@ -28,3 +28,12 @@ To call a tool, respond ONLY with an XML block matching this exact format:
 Do not add conversational text before or after the block. Absolute silence except for the tag!"""
 
 DEFAULT_MODEL = "hermes3:8b"
+
+# Optional second ModelProvider: any OpenAI-compatible inference server
+# (LM Studio, vLLM, etc.). Left unset by default — the registry only
+# registers it when OPENAI_COMPAT_HOST is configured.
+OPENAI_COMPAT_ENABLED = False
+OPENAI_COMPAT_PROVIDER_NAME = "lmstudio"
+OPENAI_COMPAT_HOST = "http://127.0.0.1:1234/v1"
+OPENAI_COMPAT_API_KEY = "not-needed"
+OPENAI_COMPAT_MODEL = "local-model"

@@ -180,4 +180,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `capabilities/vault/service.py`: added retrieve_relevant() using Ollama embeddings to match existing index space
 - `core/agent_runtime.py`: injects [MEMORY CONTEXT] block into system prompt on first turn of each conversation
 - Verified live end-to-end: real ChromaDB matches confirmed in LLM system prompt
+### Phase 18 — Agent Routing + Ollama Load Balancing (`29e9e9d`)
+- `core/config.py`: added OLLAMA_ENABLED, OLLAMA_LIGHT_MODEL=phi3:mini, OLLAMA_VRAM_HEADROOM_GB=2.0, AGENT_ROUTING_ENABLED
+- `core/model_router.py`: new file — routes workspace to hermes3:8b (default) or phi3:mini (light) based on live VRAM headroom via Ollama /api/ps; no cloud branch (codebase is local-only)
+- `core/agents.py`: added get_system_prompt_for_workspace() using existing find_by_name() — AgentRegistry._agents is keyed by ID not name
+- `core/agent_runtime.py`: Coordinator agent system prompt prepended before BASE_SYSTEM_PROMPT; model swap applied to plain-conversation LLM call only (not tool-synthesis calls)
+- Verified live: VRAM tracking correctly demotes routing when hermes3:8b loaded (1.4GB free < 2.0GB threshold)
 

@@ -46,6 +46,7 @@ Capability  (capabilities/)
 | 8 | Persistent Task queue (survive restart, queue depth) | ✅ Done |
 | 9 | Swarm missions tracked as first-class Tasks (workspace="swarm") | ✅ Done |
 | 10 | Live Event Stream dashboard (SSE from EventBus) | ✅ Done |
+| 11 | OpenAICompatibleProvider (LM Studio / vLLM support) | ✅ Done |
 
 ---
 

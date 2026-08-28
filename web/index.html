@@ -6,19 +6,21 @@
     <title>ARNIE // AGENTIC OS CORE MATRIX</title>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;600;700&display=swap');
-
         :root {
-            --bg-color: #08080a;
-            --panel-bg: rgba(18, 18, 24, 0.75);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --accent-pink: #ff2a6d;
-            --accent-cyan: #05d9e8;
-            --accent-amber: #ffaa00;
-            --accent-green: #39ff88;
-            --text-main: #e0e6ed;
-            --text-muted: #6272a4;
-            --danger: #ff4444;
+            --bg-color: #080808;
+            --panel-bg: rgba(17, 17, 17, 0.72);
+            --border-color: rgba(255, 255, 255, 0.07);
+            --accent-pink: #f97316;    /* orange — primary accent / agency workspace */
+            --accent-cyan: #fbbf24;    /* amber — secondary highlight */
+            --accent-amber: #f59e0b;   /* amber — warnings / media workspace */
+            --accent-green: #22c55e;   /* green — success / personal workspace */
+            --accent-blue: #3b82f6;    /* blue — swarm workspace */
+            --accent-purple: #a855f7;  /* purple — development workspace */
+            --accent-grey: #9ca3af;    /* grey — system workspace */
+            --accent-teal: #06b6d4;    /* teal — client workspace */
+            --text-main: #e5e5e5;
+            --text-muted: #737373;
+            --danger: #ef4444;
         }
 
         * {
@@ -31,9 +33,9 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 0%, rgba(5, 217, 232, 0.05), transparent 70%);
+            background-image: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.05), transparent 70%);
             color: var(--text-main);
-            font-family: 'Fira Code', monospace;
+            font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
             margin: 0;
             padding: 16px;
             height: 100vh;
@@ -65,7 +67,7 @@
             font-size: 17px;
             font-weight: 700;
             color: var(--accent-pink);
-            text-shadow: 0 0 12px rgba(255, 42, 109, 0.4);
+            text-shadow: 0 0 12px rgba(249, 115, 22, 0.4);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -143,7 +145,7 @@
         .btn:hover:not(:disabled) {
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
-            box-shadow: 0 0 10px rgba(5, 217, 232, 0.2);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.2);
         }
 
         .btn:disabled {
@@ -152,7 +154,7 @@
         }
 
         .btn-pink {
-            border-color: rgba(255, 42, 109, 0.4);
+            border-color: rgba(249, 115, 22, 0.4);
             color: var(--accent-pink);
         }
 
@@ -170,37 +172,37 @@
         #voiceMicBtn.listening {
             border-color: var(--accent-pink);
             color: var(--accent-pink);
-            background: rgba(255, 42, 109, 0.12);
-            box-shadow: 0 0 16px rgba(255, 42, 109, 0.22);
+            background: rgba(249, 115, 22, 0.12);
+            box-shadow: 0 0 16px rgba(249, 115, 22, 0.22);
             animation: pulseListening 1s infinite;
         }
 
         #voiceMicBtn.thinking {
             border-color: var(--accent-amber);
             color: var(--accent-amber);
-            background: rgba(255, 170, 0, 0.10);
-            box-shadow: 0 0 16px rgba(255, 170, 0, 0.22);
+            background: rgba(245, 158, 11, 0.10);
+            box-shadow: 0 0 16px rgba(245, 158, 11, 0.22);
             animation: pulseThinking 1.2s infinite;
         }
 
         #voiceMicBtn.speaking {
             border-color: var(--accent-green);
             color: var(--accent-green);
-            background: rgba(57, 255, 136, 0.10);
-            box-shadow: 0 0 16px rgba(57, 255, 136, 0.22);
+            background: rgba(34, 197, 94, 0.10);
+            box-shadow: 0 0 16px rgba(34, 197, 94, 0.22);
             animation: pulseSpeaking 1s infinite;
         }
 
         @keyframes pulseListening {
-            50% { box-shadow: 0 0 26px rgba(255, 42, 109, 0.5); }
+            50% { box-shadow: 0 0 26px rgba(249, 115, 22, 0.5); }
         }
 
         @keyframes pulseThinking {
-            50% { box-shadow: 0 0 26px rgba(255, 170, 0, 0.5); }
+            50% { box-shadow: 0 0 26px rgba(245, 158, 11, 0.5); }
         }
 
         @keyframes pulseSpeaking {
-            50% { box-shadow: 0 0 26px rgba(57, 255, 136, 0.5); }
+            50% { box-shadow: 0 0 26px rgba(34, 197, 94, 0.5); }
         }
 
         /* ============================================================
@@ -228,6 +230,7 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
+            gap: 12px;
             min-height: 0;
         }
 
@@ -279,11 +282,19 @@
             flex-shrink: 0;
         }
 
-        /* -------- LEFT COLUMN: tasks + events -------- */
+        /* -------- LEFT COLUMN: tasks + agent status + youtube -------- */
 
-        #tasksPanelEl, #eventsPanelEl {
-            flex: 1;
+        #tasksPanelEl {
+            flex: 1.4;
             min-height: 0;
+        }
+
+        #agentStatusPanelEl {
+            flex: 0 0 192px;
+        }
+
+        #youtubePanelEl {
+            flex: 0 0 112px;
         }
 
         .workspace-badges {
@@ -301,10 +312,13 @@
             white-space: nowrap;
         }
 
-        .ws-badge-swarm { border-color: var(--accent-cyan); color: var(--accent-cyan); }
-        .ws-badge-agency { border-color: var(--accent-amber); color: var(--accent-amber); }
-        .ws-badge-media { border-color: var(--accent-pink); color: var(--accent-pink); }
-        .ws-badge-development { border-color: var(--accent-green); color: var(--accent-green); }
+        .ws-badge-swarm { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .ws-badge-agency { border-color: var(--accent-pink); color: var(--accent-pink); }
+        .ws-badge-media { border-color: var(--accent-amber); color: var(--accent-amber); }
+        .ws-badge-development { border-color: var(--accent-purple); color: var(--accent-purple); }
+        .ws-badge-personal { border-color: var(--accent-green); color: var(--accent-green); }
+        .ws-badge-system { border-color: var(--accent-grey); color: var(--accent-grey); }
+        .ws-badge-client { border-color: var(--accent-teal); color: var(--accent-teal); }
 
         .tasks-filter-select {
             background: rgba(0, 0, 0, 0.4);
@@ -432,6 +446,11 @@
             white-space: nowrap;
         }
 
+        .event-item-title::before {
+            content: "› ";
+            color: var(--accent-pink);
+        }
+
         .event-item-meta {
             color: var(--text-muted);
             font-size: 10px;
@@ -453,7 +472,48 @@
             color: var(--danger);
         }
 
-        /* -------- CENTER COLUMN: chat -------- */
+        /* -------- CENTER COLUMN: particle canvas + chat -------- */
+
+        #particlePanelEl {
+            flex: 0 0 304px;
+            padding: 10px;
+        }
+
+        #particleCanvas {
+            width: 100%;
+            height: 280px;
+            display: block;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+        }
+
+        .particle-legend {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 9px;
+            color: var(--text-muted);
+            padding: 0 2px;
+        }
+
+        .particle-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .particle-legend i {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        #chatPanelEl {
+            flex: 1;
+            min-height: 0;
+        }
 
         .chat-history {
             flex: 1;
@@ -479,22 +539,22 @@
         }
 
         .user-msg {
-            background: rgba(255, 42, 109, 0.15);
-            border: 1px solid rgba(255, 42, 109, 0.3);
+            background: rgba(249, 115, 22, 0.15);
+            border: 1px solid rgba(249, 115, 22, 0.3);
             color: #fff;
             align-self: flex-end;
         }
 
         .arnie-msg {
-            background: rgba(5, 217, 232, 0.1);
-            border: 1px solid rgba(5, 217, 232, 0.3);
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
             color: var(--accent-cyan);
             align-self: flex-start;
         }
 
         .system-msg {
-            background: rgba(255, 170, 0, 0.08);
-            border: 1px solid rgba(255, 170, 0, 0.35);
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.35);
             color: var(--accent-amber);
             align-self: center;
             max-width: 100%;
@@ -525,9 +585,9 @@
             font-size: 11px;
             padding: 3px 8px;
             border-radius: 12px;
-            background: rgba(5, 217, 232, 0.1);
+            background: rgba(251, 191, 36, 0.1);
             color: var(--accent-cyan);
-            border: 1px solid rgba(5, 217, 232, 0.3);
+            border: 1px solid rgba(251, 191, 36, 0.3);
             white-space: nowrap;
         }
 
@@ -539,15 +599,24 @@
             flex-shrink: 0;
         }
 
-        /* -------- RIGHT COLUMN: vault + quick capture -------- */
+        /* -------- RIGHT COLUMN: vault + capture + CRM + events -------- */
 
         #vaultPanelEl {
-            flex: 1.3;
+            flex: 1.1;
             min-height: 0;
         }
 
         #capturePanelEl {
-            flex: 0 0 auto;
+            flex: 0 0 182px;
+        }
+
+        #clientCrmPanelEl {
+            flex: 0 0 176px;
+        }
+
+        #eventsPanelEl {
+            flex: 1;
+            min-height: 0;
         }
 
         .vault-preview {
@@ -585,17 +654,17 @@
 
         .file-item:hover {
             border-color: var(--accent-cyan);
-            background: rgba(5, 217, 232, 0.05);
+            background: rgba(251, 191, 36, 0.05);
         }
 
         .capture-area {
             flex: 1;
-            min-height: 90px;
+            min-height: 56px;
             background: rgba(0, 0, 0, 0.4);
             border: 1px solid var(--border-color);
             border-radius: 6px;
             color: #fff;
-            font-family: 'Fira Code', monospace;
+            font-family: inherit;
             font-size: 12px;
             padding: 10px;
             resize: none;
@@ -604,6 +673,145 @@
 
         .capture-area:focus {
             border-color: var(--accent-cyan);
+        }
+
+        /* -------- AGENT STATUS -------- */
+
+        .agent-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .agent-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            flex-shrink: 0;
+        }
+
+        .agent-dot.standby {
+            background: var(--text-muted);
+            box-shadow: none;
+        }
+
+        .agent-name {
+            flex: 1;
+            color: var(--text-main);
+        }
+
+        .agent-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            white-space: nowrap;
+        }
+
+        .agent-badge.standby {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .vram-bar-track {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.06);
+            overflow: hidden;
+        }
+
+        .vram-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-pink), var(--accent-amber));
+            transition: width 0.4s ease;
+        }
+
+        .vram-bar-label {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* -------- YOUTUBE STUDIO -------- */
+
+        .yt-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .yt-tile {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 6px;
+            text-align: center;
+        }
+
+        .yt-num {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-pink);
+        }
+
+        .yt-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* -------- CLIENT CRM -------- */
+
+        .crm-counts {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .crm-count {
+            flex: 1;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 4px;
+        }
+
+        .crm-count b {
+            display: block;
+            font-size: 16px;
+            color: var(--accent-pink);
+        }
+
+        .crm-count span {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .crm-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .crm-item-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-main);
         }
 
         /* -------- SWARM APPROVAL: floating overlay modal -------- */
@@ -616,12 +824,12 @@
             z-index: 1000;
             width: 480px;
             max-width: 92vw;
-            background: rgba(18, 18, 24, 0.97);
+            background: rgba(17, 17, 17, 0.97);
             border: 1px solid var(--accent-amber);
             border-radius: 10px;
             padding: 16px 18px;
             display: none;
-            box-shadow: 0 0 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 170, 0, 0.15);
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.15);
         }
 
         /* ============================================================
@@ -637,15 +845,23 @@
 
             .main-layout {
                 flex-direction: column;
-                min-height: 1400px;
+                min-height: 1800px;
             }
 
-            .col-side {
+            .col-side, .col-center {
                 width: 100%;
                 flex: 0 0 auto;
             }
 
             #tasksPanelEl, #eventsPanelEl {
+                flex: 0 0 260px;
+            }
+
+            #agentStatusPanelEl, #youtubePanelEl, #clientCrmPanelEl, #capturePanelEl {
+                flex: 0 0 auto;
+            }
+
+            #particlePanelEl {
                 flex: 0 0 260px;
             }
 
@@ -666,13 +882,13 @@
 
     <!-- HUD HEADER -->
     <header>
-        <div class="logo">⚡ ARNIE // AGENTIC OS</div>
+        <div class="logo">◈ ARNIE // AGENTIC OS</div>
 
         <div class="hud-right">
             <div class="hud-metrics">
+                <span class="hud-metric">MODEL <b>hermes3:8b &rarr; local</b></span>
                 <span class="hud-metric">CPU <b id="hudCpu">--%</b></span>
                 <span class="hud-metric">RAM <b id="hudRam">--% · --/-- GB</b></span>
-                <span class="hud-metric">MODEL <b>hermes3:8b</b></span>
                 <span class="hud-metric" id="sysStatus" style="display:none;"></span>
                 <span class="hud-metric hud-status">
                     <span class="status-dot" id="statusDot"></span>
@@ -735,13 +951,38 @@
                 </div>
             </div>
 
-            <div class="panel" id="eventsPanelEl">
+            <div class="panel" id="agentStatusPanelEl">
                 <div class="panel-header">
-                    <span>📡 Live Events</span>
+                    <span>🧬 Agent Status</span>
                 </div>
 
-                <div id="eventList" class="event-list">
-                    <div class="event-list-empty">Waiting for events...</div>
+                <div class="agent-row">
+                    <span class="agent-dot" id="agentDotHermes"></span>
+                    <span class="agent-name">hermes3:8b</span>
+                    <span class="agent-badge" id="agentBadgeHermes">ACTIVE</span>
+                </div>
+
+                <div class="agent-row">
+                    <span class="agent-dot standby" id="agentDotPhi"></span>
+                    <span class="agent-name">phi3:mini</span>
+                    <span class="agent-badge standby" id="agentBadgePhi">STANDBY</span>
+                </div>
+
+                <div class="panel-subheader">System RAM</div>
+                <div class="vram-bar-track"><div class="vram-bar-fill" id="agentRamBar"></div></div>
+                <div class="vram-bar-label" id="agentRamLabel">--% · --/-- GB</div>
+            </div>
+
+            <div class="panel" id="youtubePanelEl">
+                <div class="panel-header">
+                    <span>▶️ YouTube Studio</span>
+                    <span class="status-pill" id="youtubeStatusPill" style="opacity:.6;">OFFLINE</span>
+                </div>
+
+                <div class="yt-grid">
+                    <div class="yt-tile"><div class="yt-num" id="ytSubs">—</div><div class="yt-label">Subscribers</div></div>
+                    <div class="yt-tile"><div class="yt-num" id="ytVideos">—</div><div class="yt-label">Videos</div></div>
+                    <div class="yt-tile"><div class="yt-num" id="ytUpload">—</div><div class="yt-label">Last Upload</div></div>
                 </div>
             </div>
 
@@ -749,7 +990,25 @@
 
         <!-- CENTER COLUMN -->
         <div class="col-center">
-            <div class="panel" style="flex:1;">
+
+            <div class="panel" id="particlePanelEl">
+                <div class="panel-header">
+                    <span>◈ AGENT NEURAL ACTIVITY</span>
+                </div>
+
+                <canvas id="particleCanvas"></canvas>
+
+                <div class="particle-legend">
+                    <span><i style="background:#f97316;"></i>agency</span>
+                    <span><i style="background:#3b82f6;"></i>swarm</span>
+                    <span><i style="background:#22c55e;"></i>personal</span>
+                    <span><i style="background:#f59e0b;"></i>media</span>
+                    <span><i style="background:#a855f7;"></i>development</span>
+                    <span><i style="background:#9ca3af;"></i>system</span>
+                </div>
+            </div>
+
+            <div class="panel" id="chatPanelEl">
 
                 <div class="panel-header">
                     <span>💬 TACTICAL CHAT TERMINAL</span>
@@ -828,6 +1087,30 @@
                 </button>
             </div>
 
+            <div class="panel" id="clientCrmPanelEl">
+                <div class="panel-header">
+                    <span>🤝 Client CRM</span>
+                </div>
+
+                <div class="crm-counts">
+                    <div class="crm-count"><b id="crmProspects">0</b><span>Prospects</span></div>
+                    <div class="crm-count"><b id="crmActive">0</b><span>Active</span></div>
+                    <div class="crm-count"><b id="crmCompleted">0</b><span>Completed</span></div>
+                </div>
+
+                <div id="crmList" class="file-list">Loading clients...</div>
+            </div>
+
+            <div class="panel" id="eventsPanelEl">
+                <div class="panel-header">
+                    <span>📡 Live Events / Routines</span>
+                </div>
+
+                <div id="eventList" class="event-list">
+                    <div class="event-list-empty">Waiting for events...</div>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -886,9 +1169,16 @@
             fetchAndRenderTasks();
             setInterval(fetchAndRenderTasks, 5000);
 
+            fetchClients();
+            setInterval(fetchClients, 10000);
+
+            fetchYoutubeStats();
+
             connectEventStream();
 
             fetchVaultFiles();
+
+            initParticleCanvas();
 
             console.log("⚡ ARNIE UI INITIALIZED");
             console.log("🎙️ Voice control connected — THE OAK TTS enabled");
@@ -918,6 +1208,17 @@
                     Math.round(data.ram_percent) + "% · " +
                     data.ram_used_gb + "/" + data.ram_total_gb + " GB";
 
+                // Agent Status panel — no live VRAM/routing endpoint exists yet,
+                // so system RAM is shown as the best available load proxy.
+                const ramBar = document.getElementById("agentRamBar");
+                const ramLabel = document.getElementById("agentRamLabel");
+                if (ramBar && ramLabel) {
+                    ramBar.style.width = Math.round(data.ram_percent) + "%";
+                    ramLabel.innerText =
+                        Math.round(data.ram_percent) + "% · " +
+                        data.ram_used_gb + "/" + data.ram_total_gb + " GB";
+                }
+
                 setSystemOnline(true);
 
             } catch (e) {
@@ -938,6 +1239,141 @@
             } else {
                 dot.classList.add("offline");
                 label.innerText = "OFFLINE";
+            }
+        }
+
+
+        // ============================================================
+        // ◈ PARTICLE NEURAL NET CANVAS (decorative, purely client-side)
+        // ============================================================
+
+        const PARTICLE_COLORS = {
+            agency: "#f97316",
+            swarm: "#3b82f6",
+            personal: "#22c55e",
+            media: "#f59e0b",
+            development: "#a855f7",
+            system: "#9ca3af"
+        };
+        const PARTICLE_TYPES = Object.keys(PARTICLE_COLORS);
+        const PARTICLE_COUNT = 80;
+        const PARTICLE_LINK_DIST = 120;
+
+        let particleCanvas = null;
+        let particleCtx = null;
+        let particles = [];
+
+        function initParticleCanvas() {
+
+            particleCanvas = document.getElementById("particleCanvas");
+            if (!particleCanvas) return;
+
+            particleCtx = particleCanvas.getContext("2d");
+
+            resizeParticleCanvas();
+            window.addEventListener("resize", resizeParticleCanvas);
+
+            particles = [];
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push({
+                    x: Math.random() * particleCanvas.width,
+                    y: Math.random() * particleCanvas.height,
+                    vx: (Math.random() - 0.5) * 0.25,
+                    vy: (Math.random() - 0.5) * 0.25,
+                    type: PARTICLE_TYPES[Math.floor(Math.random() * PARTICLE_TYPES.length)],
+                    pulse: 0
+                });
+            }
+
+            requestAnimationFrame(animateParticles);
+        }
+
+        function resizeParticleCanvas() {
+            if (!particleCanvas) return;
+            const rect = particleCanvas.getBoundingClientRect();
+            particleCanvas.width = rect.width;
+            particleCanvas.height = 280;
+        }
+
+        function animateParticles(ts) {
+
+            if (!particleCtx) return;
+
+            const w = particleCanvas.width;
+            const h = particleCanvas.height;
+
+            particleCtx.clearRect(0, 0, w, h);
+
+            const breathe = 0.55 + 0.15 * Math.sin((ts || 0) / 1800);
+
+            // edges between nearby nodes
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const a = particles[i];
+                    const b = particles[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < PARTICLE_LINK_DIST) {
+                        particleCtx.strokeStyle =
+                            "rgba(249, 115, 22, " + ((1 - dist / PARTICLE_LINK_DIST) * 0.15 * breathe) + ")";
+                        particleCtx.lineWidth = 1;
+                        particleCtx.beginPath();
+                        particleCtx.moveTo(a.x, a.y);
+                        particleCtx.lineTo(b.x, b.y);
+                        particleCtx.stroke();
+                    }
+                }
+            }
+
+            // nodes
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > w) p.vx *= -1;
+                if (p.y < 0 || p.y > h) p.vy *= -1;
+
+                p.x = Math.max(0, Math.min(w, p.x));
+                p.y = Math.max(0, Math.min(h, p.y));
+
+                if (p.pulse > 0) p.pulse = Math.max(0, p.pulse - 0.02);
+
+                const color = PARTICLE_COLORS[p.type];
+                const radius = 2 + p.pulse * 4;
+
+                particleCtx.beginPath();
+                particleCtx.fillStyle = color;
+                particleCtx.globalAlpha = Math.min(1, (0.5 + p.pulse) * breathe + 0.3);
+                particleCtx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                particleCtx.fill();
+                particleCtx.globalAlpha = 1;
+
+                if (p.pulse > 0.05) {
+                    particleCtx.beginPath();
+                    particleCtx.strokeStyle = color;
+                    particleCtx.globalAlpha = p.pulse * 0.5;
+                    particleCtx.arc(p.x, p.y, radius + 6, 0, Math.PI * 2);
+                    particleCtx.stroke();
+                    particleCtx.globalAlpha = 1;
+                }
+            });
+
+            requestAnimationFrame(animateParticles);
+        }
+
+        function pulseParticlesForWorkspace(workspace) {
+
+            if (!particles.length) return;
+
+            const matches = particles.filter(p => p.type === workspace);
+            const pool = matches.length ? matches : particles;
+            const hits = Math.min(3, pool.length);
+
+            for (let i = 0; i < hits; i++) {
+                const p = pool[Math.floor(Math.random() * pool.length)];
+                p.pulse = 1;
             }
         }
 
@@ -1626,7 +2062,7 @@
         // TASKS — always-on polling + workspace badges
         // ============================================================
 
-        const WORKSPACES = ["swarm", "agency", "media", "development"];
+        const WORKSPACES = ["swarm", "agency", "media", "development", "personal", "system", "client"];
 
         async function fetchAndRenderTasks() {
 
@@ -1714,6 +2150,114 @@
 
 
         // ============================================================
+        // 🤝 CLIENT CRM — /api/clients doesn't exist yet, so this reads
+        // the client workspace's Tasks (Phase 19) as the CRM source.
+        // ============================================================
+
+        async function fetchClients() {
+
+            const listEl = document.getElementById("crmList");
+
+            try {
+
+                const res = await fetch("/api/tasks?workspace=client");
+
+                if (!res.ok) {
+                    throw new Error("Tasks endpoint returned HTTP " + res.status);
+                }
+
+                const data = await res.json();
+                const tasks = data.tasks || [];
+
+                const prospects = tasks.filter(t =>
+                    ["queued", "created"].includes((t.status || "").toLowerCase())
+                ).length;
+
+                const active = tasks.filter(t =>
+                    ["running", "assigned"].includes((t.status || "").toLowerCase())
+                ).length;
+
+                const completed = tasks.filter(t =>
+                    (t.status || "").toLowerCase() === "completed"
+                ).length;
+
+                document.getElementById("crmProspects").innerText = prospects;
+                document.getElementById("crmActive").innerText = active;
+                document.getElementById("crmCompleted").innerText = completed;
+
+                const activeTasks = tasks
+                    .filter(t => ["running", "assigned"].includes((t.status || "").toLowerCase()))
+                    .slice(0, 5);
+
+                if (activeTasks.length === 0) {
+                    listEl.innerHTML =
+                        '<div class="task-list-empty">No active clients.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = "";
+
+                activeTasks.forEach(t => {
+
+                    const statusClass =
+                        "task-status-" + (t.status || "unknown").toLowerCase();
+
+                    const item = document.createElement("div");
+                    item.className = "crm-item";
+
+                    item.innerHTML =
+                        '<span class="crm-item-title">' +
+                            escapeHtml(t.title || t.id) +
+                        "</span>" +
+                        '<span class="task-status-pill ' + statusClass + '">' +
+                            escapeHtml((t.status || "unknown").toUpperCase()) +
+                        "</span>";
+
+                    listEl.appendChild(item);
+                });
+
+            } catch (e) {
+
+                listEl.innerHTML =
+                    '<div class="task-list-empty">Failed to load clients.</div>';
+
+                console.error("Client CRM error:", e);
+            }
+        }
+
+
+        // ============================================================
+        // ▶️ YOUTUBE STUDIO — no /api/youtube endpoint exists yet;
+        // this stays placeholder tiles unless/until that lands.
+        // ============================================================
+
+        async function fetchYoutubeStats() {
+
+            try {
+
+                const res = await fetch("/api/youtube");
+
+                if (!res.ok) {
+                    return;
+                }
+
+                const data = await res.json();
+
+                document.getElementById("ytSubs").innerText = data.subscribers ?? "—";
+                document.getElementById("ytVideos").innerText = data.videos ?? "—";
+                document.getElementById("ytUpload").innerText = data.last_upload ?? "—";
+
+                const pill = document.getElementById("youtubeStatusPill");
+                pill.innerText = "CONNECTED";
+                pill.style.opacity = "1";
+
+            } catch (e) {
+                // No endpoint yet — leave placeholder tiles as-is.
+            }
+        }
+
+
+        // ============================================================
         // EVENTS — always-on SSE stream
         // ============================================================
 
@@ -1782,6 +2326,15 @@
             while (listEl.children.length > MAX_EVENT_ITEMS) {
                 listEl.removeChild(listEl.firstChild);
             }
+
+            // Purely decorative — pulse a node on the particle canvas to
+            // reflect live agent activity. Doesn't need to map exactly.
+            const workspaceHint = (event.workspace || event.data && event.data.workspace || "");
+            pulseParticlesForWorkspace(
+                PARTICLE_TYPES.includes(workspaceHint)
+                    ? workspaceHint
+                    : PARTICLE_TYPES[Math.floor(Math.random() * PARTICLE_TYPES.length)]
+            );
         }
 
 

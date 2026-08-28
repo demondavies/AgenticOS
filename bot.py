@@ -7,10 +7,9 @@ import uvicorn
 
 # 🔒 SECURE SYSTEM CONFIGURATION
 ALLOWED_USERS = [319548579163144192]  # Optional: Paste numeric Discord User ID here when using Discord
-DB_PATH = r"G:\AgenticOS\data\memory.db"
 WEB_CHANNEL_ID = "local_web_dashboard"
 
-# Client, Scheduler & Chroma Vector DB Initialization
+# Client & Scheduler Initialization
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -96,8 +95,8 @@ print(
 # required for LLM-assisted compaction.
 from capabilities.memory import configure_memory_summarizer
 configure_memory_summarizer(TOOL_HARNESS.chat)
-TOOL_HARNESS.memory.init_db()
-TOOL_HARNESS.task_store.init_db()
+TOOL_HARNESS.initialize_memory()
+TOOL_HARNESS.initialize_tasks()
 
 
 

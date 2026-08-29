@@ -731,13 +731,14 @@
         .agent-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
+            gap: 7px;
+            font-size: 11px;
+            padding: 2px 0;
         }
 
         .agent-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
             background: var(--accent-green);
             box-shadow: 0 0 8px var(--accent-green);
@@ -755,8 +756,8 @@
         }
 
         .agent-badge {
-            font-size: 10px;
-            padding: 2px 8px;
+            font-size: 9px;
+            padding: 1px 6px;
             border-radius: 10px;
             border: 1px solid var(--accent-green);
             color: var(--accent-green);
@@ -1247,82 +1248,55 @@
 
                 <div class="agent-row" id="agentRow_arnie">
                     <span class="agent-dot standby" id="agentDot_arnie"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Arnie</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Chat · orchestration</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Arnie</span>
                     <span class="agent-badge standby" id="agentBadge_arnie">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_scout">
                     <span class="agent-dot standby" id="agentDot_scout"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Scout</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Prospects research</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Scout</span>
                     <span class="agent-badge standby" id="agentBadge_scout">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_pitch">
                     <span class="agent-dot standby" id="agentDot_pitch"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Pitch</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Outreach copywriting</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Pitch</span>
                     <span class="agent-badge standby" id="agentBadge_pitch">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_atlas">
                     <span class="agent-dot standby" id="agentDot_atlas"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Atlas</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Client success</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Atlas</span>
                     <span class="agent-badge standby" id="agentBadge_atlas">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_forge">
                     <span class="agent-dot standby" id="agentDot_forge"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Forge</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Automation build</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Forge</span>
                     <span class="agent-badge standby" id="agentBadge_forge">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_coordinator">
                     <span class="agent-dot standby" id="agentDot_coordinator"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Coordinator</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Orchestration</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Coordinator</span>
                     <span class="agent-badge standby" id="agentBadge_coordinator">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_researcher">
                     <span class="agent-dot standby" id="agentDot_researcher"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Researcher</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Web research</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Researcher</span>
                     <span class="agent-badge standby" id="agentBadge_researcher">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_coder">
                     <span class="agent-dot standby" id="agentDot_coder"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Coder</div>
-                        <div style="font-size:10px;color:var(--text-muted)">Code generation</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Coder</span>
                     <span class="agent-badge standby" id="agentBadge_coder">IDLE</span>
                 </div>
 
                 <div class="agent-row" id="agentRow_reviewer">
                     <span class="agent-dot standby" id="agentDot_reviewer"></span>
-                    <div style="flex:1;min-width:0">
-                        <div class="agent-name">Reviewer</div>
-                        <div style="font-size:10px;color:var(--text-muted)">QA · validation</div>
-                    </div>
+                    <span class="agent-name" style="flex:1">Reviewer</span>
                     <span class="agent-badge standby" id="agentBadge_reviewer">IDLE</span>
                 </div>
 
@@ -2549,6 +2523,7 @@
                 const allTasks = data.tasks || [];
 
                 renderWorkspaceBadges(allTasks);
+                updateKpis(allTasks);  // always update KPIs before any filter/return
 
                 const tasks = statusFilter
                     ? allTasks.filter(t => (t.status || "") === statusFilter)

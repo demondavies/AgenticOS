@@ -54,6 +54,7 @@ data/vector/
 data/cache/
 data/tmp/
 data/runtime/
+data/reports/
 
 # Phase 19: client CRM data lives at the project root, not under data/.
 clients.json

@@ -72,6 +72,10 @@ Automation activity logging (Phase 27):
     log_automation_run
     get_monthly_automation_summary
 
+Client detail lookup + savings reporting (Phase 28):
+    get_client
+    generate_savings_report
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -832,6 +836,33 @@ async def _get_monthly_automation_summary(
 
 
 # ============================================================================
+# CLIENT DETAIL + SAVINGS REPORTING HANDLERS (Phase 28)
+# ============================================================================
+
+
+async def _get_client(
+    client_id: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Client tracking handler."""
+    raise RuntimeError(
+        "The get_client Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _generate_savings_report(
+    client_id: str = "",
+    year: int = 0,
+    month: int = 0,
+) -> str:
+    """Fail clearly until the Harness binds the Savings report handler."""
+    raise RuntimeError(
+        "The generate_savings_report Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -1566,6 +1597,68 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # CLIENT DETAIL + SAVINGS REPORTING (Phase 28)
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="get_client",
+            description=(
+                "Retrieve the full detail of a single client by their ID."
+            ),
+            handler=_get_client,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 28,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.clients.service.get_client"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="generate_savings_report",
+            description=(
+                "Generate a monthly savings report and retainer invoice for a "
+                "client. Arguments: client_id (str), year (int), month (int). "
+                "Loads the client, that month's automation summary, and all "
+                "logged baselines; determines billing mode (fixed retainer for "
+                "months 1-3, 20% of documented savings — minimum £750 — from "
+                "month 4 onward); writes a professional HTML report to "
+                "data/reports/ and returns the report path plus invoice text."
+            ),
+            handler=_generate_savings_report,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=True,
+            metadata={
+                "phase": 28,
+                "workspace": "client",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_generate_savings_report"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -1610,6 +1703,8 @@ def run_tests() -> None:
         "list_savings_baselines",
         "log_automation_run",
         "get_monthly_automation_summary",
+        "get_client",
+        "generate_savings_report",
     }
 
     actual = set(
@@ -1640,6 +1735,7 @@ def run_tests() -> None:
         "get_prospect",
         "list_savings_baselines",
         "get_monthly_automation_summary",
+        "get_client",
     }
 
     for name in safe_tools:
@@ -1737,6 +1833,7 @@ def run_tests() -> None:
         "list_savings_baselines",
         "log_automation_run",
         "get_monthly_automation_summary",
+        "get_client",
     }
 
     for name in deterministic_tools:

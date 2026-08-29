@@ -50,6 +50,13 @@ def add_client(name: str, service: str, notes: str = "") -> Client:
     return client
 
 
+def get_client(client_id: str) -> Client | None:
+    for c in _load():
+        if c.id == client_id:
+            return c
+    return None
+
+
 def list_clients(status: str | None = None) -> list[Client]:
     clients = _load()
     if status:

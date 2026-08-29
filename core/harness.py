@@ -317,6 +317,19 @@ class AgentHarness:
             self.execute_get_monthly_automation_summary,
         )
 
+        # get_client and generate_savings_report are Phase 28 — Monthly
+        # Savings Report. get_client reuses the same Client capability as
+        # the other client tools; generate_savings_report calls self.chat()
+        # so the Harness must own it.
+        self.tools.bind_handler(
+            "get_client",
+            self.execute_get_client,
+        )
+        self.tools.bind_handler(
+            "generate_savings_report",
+            self.execute_generate_savings_report,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -1180,6 +1193,177 @@ class AgentHarness:
             f"Total runs: {summary['total_runs']}\n"
             f"Total minutes saved: {summary['total_minutes_saved']}\n"
             f"Total £ saved: £{summary['total_gbp_saved']}"
+        )
+
+    async def execute_get_client(
+        self,
+        client_id: str = "",
+    ) -> str:
+        """Retrieve full detail of a single Client by ID."""
+        from capabilities.clients.service import get_client
+
+        if not client_id:
+            return "Error: client_id is required."
+
+        client = get_client(client_id)
+        if client is None:
+            return f"Client '{client_id}' not found."
+
+        return (
+            f"Name: {client.name}\n"
+            f"Service: {client.service}\n"
+            f"Status: {client.status}\n"
+            f"Created: {client.created_at}\n"
+            f"Notes: {client.notes[:200] if client.notes else 'none'}"
+        )
+
+    async def execute_generate_savings_report(
+        self,
+        client_id: str = "",
+        year: int = 0,
+        month: int = 0,
+    ) -> str:
+        """Generate a monthly savings report and retainer invoice for a client.
+
+        Phase 28: Monthly Savings Report.
+        Loads the client, that month's automation summary, and every logged
+        baseline; determines billing mode (fixed £750/mo retainer for the
+        first 3 months of the client relationship, 20% of that month's
+        documented £ savings — minimum £750 — from month 4 onward); uses
+        self.chat() with an Atlas-authored prompt to write a professional
+        HTML report plus a plain-text retainer invoice; saves the HTML
+        report to data/reports/{client_id}_{year}_{month}.html.
+        """
+        import os
+        import re as _re
+        from datetime import datetime
+        from capabilities.clients.service import get_client
+        from capabilities.automation_log.service import monthly_summary
+        from capabilities.savings.service import list_baselines
+
+        if not client_id or not year or not month:
+            return "Error: client_id, year, and month are required."
+
+        client = get_client(client_id)
+        if client is None:
+            return f"Client '{client_id}' not found."
+
+        summary = monthly_summary(client_id=client_id, year=year, month=month)
+        baselines = list_baselines(client_id=client_id)
+
+        created = datetime.fromisoformat(client.created_at)
+        months_active = (year - created.year) * 12 + (month - created.month) + 1
+
+        if months_active <= 3:
+            billing_mode = f"Fixed retainer (month {months_active} of onboarding)"
+            retainer_amount = 750.0
+        else:
+            documented_savings = summary["total_gbp_saved"]
+            billing_mode = "20% of documented savings"
+            retainer_amount = max(750.0, documented_savings * 0.20)
+
+        task = Task(
+            title=f"Generate savings report: {client.name[:40]} — {year}-{month:02d}",
+            description=f"client_id={client_id}",
+            workspace="client",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+        task.assign("atlas")
+        task.start()
+        self.task_store.save_task(task)
+
+        baseline_lines = "\n".join(
+            f"- {b.process_name}: {b.minutes_per_run} min/run × "
+            f"{b.runs_per_month} runs/mo @ £{b.staff_hourly_rate}/hr "
+            f"= £{b.baseline_monthly_cost:.2f}/mo baseline cost"
+            for b in baselines
+        ) or "No baselines logged yet."
+
+        system_prompt = (
+            "You are Atlas, the client success agent for Kaizen Studios. "
+            "Write a professional, client-facing monthly savings report as a "
+            "complete, standalone HTML document (including <html>, <head> with "
+            "inline <style>, and <body>), and a separate plain-text retainer "
+            "invoice. Be transparent and methodical — reference only the actual "
+            "figures given below; never invent numbers.\n\n"
+            "Output format — use these exact delimiters, nothing else:\n"
+            "=== REPORT HTML ===\n"
+            "<full HTML document>\n"
+            "=== INVOICE TEXT ===\n"
+            "<plain-text invoice>"
+        )
+
+        user_message = (
+            f"Generate the monthly savings report and retainer invoice for this "
+            f"client.\n\n"
+            f"Client: {client.name}\n"
+            f"Service: {client.service}\n"
+            f"Status: {client.status}\n"
+            f"Report period: {year}-{month:02d}\n\n"
+            f"Automation summary for this month:\n"
+            f"- Total automation runs: {summary['total_runs']}\n"
+            f"- Total minutes saved: {summary['total_minutes_saved']}\n"
+            f"- Total £ saved: £{summary['total_gbp_saved']}\n\n"
+            f"Logged process baselines:\n{baseline_lines}\n\n"
+            f"Billing mode: {billing_mode}\n"
+            f"Retainer amount due: £{retainer_amount:.2f}\n\n"
+            f"Generate the HTML report and the invoice text."
+        )
+
+        try:
+            response = await self.chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                model=DEFAULT_MODEL,
+                capability="savings_report",
+                source="execute_generate_savings_report",
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        html_match = _re.search(
+            r"=== REPORT HTML ===\s*(.+?)\s*=== INVOICE TEXT ===",
+            response, _re.DOTALL,
+        )
+        invoice_match = _re.search(
+            r"=== INVOICE TEXT ===\s*(.+?)$",
+            response, _re.DOTALL,
+        )
+
+        report_html = html_match.group(1).strip() if html_match else response
+        invoice_text = (
+            invoice_match.group(1).strip()
+            if invoice_match
+            else (
+                f"Kaizen Studios — Retainer Invoice\n"
+                f"Client: {client.name}\n"
+                f"Period: {year}-{month:02d}\n"
+                f"Billing mode: {billing_mode}\n"
+                f"Amount due: £{retainer_amount:.2f}"
+            )
+        )
+
+        reports_dir = os.path.join("data", "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+        report_path = os.path.join(reports_dir, f"{client_id}_{year}_{month}.html")
+
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report_html)
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+        task.complete(TaskResult(success=True, output=report_path))
+        self.task_store.save_task(task)
+
+        return (
+            f"Savings report generated for {client.name} — {year}-{month:02d}\n"
+            f"Report saved to: {report_path}\n\n"
+            f"--- RETAINER INVOICE ---\n{invoice_text}"
         )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:

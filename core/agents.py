@@ -925,6 +925,7 @@ def create_atlas_agent() -> Agent:
     agent.allow_tool("list_savings_baselines")
     agent.allow_tool("log_automation_run")
     agent.allow_tool("get_monthly_automation_summary")
+    agent.allow_tool("generate_savings_report")
 
     return agent
 

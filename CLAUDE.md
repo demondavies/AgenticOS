@@ -226,3 +226,9 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `harness.save_memory()` still persists the raw, unprefixed `clean_content` — only the transient LLM-facing `history` list carries the prefix, so the stored conversation memory never gets polluted with injected context
 - Best-effort: any `retrieve_relevant` failure silently falls back to the original message, never blocking the response path
 - Verified live: a two-turn conversation on a fresh channel (via a `harness.chat` spy, since the persisted store never shows the transient prefix) confirmed no injection on turn 1, `retrieve_relevant` called with the configured top_k/min_score on turn 2, the model actually received the `[CONTEXT:]`-prefixed message on turn 2, and the persisted store stayed unprefixed throughout
+### Phase 23 — Per-Turn Memory Injection
+- `core/config.py`: MEMORY_PER_TURN_ENABLED, TOP_K=3, MIN_SCORE=0.68
+- `core/agent_runtime.py`: compact [CONTEXT: ...] prefix prepended to user message (clean_content) on all turns except first; guard prevents double-injection on turn 1
+- Uses module-level retrieve_relevant() from capabilities/vault — no VaultService class exists
+- Verified: turn 2+ carries memory prefix, memory store stays unpolluted (stores raw clean_content)
+

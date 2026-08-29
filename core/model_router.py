@@ -26,7 +26,7 @@ import core.config as config
 log = logging.getLogger(__name__)
 
 LIGHT_WORKSPACES = {"personal", "system"}
-HEAVY_WORKSPACES = {"agency", "swarm", "development"}
+HEAVY_WORKSPACES = {"agency", "swarm", "development", "prospects", "outreach", "client"}
 
 
 def ollama_free_vram_gb() -> float:

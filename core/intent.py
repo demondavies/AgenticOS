@@ -339,6 +339,98 @@ class IntentRouter:
             name_text = clean[client_match.start(1):]
             return Intent(tool_name="add_client", arguments={"name": name_text.strip()})
 
+
+        # ------------------------------------------------------------
+        # LIST PROSPECTS  (Phase 24)
+        # Examples:
+        #   List prospects
+        #   Show all prospects
+        #   Show prospects with status qualified
+        # ------------------------------------------------------------
+        prospects_list_match = re.search(
+            r"\b(?:list|show|display)\s+(?:all\s+)?prospects?\b"
+            r"(?:\s+with\s+status\s+(\S+))?",
+            lower,
+        )
+        if prospects_list_match:
+            status = prospects_list_match.group(1) or ""
+            args = {"status": status} if status else {}
+            return Intent(tool_name="list_prospects", arguments=args)
+
+        # ------------------------------------------------------------
+        # RESEARCH PROSPECT  (Phase 24)
+        # Examples:
+        #   Research Smith & Co Accountants
+        #   Scout Jones Accountancy Ltd
+        #   Research the firm Smith & Co at smithco.co.uk
+        # ------------------------------------------------------------
+        research_match = re.search(
+            r"\b(?:research|scout)\s+(?:the\s+firm\s+)?(.+?)(?:\s+at\s+(\S+))?\s*[?.!]?$",
+            clean,
+            flags=re.IGNORECASE,
+        )
+        if research_match and not re.search(r"\b(?:web|internet|online|vault|inbox)\b", lower):
+            firm = research_match.group(1).strip()
+            website = research_match.group(2) or ""
+            args: dict = {"firm_name": firm}
+            if website:
+                args["website"] = website
+            return Intent(tool_name="research_prospect", arguments=args)
+
+        # ------------------------------------------------------------
+        # DRAFT OUTREACH  (Phase 25)
+        # Examples:
+        #   Draft outreach for prospect_abc123
+        #   Pitch prospect_abc123
+        #   Write outreach for prospect_abc123
+        # ------------------------------------------------------------
+        outreach_match = re.search(
+            r"\b(?:draft|write|generate)\s+outreach\s+(?:for\s+)?(prospect_\S+)",
+            lower,
+        )
+        if not outreach_match:
+            outreach_match = re.search(
+                r"\bpitch\s+(prospect_\S+)",
+                lower,
+            )
+        if outreach_match:
+            return Intent(
+                tool_name="draft_outreach",
+                arguments={"prospect_id": outreach_match.group(1).strip()},
+            )
+
+        # ------------------------------------------------------------
+        # CLIENT DASHBOARD  (Phase 29)
+        # Examples:
+        #   Show client dashboard
+        #   Dashboard
+        #   Show me the dashboard
+        # ------------------------------------------------------------
+        if re.search(
+            r"\b(?:show|display|get|open)?\s*(?:client\s+)?dashboard\b",
+            lower,
+        ):
+            return Intent(tool_name="get_client_dashboard")
+
+        # ------------------------------------------------------------
+        # GENERATE SAVINGS REPORT  (Phase 28)
+        # Examples:
+        #   Generate savings report for client_abc 2026 8
+        #   Savings report client_abc August 2026
+        # ------------------------------------------------------------
+        savings_report_match = re.search(
+            r"\b(?:generate|create|run)\s+savings\s+report\s+for\s+(client_\S+)"
+            r"(?:\s+(\d{4}))?(?:\s+(\d{1,2}))?",
+            lower,
+        )
+        if savings_report_match:
+            args = {"client_id": savings_report_match.group(1)}
+            if savings_report_match.group(2):
+                args["year"] = savings_report_match.group(2)
+            if savings_report_match.group(3):
+                args["month"] = savings_report_match.group(3)
+            return Intent(tool_name="generate_savings_report", arguments=args)
+
         return Intent()
 
 

@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaizen Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0D1421;
+  --surface:  #131C2E;
+  --surface2: #1A2540;
+  --border:   #1E2D45;
+  --border2:  #263755;
+  --gold:     #C8A96E;
+  --gold-dim: #8A6E42;
+  --green:    #4CAF8A;
+  --red:      #E05A6A;
+  --amber:    #E8A838;
+  --text:     #E8EAF0;
+  --text-dim: #7A8BAA;
+  --text-mid: #A8B4CC;
+  font-size: 14px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-columns: 240px 1fr 300px;
+  grid-template-areas:
+    "header header header"
+    "nav    main   score";
+  gap: 0;
+}
+
+/* ── HEADER ─────────────────────────────────────────────────────────────────*/
+header {
+  grid-area: header;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+}
+.logo {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+}
+.logo span { color: var(--text-dim); font-weight: 400; }
+.session-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.session-info strong { color: var(--text); }
+#btn-complete {
+  background: var(--gold);
+  color: #0D1421;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+#btn-complete:hover { opacity: .85; }
+#btn-complete:disabled { opacity: .4; cursor: default; }
+
+/* ── NAV ────────────────────────────────────────────────────────────────────*/
+nav {
+  grid-area: nav;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 0;
+}
+.nav-section {
+  padding: 0 12px 4px;
+}
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 8px 8px 4px;
+}
+.cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-mid);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s, color .1s;
+}
+.cat-btn:hover { background: var(--surface2); color: var(--text); }
+.cat-btn.active { background: var(--surface2); color: var(--gold); }
+.cat-btn .cat-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text-dim);
+}
+.cat-btn.active .cat-count { color: var(--gold-dim); }
+
+/* ── RATES PANEL ────────────────────────────────────────────────────────────*/
+.rates-panel {
+  margin: 8px 12px 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 12px;
+}
+.rates-panel h4 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.rate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.rate-row label {
+  font-size: 12px;
+  color: var(--text-mid);
+  text-transform: capitalize;
+}
+.rate-input {
+  width: 64px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 4px 6px;
+  text-align: right;
+}
+.rate-input:focus { outline: 1px solid var(--gold); border-color: var(--gold); }
+
+/* ── MAIN ───────────────────────────────────────────────────────────────────*/
+main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: 24px;
+}
+.cat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.cat-header .icon { font-size: 22px; }
+.cat-header h2 { font-size: 18px; font-weight: 700; }
+.cat-header .cat-desc { font-size: 13px; color: var(--text-dim); margin-left: auto; }
+
+/* ── PROCESS CARD ───────────────────────────────────────────────────────────*/
+.process-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.process-card.active { border-color: var(--border2); }
+.process-card.quick-win { border-color: var(--gold-dim); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.card-header:hover { background: var(--surface2); }
+
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border2);
+  border-radius: 20px;
+  transition: .2s;
+}
+.slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  transition: .2s;
+}
+.toggle-switch input:checked + .slider { background: var(--gold-dim); }
+.toggle-switch input:checked + .slider::before {
+  transform: translateX(16px);
+  background: var(--gold);
+}
+
+.card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.card-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.card-score-badge {
+  margin-left: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--surface2);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.card-score-badge.quick-win { background: rgba(200,169,110,.15); color: var(--gold); }
+.card-score-badge.leave-alone { background: rgba(224,90,106,.1); color: var(--red); }
+
+.card-body {
+  display: none;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.card-body.open { display: block; }
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.field-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+.field-group input,
+.field-group select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.field-group input:focus,
+.field-group select:focus {
+  outline: 1px solid var(--gold);
+  border-color: var(--gold);
+}
+.field-group select option { background: var(--surface2); }
+
+.slider-group {
+  margin-top: 14px;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.slider-row label {
+  font-size: 12px;
+  color: var(--text-mid);
+  width: 160px;
+  flex-shrink: 0;
+}
+.slider-row input[type=range] {
+  flex: 1;
+  accent-color: var(--gold);
+}
+.slider-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  width: 24px;
+  text-align: center;
+  color: var(--gold);
+}
+
+.pain-notes {
+  margin-top: 12px;
+}
+.pain-notes label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+.pain-notes textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 64px;
+}
+.pain-notes textarea:focus {
+  outline: 1px solid var(--gold);
+  border-color: var(--gold);
+}
+
+.cost-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  font-size: 12px;
+  color: var(--text-mid);
+  display: flex;
+  gap: 24px;
+}
+.cost-preview .cost-val {
+  font-family: 'DM Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+}
+.cost-preview .cost-val.gold { color: var(--gold); }
+
+/* ── SCORE PANEL ────────────────────────────────────────────────────────────*/
+aside {
+  grid-area: score;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+}
+aside h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.score-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.score-tile {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.score-tile .label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.score-tile .value {
+  font-family: 'DM Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.score-tile .value.gold { color: var(--gold); }
+.score-tile .value.green { color: var(--green); }
+
+.quick-wins-list { margin-bottom: 20px; }
+.qw-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  background: rgba(200,169,110,.08);
+  border: 1px solid var(--gold-dim);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.qw-item .qw-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+}
+.qw-item .qw-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 12px;
+}
+.qw-item .qw-meta span { font-family: 'DM Mono', monospace; color: var(--text-mid); }
+
+.all-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.score-row:hover { background: var(--surface2); }
+.score-row .name { flex: 1; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-row .pts {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  width: 36px;
+  text-align: right;
+}
+.score-row.quick-win .name { color: var(--gold); }
+.score-row.quick-win .pts { color: var(--gold); }
+.score-row.leave-alone .name { color: var(--red); opacity: .6; }
+.score-row.leave-alone .pts { color: var(--red); opacity: .6; }
+
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── MODAL ───────────────────────────────────────────────────────────────────*/
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 440px;
+  width: 90%;
+}
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text-mid);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--gold);
+  border: none;
+  color: #0D1421;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary:hover { opacity: .85; }
+
+.notes-field {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 80px;
+  margin-bottom: 16px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KAIZEN <span>AUDIT</span></div>
+  <div class="session-info">
+    <span>Firm: <strong id="firm-display">—</strong></span>
+    <span>Session: <strong id="session-display">—</strong></span>
+    <span id="active-count-display">0 processes active</span>
+  </div>
+  <button id="btn-complete" disabled>Complete Audit →</button>
+</header>
+
+<nav>
+  <div class="nav-section">
+    <div class="nav-section-label">Categories</div>
+    <div id="cat-nav"></div>
+  </div>
+
+  <div class="rates-panel">
+    <h4>Staff Rates (£/hr)</h4>
+    <div class="rate-row">
+      <label>Partner</label>
+      <input class="rate-input" data-role="partner" type="number" value="40" min="1" step="1">
+    </div>
+    <div class="rate-row">
+      <label>Senior</label>
+      <input class="rate-input" data-role="senior" type="number" value="25" min="1" step="1">
+    </div>
+    <div class="rate-row">
+      <label>Junior</label>
+      <input class="rate-input" data-role="junior" type="number" value="16" min="1" step="1">
+    </div>
+    <div class="rate-row">
+      <label>Admin</label>
+      <input class="rate-input" data-role="admin" type="number" value="13" min="1" step="1">
+    </div>
+  </div>
+</nav>
+
+<main id="main-content"></main>
+
+<aside>
+  <h3>Live Scores</h3>
+  <div class="score-summary">
+    <div class="score-tile">
+      <div class="label">Monthly Cost</div>
+      <div class="value gold" id="stat-monthly">£0</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Annual Saving</div>
+      <div class="value green" id="stat-annual">£0</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Quick Wins</div>
+      <div class="value" id="stat-qw">0</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Active</div>
+      <div class="value" id="stat-active">0</div>
+    </div>
+  </div>
+
+  <h3>Top Quick Wins</h3>
+  <div class="quick-wins-list" id="qw-list">
+    <div class="empty-state">Toggle processes on<br>to see quick wins</div>
+  </div>
+
+  <h3>All Scores</h3>
+  <div class="all-scores" id="all-scores"></div>
+</aside>
+
+<!-- Complete modal -->
+<div class="modal-backdrop" id="complete-modal">
+  <div class="modal">
+    <h3>Complete Audit</h3>
+    <p>This will save all process data and scores. You can then generate the Kaizen Audit Report.</p>
+    <textarea class="notes-field" id="audit-notes" placeholder="Any additional notes from the session…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn-primary" id="modal-confirm">Save & Complete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PROCESS MAP (mirrors Python data) ──────────────────────────────────────
+const PROCESS_MAP = [
+  {
+    id: "onboarding", name: "Client Onboarding", icon: "🚪",
+    processes: [
+      { id: "engagement_letters", name: "Engagement letters & e-signing", desc: "Drafting, sending, chasing, and filing engagement letters", base_auto: 4, base_risk: 2, typical_time: 30 },
+      { id: "aml_kyc", name: "AML / KYC checks", desc: "Identity verification, source of funds checks, filing results", base_auto: 3, base_risk: 4, typical_time: 45 },
+      { id: "client_data_collection", name: "Initial client data collection", desc: "Gathering chart of accounts, prior year figures, login credentials", base_auto: 4, base_risk: 2, typical_time: 60 },
+    ]
+  },
+  {
+    id: "bookkeeping", name: "Bookkeeping & Data Entry", icon: "📒",
+    processes: [
+      { id: "bank_feeds", name: "Bank feed reconciliation", desc: "Reviewing uncategorised transactions, applying rules, matching receipts", base_auto: 5, base_risk: 2, typical_time: 40 },
+      { id: "receipt_processing", name: "Receipt & invoice processing", desc: "Receiving, scanning, coding, and filing supplier invoices and receipts", base_auto: 5, base_risk: 2, typical_time: 30 },
+      { id: "credit_card_recon", name: "Credit card reconciliation", desc: "Matching credit card statements to bookkeeping records", base_auto: 4, base_risk: 2, typical_time: 25 },
+    ]
+  },
+  {
+    id: "vat", name: "VAT Returns", icon: "📊",
+    processes: [
+      { id: "vat_data_chase", name: "Client data chase for VAT", desc: "Chasing missing invoices, bank statements, or queries before filing", base_auto: 5, base_risk: 1, typical_time: 45 },
+      { id: "vat_prep", name: "VAT return preparation", desc: "Reviewing figures, adjusting entries, preparing the return", base_auto: 3, base_risk: 3, typical_time: 60 },
+      { id: "vat_filing", name: "VAT filing & confirmation", desc: "Filing with HMRC, saving confirmation, updating client", base_auto: 4, base_risk: 2, typical_time: 15 },
+    ]
+  },
+  {
+    id: "yearend", name: "Year-End Accounts", icon: "📅",
+    processes: [
+      { id: "yearend_data_chase", name: "Year-end client data chase", desc: "Requesting bank statements, invoices, payroll summaries, loan schedules", base_auto: 5, base_risk: 1, typical_time: 90 },
+      { id: "trial_balance", name: "Trial balance prep & adjustments", desc: "Journal entries, depreciation, accruals, prepayments", base_auto: 2, base_risk: 4, typical_time: 120 },
+      { id: "accounts_production", name: "Statutory accounts production", desc: "Producing statutory accounts in the correct format for filing", base_auto: 2, base_risk: 4, typical_time: 180 },
+      { id: "companies_house_filing", name: "Companies House & HMRC filing", desc: "Filing accounts at Companies House and CT600 with HMRC", base_auto: 3, base_risk: 3, typical_time: 30 },
+    ]
+  },
+  {
+    id: "payroll", name: "Payroll", icon: "💰",
+    processes: [
+      { id: "payroll_data_collection", name: "Payroll data collection", desc: "Chasing starters, leavers, hours, overtime, expenses from clients", base_auto: 5, base_risk: 2, typical_time: 30 },
+      { id: "payroll_calculation", name: "Payroll calculation & payslips", desc: "Running payroll, generating payslips, calculating PAYE/NI", base_auto: 3, base_risk: 3, typical_time: 45 },
+      { id: "payroll_hmrc_submission", name: "RTI submission to HMRC", desc: "Submitting FPS/EPS to HMRC and confirming receipt", base_auto: 4, base_risk: 3, typical_time: 15 },
+    ]
+  },
+  {
+    id: "selfassessment", name: "Self-Assessment", icon: "🧾",
+    processes: [
+      { id: "sa_data_chase", name: "SA client data chase", desc: "Annual chase for P60s, dividend certs, rental income, bank interest", base_auto: 5, base_risk: 1, typical_time: 60 },
+      { id: "sa_prep", name: "SA return preparation", desc: "Entering data, calculating tax liability, reviewing", base_auto: 2, base_risk: 3, typical_time: 90 },
+      { id: "sa_client_approval", name: "Client approval & filing", desc: "Sending draft to client, chasing approval, filing with HMRC", base_auto: 4, base_risk: 2, typical_time: 20 },
+    ]
+  },
+  {
+    id: "communication", name: "Client Communication & Chasing", icon: "📬",
+    processes: [
+      { id: "deadline_reminders", name: "Deadline reminders", desc: "Sending filing deadline reminders to clients across all services", base_auto: 5, base_risk: 1, typical_time: 20 },
+      { id: "query_handling", name: "Client query handling", desc: "Answering ad-hoc client questions by email or phone", base_auto: 2, base_risk: 2, typical_time: 60 },
+      { id: "invoice_chasing", name: "Invoice chasing & billing", desc: "Raising invoices, chasing overdue payments, recording receipts", base_auto: 4, base_risk: 1, typical_time: 30 },
+    ]
+  },
+  {
+    id: "practice", name: "Practice Management", icon: "⚙️",
+    processes: [
+      { id: "wip_tracking", name: "WIP & job tracking", desc: "Tracking work in progress, job status, team workload", base_auto: 3, base_risk: 2, typical_time: 30 },
+      { id: "compliance_monitoring", name: "Compliance & deadline monitoring", desc: "Monitoring upcoming filing deadlines across all clients", base_auto: 4, base_risk: 3, typical_time: 30 },
+      { id: "onboarding_new_staff", name: "Staff onboarding & training", desc: "Onboarding new team members, documenting processes, handovers", base_auto: 3, base_risk: 2, typical_time: 240 },
+    ]
+  },
+];
+
+// ── STATE ───────────────────────────────────────────────────────────────────
+let sessionId = '';
+let firmName = '';
+let currentCatId = PROCESS_MAP[0].id;
+const processState = {}; // process_id → { active, time_mins, frequency, staff_role, auto, risk, tool, pain }
+const staffRates = { partner: 40, senior: 25, junior: 16, admin: 13 };
+
+// Init process state
+PROCESS_MAP.forEach(cat => cat.processes.forEach(p => {
+  processState[p.id] = {
+    active: false,
+    time_mins: p.typical_time,
+    frequency_per_month: 4,
+    staff_role: 'senior',
+    automation_potential: p.base_auto,
+    risk: p.base_risk,
+    tool: '',
+    pain: '',
+    category_id: cat.id,
+    process_name: p.name,
+  };
+}));
+
+// ── SCORING (mirrors Python) ────────────────────────────────────────────────
+function computeScore(state) {
+  const rate = staffRates[state.staff_role] || 25;
+  const timeCost = (state.time_mins / 60) * rate * state.frequency_per_month;
+  let volScore = 1;
+  if (timeCost >= 1000) volScore = 5;
+  else if (timeCost >= 400) volScore = 4;
+  else if (timeCost >= 150) volScore = 3;
+  else if (timeCost >= 50) volScore = 2;
+  const risk = state.risk || 1;
+  const qw = parseFloat(((state.automation_potential * volScore) / risk).toFixed(2));
+  const annualSaving = timeCost * 12 * 0.8;
+  let flag = '';
+  if (state.automation_potential <= 2 || state.risk === 5) flag = 'leave_alone';
+  else if (qw >= 12) flag = 'quick_win';
+  return { timeCost, volScore, qw, annualSaving, flag };
+}
+
+function getActiveScores() {
+  return Object.entries(processState)
+    .filter(([, s]) => s.active)
+    .map(([id, s]) => ({ id, name: s.process_name, ...computeScore(s) }))
+    .sort((a, b) => b.qw - a.qw);
+}
+
+// ── NAV ─────────────────────────────────────────────────────────────────────
+function renderNav() {
+  const nav = document.getElementById('cat-nav');
+  nav.innerHTML = PROCESS_MAP.map(cat => {
+    const activeInCat = cat.processes.filter(p => processState[p.id].active).length;
+    return `<button class="cat-btn${cat.id === currentCatId ? ' active' : ''}"
+      data-cat="${cat.id}">
+      ${cat.icon} ${cat.name}
+      <span class="cat-count">${activeInCat || ''}</span>
+    </button>`;
+  }).join('');
+  nav.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentCatId = btn.dataset.cat;
+      renderNav();
+      renderMain();
+    });
+  });
+}
+
+// ── MAIN CONTENT ─────────────────────────────────────────────────────────────
+function renderMain() {
+  const cat = PROCESS_MAP.find(c => c.id === currentCatId);
+  if (!cat) return;
+  const main = document.getElementById('main-content');
+
+  main.innerHTML = `
+    <div class="cat-header">
+      <span class="icon">${cat.icon}</span>
+      <h2>${cat.name}</h2>
+    </div>
+    ${cat.processes.map(p => renderProcessCard(p, cat)).join('')}
+    <div style="height:40px"></div>
+  `;
+
+  // Wire toggles
+  main.querySelectorAll('.toggle-switch input').forEach(toggle => {
+    toggle.addEventListener('change', () => {
+      const pid = toggle.dataset.pid;
+      processState[pid].active = toggle.checked;
+      updateCard(pid);
+      updateStats();
+    });
+  });
+
+  // Wire fields
+  main.querySelectorAll('[data-pid]').forEach(el => {
+    if (el.tagName === 'INPUT' && el.type !== 'checkbox') {
+      el.addEventListener('input', () => handleFieldChange(el));
+    }
+    if (el.tagName === 'SELECT') {
+      el.addEventListener('change', () => handleFieldChange(el));
+    }
+    if (el.tagName === 'TEXTAREA') {
+      el.addEventListener('input', () => handleFieldChange(el));
+    }
+  });
+
+  // Wire range sliders
+  main.querySelectorAll('input[type=range][data-pid]').forEach(slider => {
+    slider.addEventListener('input', () => {
+      const pid = slider.dataset.pid;
+      const field = slider.dataset.field;
+      const valEl = document.getElementById(`val-${field}-${pid}`);
+      if (valEl) valEl.textContent = slider.value;
+      processState[pid][field] = parseInt(slider.value);
+      updateCard(pid);
+      updateStats();
+    });
+  });
+
+  // Expand active cards
+  cat.processes.forEach(p => {
+    if (processState[p.id].active) {
+      const body = document.getElementById(`body-${p.id}`);
+      if (body) body.classList.add('open');
+    }
+  });
+
+  // Card header click to expand (for active cards)
+  main.querySelectorAll('.card-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.toggle-switch')) return;
+      const pid = header.dataset.pid;
+      if (!processState[pid].active) return;
+      const body = document.getElementById(`body-${pid}`);
+      if (body) body.classList.toggle('open');
+    });
+  });
+}
+
+function renderProcessCard(p, cat) {
+  const s = processState[p.id];
+  const score = s.active ? computeScore(s) : null;
+  const badgeClass = score ? score.flag.replace('_', '-') : '';
+  const badgeText = score
+    ? (score.flag === 'quick_win' ? `⚡ ${score.qw}` : score.flag === 'leave_alone' ? `✕ ${score.qw}` : score.qw)
+    : '—';
+
+  return `
+  <div class="process-card${s.active ? ' active' : ''}${score?.flag === 'quick_win' ? ' quick-win' : ''}" id="card-${p.id}">
+    <div class="card-header" data-pid="${p.id}">
+      <label class="toggle-switch">
+        <input type="checkbox" data-pid="${p.id}" ${s.active ? 'checked' : ''}>
+        <span class="slider"></span>
+      </label>
+      <div>
+        <div class="card-name">${p.name}</div>
+        <div class="card-desc">${p.desc}</div>
+      </div>
+      <div class="card-score-badge ${badgeClass}">${badgeText}</div>
+    </div>
+    <div class="card-body${s.active ? ' open' : ''}" id="body-${p.id}">
+      <div class="field-grid">
+        <div class="field-group">
+          <label>Time per run (mins)</label>
+          <input type="number" data-pid="${p.id}" data-field="time_mins" value="${s.time_mins}" min="1" step="5">
+        </div>
+        <div class="field-group">
+          <label>Runs per month</label>
+          <input type="number" data-pid="${p.id}" data-field="frequency_per_month" value="${s.frequency_per_month}" min="0.5" step="0.5">
+        </div>
+        <div class="field-group">
+          <label>Staff role</label>
+          <select data-pid="${p.id}" data-field="staff_role">
+            ${['partner','senior','junior','admin'].map(r =>
+              `<option value="${r}" ${s.staff_role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="field-group" style="grid-column: span 3">
+          <label>Current tool / system</label>
+          <input type="text" data-pid="${p.id}" data-field="tool" value="${s.tool}" placeholder="e.g. Xero, email, spreadsheet">
+        </div>
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <label>Automation potential</label>
+          <input type="range" min="1" max="5" value="${s.automation_potential}"
+            data-pid="${p.id}" data-field="automation_potential">
+          <span class="slider-val" id="val-automation_potential-${p.id}">${s.automation_potential}</span>
+        </div>
+        <div class="slider-row">
+          <label>Risk if automated</label>
+          <input type="range" min="1" max="5" value="${s.risk}"
+            data-pid="${p.id}" data-field="risk">
+          <span class="slider-val" id="val-risk-${p.id}">${s.risk}</span>
+        </div>
+      </div>
+      <div class="pain-notes">
+        <label>Pain notes (what the client said)</label>
+        <textarea data-pid="${p.id}" data-field="pain" placeholder="Quote or paraphrase what the client said about this process…">${s.pain}</textarea>
+      </div>
+      ${score ? `
+      <div class="cost-preview">
+        <span>Monthly cost: <span class="cost-val gold">£${score.timeCost.toFixed(0)}</span></span>
+        <span>Annual saving est.: <span class="cost-val gold">£${score.annualSaving.toFixed(0)}</span></span>
+        <span>Quick win score: <span class="cost-val">${score.qw}</span></span>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function updateCard(pid) {
+  const card = document.getElementById(`card-${pid}`);
+  if (!card) return;
+  const s = processState[pid];
+  const score = s.active ? computeScore(s) : null;
+  const badge = card.querySelector('.card-score-badge');
+  if (badge) {
+    const badgeClass = score ? score.flag.replace('_', '-') : '';
+    badge.className = `card-score-badge ${badgeClass}`;
+    badge.textContent = score
+      ? (score.flag === 'quick_win' ? `⚡ ${score.qw}` : score.flag === 'leave_alone' ? `✕ ${score.qw}` : score.qw)
+      : '—';
+  }
+  card.className = `process-card${s.active ? ' active' : ''}${score?.flag === 'quick_win' ? ' quick-win' : ''}`;
+  const preview = card.querySelector('.cost-preview');
+  if (score && s.active) {
+    if (preview) {
+      preview.innerHTML = `
+        <span>Monthly cost: <span class="cost-val gold">£${score.timeCost.toFixed(0)}</span></span>
+        <span>Annual saving est.: <span class="cost-val gold">£${score.annualSaving.toFixed(0)}</span></span>
+        <span>Quick win score: <span class="cost-val">${score.qw}</span></span>`;
+    }
+  }
+}
+
+function handleFieldChange(el) {
+  const pid = el.dataset.pid;
+  const field = el.dataset.field;
+  const val = el.type === 'number' ? parseFloat(el.value) : el.value;
+  processState[pid][field] = val;
+  updateCard(pid);
+  updateStats();
+}
+
+// ── STATS PANEL ──────────────────────────────────────────────────────────────
+function updateStats() {
+  const scores = getActiveScores();
+  const activeCount = scores.length;
+  const monthlyCost = scores.reduce((s, x) => s + x.timeCost, 0);
+  const annualSaving = scores.filter(x => x.flag === 'quick_win').reduce((s, x) => s + x.annualSaving, 0);
+  const qwCount = scores.filter(x => x.flag === 'quick_win').length;
+
+  document.getElementById('stat-monthly').textContent = '£' + monthlyCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  document.getElementById('stat-annual').textContent = '£' + annualSaving.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  document.getElementById('stat-qw').textContent = qwCount;
+  document.getElementById('stat-active').textContent = activeCount;
+  document.getElementById('active-count-display').textContent = `${activeCount} process${activeCount !== 1 ? 'es' : ''} active`;
+
+  // Complete button
+  document.getElementById('btn-complete').disabled = activeCount === 0;
+
+  // Quick wins list
+  const qwList = document.getElementById('qw-list');
+  const topQW = scores.filter(x => x.flag === 'quick_win').slice(0, 3);
+  if (topQW.length === 0) {
+    qwList.innerHTML = '<div class="empty-state">Toggle processes on<br>to see quick wins</div>';
+  } else {
+    qwList.innerHTML = topQW.map(s => `
+      <div class="qw-item">
+        <div class="qw-name">⚡ ${s.name}</div>
+        <div class="qw-meta">
+          Score <span>${s.qw}</span>
+          &nbsp;·&nbsp; £<span>${s.annualSaving.toFixed(0)}</span>/yr saving
+        </div>
+      </div>`).join('');
+  }
+
+  // All scores
+  const allScores = document.getElementById('all-scores');
+  if (scores.length === 0) {
+    allScores.innerHTML = '<div class="empty-state" style="padding:16px 0">No active processes yet</div>';
+  } else {
+    allScores.innerHTML = scores.map(s => `
+      <div class="score-row ${s.flag.replace('_','-')}">
+        <span class="name" title="${s.name}">${s.name}</span>
+        <span class="pts">${s.qw}</span>
+      </div>`).join('');
+  }
+
+  // Update nav counts
+  renderNav();
+}
+
+// ── STAFF RATES ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.rate-input').forEach(input => {
+  input.addEventListener('input', () => {
+    const role = input.dataset.role;
+    staffRates[role] = parseFloat(input.value) || 0;
+    updateStats();
+    // Rerender scores on visible cards
+    PROCESS_MAP.find(c => c.id === currentCatId)?.processes.forEach(p => updateCard(p.id));
+  });
+});
+
+// ── COMPLETE MODAL ───────────────────────────────────────────────────────────
+document.getElementById('btn-complete').addEventListener('click', () => {
+  document.getElementById('complete-modal').classList.add('open');
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('complete-modal').classList.remove('open');
+});
+document.getElementById('modal-confirm').addEventListener('click', async () => {
+  const notes = document.getElementById('audit-notes').value;
+  await submitAudit(notes);
+});
+
+async function submitAudit(notes) {
+  const activeProcesses = Object.entries(processState)
+    .filter(([, s]) => s.active)
+    .map(([id, s]) => ({
+      process_id: id,
+      process_name: s.process_name,
+      time_mins: s.time_mins,
+      frequency_per_month: s.frequency_per_month,
+      staff_role: s.staff_role,
+      hourly_rate: staffRates[s.staff_role] || 25,
+      automation_potential: s.automation_potential,
+      risk: s.risk,
+      tool: s.tool,
+      pain: s.pain,
+    }));
+
+  try {
+    const res = await fetch(`/api/audit/${sessionId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ processes: activeProcesses, staff_rates: staffRates, notes }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('complete-modal').classList.remove('open');
+      alert(`✅ Audit saved!\n\nSession: ${sessionId}\nQuick wins: ${data.quick_wins}\nEst. annual saving: £${data.annual_saving}\n\nRun: python -c "from core.harness import *; ..." to generate the report.`);
+    } else {
+      alert('Error saving audit: ' + (data.error || 'unknown'));
+    }
+  } catch (err) {
+    // Offline / no API — save to localStorage as fallback
+    localStorage.setItem(`audit_${sessionId}`, JSON.stringify({ activeProcesses, staffRates, notes }));
+    document.getElementById('complete-modal').classList.remove('open');
+    alert(`✅ Saved locally (API offline).\nKey: audit_${sessionId}`);
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  const params = new URLSearchParams(location.search);
+  sessionId = params.get('session') || 'preview';
+  firmName = params.get('firm') || 'New Firm';
+
+  document.getElementById('firm-display').textContent = firmName;
+  document.getElementById('session-display').textContent = sessionId.slice(0, 16);
+
+  renderNav();
+  renderMain();
+  updateStats();
+}
+
+init();
+</script>
+</body>
+</html>

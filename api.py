@@ -16,6 +16,14 @@ from pydantic import BaseModel
 from core.agent_runtime import AgentRuntime
 from core.harness import AgentHarness
 from capabilities.voice.http import VoiceHTTPAdapter
+from capabilities.audit.service import (
+    create_session as audit_create_session,
+    get_session as audit_get_session,
+    save_processes as audit_save_processes,
+    complete_session as audit_complete_session,
+    list_sessions as audit_list_sessions,
+)
+
 from capabilities.vault import (
     get_vault_location,
     list_vault_notes,
@@ -49,6 +57,19 @@ class ApprovalPayload(BaseModel):
     task_id: str
     target_filename: str | None = None
 
+
+
+class AuditCreatePayload(BaseModel):
+    firm_name: str
+    prospect_id: str = ""
+    client_id: str = ""
+    auditor: str = "Kane"
+
+
+class AuditCompletePayload(BaseModel):
+    processes: list
+    staff_rates: dict = {}
+    notes: str = ""
 
 def create_app(
     *,
@@ -308,5 +329,53 @@ def create_app(
             )
 
         return FileResponse(index_path)
+
+
+    # ── Audit routes ─────────────────────────────────────────────────────────
+
+    @app.post("/api/audit/session")
+    async def api_audit_create(payload: AuditCreatePayload):
+        from dataclasses import asdict
+        session = audit_create_session(
+            firm_name=payload.firm_name,
+            auditor=payload.auditor,
+            prospect_id=payload.prospect_id,
+            client_id=payload.client_id,
+        )
+        return JSONResponse(content={"session": asdict(session)})
+
+    @app.get("/api/audit/sessions")
+    async def api_audit_list(status: str | None = None):
+        from dataclasses import asdict
+        sessions = audit_list_sessions(status=status)
+        return JSONResponse(content={"sessions": [asdict(s) for s in sessions]})
+
+    @app.get("/api/audit/session/{session_id}")
+    async def api_audit_get(session_id: str):
+        from dataclasses import asdict
+        session = audit_get_session(session_id)
+        if session is None:
+            return JSONResponse(status_code=404, content={"error": "Audit session not found."})
+        return JSONResponse(content={"session": asdict(session)})
+
+    @app.post("/api/audit/{session_id}/complete")
+    async def api_audit_complete(session_id: str, payload: AuditCompletePayload):
+        from dataclasses import asdict
+        updated = audit_save_processes(
+            session_id,
+            payload.processes,
+            staff_rates=payload.staff_rates or None,
+        )
+        if updated is None:
+            return JSONResponse(status_code=404, content={"error": "Audit session not found."})
+        completed = audit_complete_session(session_id, notes=payload.notes)
+        return JSONResponse(content={"session": asdict(completed)})
+
+    @app.get("/audit", response_class=FileResponse)
+    async def audit_interface():
+        audit_path = os.path.join(os.path.dirname(__file__), "web", "audit.html")
+        if not os.path.exists(audit_path):
+            return JSONResponse(status_code=404, content={"error": "web/audit.html missing."})
+        return FileResponse(audit_path)
 
     return app

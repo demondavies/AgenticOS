@@ -5,22 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARNIE // AGENTIC OS CORE MATRIX</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #080808;
-            --panel-bg: rgba(17, 17, 17, 0.72);
-            --border-color: rgba(255, 255, 255, 0.07);
-            --accent-pink: #f97316;    /* orange — primary accent / agency workspace */
-            --accent-cyan: #fbbf24;    /* amber — secondary highlight */
-            --accent-amber: #f59e0b;   /* amber — warnings / media workspace */
-            --accent-green: #22c55e;   /* green — success / personal workspace */
-            --accent-blue: #3b82f6;    /* blue — swarm workspace */
-            --accent-purple: #a855f7;  /* purple — development workspace */
-            --accent-grey: #9ca3af;    /* grey — system workspace */
-            --accent-teal: #06b6d4;    /* teal — client workspace */
-            --text-main: #e5e5e5;
-            --text-muted: #737373;
-            --danger: #ef4444;
+            --bg-color:    #0D1421;
+            --panel-bg:    #131C2E;
+            --surface2:    #1A2540;
+            --border-color:#1E2D45;
+            --border2:     #263755;
+            --accent-pink:   #C8A96E;   /* gold — primary / agency workspace */
+            --accent-cyan:   #A8C4E8;   /* steel blue — secondary highlight */
+            --accent-amber:  #E8A838;   /* amber — warnings / media workspace */
+            --accent-green:  #4CAF8A;   /* green — success / personal workspace */
+            --accent-blue:   #4A8FD4;   /* blue — swarm workspace */
+            --accent-purple: #9B7FD4;   /* purple — development workspace */
+            --accent-grey:   #7A8BAA;   /* blue-grey — system workspace */
+            --accent-teal:   #4ABFCC;   /* teal — client workspace */
+            --text-main:  #E8EAF0;
+            --text-muted: #7A8BAA;
+            --danger:     #E05A6A;
+            --gold:       #C8A96E;
+            --gold-dim:   #8A6E42;
         }
 
         * {
@@ -33,9 +39,9 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.05), transparent 70%);
+            background-image: radial-gradient(circle at 50% 0%, rgba(200, 169, 110, 0.06), transparent 65%);
             color: var(--text-main);
-            font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+            font-family: 'DM Sans', system-ui, sans-serif;
             margin: 0;
             padding: 16px;
             height: 100vh;
@@ -56,8 +62,10 @@
             flex-wrap: wrap;
             gap: 12px;
             background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            border-left: none;
+            border-right: none;
+            border-top: none;
             padding: 10px 18px;
             border-radius: 10px;
             flex-shrink: 0;
@@ -67,7 +75,7 @@
             font-size: 17px;
             font-weight: 700;
             color: var(--accent-pink);
-            text-shadow: 0 0 12px rgba(249, 115, 22, 0.4);
+            text-shadow: 0 0 14px rgba(200, 169, 110, 0.45);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -154,8 +162,18 @@
         }
 
         .btn-pink {
-            border-color: rgba(249, 115, 22, 0.4);
+            border-color: rgba(200, 169, 110, 0.40);
             color: var(--accent-pink);
+        }
+
+        .btn-audit {
+            border-color: var(--gold-dim);
+            color: var(--gold);
+        }
+
+        .btn-audit:hover:not(:disabled) {
+            background: var(--gold);
+            color: #0D1421;
         }
 
         .btn-pink:hover:not(:disabled) {
@@ -172,8 +190,8 @@
         #voiceMicBtn.listening {
             border-color: var(--accent-pink);
             color: var(--accent-pink);
-            background: rgba(249, 115, 22, 0.12);
-            box-shadow: 0 0 16px rgba(249, 115, 22, 0.22);
+            background: rgba(200, 169, 110, 0.12);
+            box-shadow: 0 0 16px rgba(200, 169, 110, 0.22);
             animation: pulseListening 1s infinite;
         }
 
@@ -194,7 +212,7 @@
         }
 
         @keyframes pulseListening {
-            50% { box-shadow: 0 0 26px rgba(249, 115, 22, 0.5); }
+            50% { box-shadow: 0 0 26px rgba(200, 169, 110, 0.50); }
         }
 
         @keyframes pulseThinking {
@@ -237,7 +255,6 @@
         .panel {
             background: var(--panel-bg);
             border: 1px solid var(--border-color);
-            backdrop-filter: blur(12px);
             border-radius: 10px;
             padding: 14px;
             display: flex;
@@ -514,6 +531,8 @@
             flex: 1;
             min-height: 0;
         }
+
+        .chat-msg-content, .event-text, pre, code { font-family: 'DM Mono', 'Consolas', monospace; font-size: 12px; }
 
         .chat-history {
             flex: 1;
@@ -900,9 +919,37 @@
                 <button class="btn btn-sm" id="syncVectorBtn">🧠 SYNC RAG</button>
                 <button class="btn btn-sm" id="cronJobsBtn">⏰ CRON LOGS</button>
                 <button class="btn btn-sm btn-pink" id="flushMemoryBtn">🧹 COMPACT MEMORY</button>
+                <button class="btn btn-sm btn-audit" id="auditLaunchBtn" onclick="openAuditModal()">⟐ AUDIT</button>
             </div>
         </div>
     </header>
+
+
+    <!-- AUDIT QUICK-START MODAL -->
+    <div id="auditModal" style="display:none;position:fixed;inset:0;background:rgba(13,20,33,0.85);z-index:9999;display:none;align-items:center;justify-content:center;">
+        <div style="background:#131C2E;border:1px solid #263755;border-radius:12px;padding:28px 32px;width:380px;max-width:90vw;font-family:'DM Sans',system-ui,sans-serif;">
+            <div style="font-size:15px;font-weight:700;color:#C8A96E;margin-bottom:6px;">⟐ Start Audit</div>
+            <div style="font-size:12px;color:#7A8BAA;margin-bottom:20px;">Enter the firm name to create a new audit session.</div>
+            <input id="auditFirmInput" type="text" placeholder="e.g. Thornbury & Partners"
+                style="width:100%;background:#1A2540;border:1px solid #263755;border-radius:6px;
+                       padding:10px 14px;color:#E8EAF0;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px;">
+            <input id="auditProspectInput" type="text" placeholder="Prospect ID (optional)"
+                style="width:100%;background:#1A2540;border:1px solid #263755;border-radius:6px;
+                       padding:10px 14px;color:#E8EAF0;font-size:13px;font-family:inherit;outline:none;margin-bottom:20px;">
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="closeAuditModal()"
+                    style="background:none;border:1px solid #263755;color:#7A8BAA;padding:9px 18px;
+                           border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;">
+                    Cancel
+                </button>
+                <button onclick="startAudit()"
+                    style="background:#C8A96E;color:#0D1421;border:none;padding:9px 20px;
+                           border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+                    Start Audit →
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- SWARM STAGING MODAL -->
     <div id="swarmApprovalCard" class="staging-card">
@@ -2453,7 +2500,42 @@
                 .replace(/'/g, "&#039;");
         }
 
-    </script>
+    
+    // ── Audit quick-start ────────────────────────────────────────────────
+    function openAuditModal() {
+        const m = document.getElementById('auditModal');
+        m.style.display = 'flex';
+        document.getElementById('auditFirmInput').focus();
+    }
+    function closeAuditModal() {
+        document.getElementById('auditModal').style.display = 'none';
+    }
+    async function startAudit() {
+        const firm = document.getElementById('auditFirmInput').value.trim();
+        const prospect_id = document.getElementById('auditProspectInput').value.trim();
+        if (!firm) { document.getElementById('auditFirmInput').focus(); return; }
+        const btn = document.querySelector('#auditModal button:last-child');
+        btn.textContent = 'Creating…'; btn.disabled = true;
+        try {
+            const res = await fetch('/api/audit/session', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ firm_name: firm, prospect_id })
+            });
+            const data = await res.json();
+            if (data.session) {
+                closeAuditModal();
+                window.location.href = `/audit?session=${data.session.id}&firm=${encodeURIComponent(firm)}`;
+            }
+        } catch(e) {
+            btn.textContent = 'Error — retry'; btn.disabled = false;
+        }
+    }
+    document.getElementById('auditFirmInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') startAudit();
+    });
+
+</script>
 
 </body>
 </html>

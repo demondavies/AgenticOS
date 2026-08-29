@@ -64,6 +64,7 @@ Capability  (capabilities/)
 | 25 | Kaizen Studios — Outreach Drafting Engine (Pitch agent, outreach workspace) | ✅ Done |
 | 26 | Kaizen Studios — Savings Baseline Logger (Atlas agent, client workspace) | ✅ Done |
 | 27 | Kaizen Studios — Automation Activity Logger (Atlas agent, client workspace) | ✅ Done |
+| 28 | Kaizen Studios — Monthly Savings Report + get_client (Atlas agent, client workspace) | ✅ Done |
 
 ---
 
@@ -275,3 +276,11 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/harness.py`: `execute_log_automation_run` / `execute_get_monthly_automation_summary` — same Task-lifecycle pattern as the savings baseline tools
 - `core/agents.py`: Atlas granted both new tool permissions
 - Verified live end-to-end: baseline (45 min/run @ £18.50/hr) → automation run taking 300s → minutes_saved computed correctly (40.0) → monthly summary correctly totals 1 run / 40.0 min / £12.33 saved
+
+### Phase 28 — Monthly Savings Report + get_client (`2b622e1`)
+- `capabilities/clients/service.py`: added `get_client(client_id)` — Atlas has declared this tool permission since Phase 19, but the capability function and Tool never existed until this phase needed it
+- `core/tools.py`: `get_client` (SAFE) + `generate_savings_report` (CONTROLLED, synthesis_required=True), workspace="client", phase=28
+- `core/harness.py`: `execute_get_client` (standard get_*-by-id pattern); `execute_generate_savings_report` — loads client + monthly automation summary + all baselines, determines billing mode from months since `client.created_at` (months 1-3 = fixed £750/mo, month 4+ = 20% of documented £ savings with a £750 floor — computed authoritatively in Python, not left to the model), calls `self.chat()` with an Atlas prompt using the same `=== DELIMITER ===` parsing pattern as `execute_draft_outreach`, saves HTML to `data/reports/{client_id}_{year}_{month}.html`
+- `core/agents.py`: Atlas granted `generate_savings_report`
+- `.gitignore`: `data/reports/` excluded as runtime output
+- Verified live end-to-end against real Ollama: backdated a test client 5 months to force the 20%-of-savings branch, logged a baseline + automation run, generated a real report — both tools correctly authorized for Atlas, the £750 floor applied correctly, a real ~2KB HTML file written and read back

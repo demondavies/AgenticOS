@@ -89,7 +89,7 @@ MEMORY_INJECTION_MIN_SCORE = 0.65
 # between two local Ollama models, never a remote API.
 OLLAMA_ENABLED = True
 OLLAMA_HOST = "http://localhost:11434"
-OLLAMA_LIGHT_MODEL = "phi3:mini"
+OLLAMA_LIGHT_MODEL = "hermes3:8b"
 OLLAMA_VRAM_HEADROOM_GB = 2.0
 AGENT_ROUTING_ENABLED = True
 

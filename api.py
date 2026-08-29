@@ -115,12 +115,15 @@ def create_app(
     @app.post("/api/chat/reset")
     async def api_chat_reset():
         """Clear web chat history so the updated system prompt takes effect."""
-        import sqlite3
-        db_path = harness.memory.db_path
-        with sqlite3.connect(db_path) as con:
-            con.execute("DELETE FROM messages WHERE channel_id=?", (web_channel_id,))
-            con.execute("DELETE FROM channel_summaries WHERE channel_id=?", (web_channel_id,))
-        return JSONResponse(content={"status": "ok", "message": "Chat history cleared."})
+        import sqlite3, traceback, os
+        try:
+            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "memory.db")
+            with sqlite3.connect(db_path) as con:
+                con.execute("DELETE FROM messages WHERE channel_id=?", (web_channel_id,))
+                con.execute("DELETE FROM channel_summaries WHERE channel_id=?", (web_channel_id,))
+            return JSONResponse(content={"status": "ok", "message": "Chat history cleared."})
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": str(e), "trace": traceback.format_exc()})
 
     @app.post("/api/voice/transcribe")
     async def api_voice_transcribe():

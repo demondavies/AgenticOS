@@ -74,7 +74,7 @@ class AgentRuntime:
         workspace = (
             "system"
             if tool.risk == ToolRisk.PRIVILEGED
-            else "development"
+            else "personal"
         )
 
         task = Task(

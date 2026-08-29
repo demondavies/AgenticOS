@@ -78,3 +78,11 @@ AGENT_ROUTING_ENABLED = True
 # out by run_parallel_agency via asyncio.gather().
 PARALLEL_AGENCY_MAX_WORKERS = 4
 
+# Per-turn memory injection: unlike MEMORY_INJECTION_* above (which only
+# fires into the system prompt on the first turn of a conversation), this
+# prepends a compact context block onto every subsequent user message so
+# ARNIE stays grounded across a whole conversation, not just turn one.
+MEMORY_PER_TURN_ENABLED = True
+MEMORY_PER_TURN_TOP_K = 3
+MEMORY_PER_TURN_MIN_SCORE = 0.68
+

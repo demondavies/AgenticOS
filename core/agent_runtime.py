@@ -18,6 +18,9 @@ from .config import (
     MEMORY_INJECTION_ENABLED,
     MEMORY_INJECTION_MIN_SCORE,
     MEMORY_INJECTION_TOP_K,
+    MEMORY_PER_TURN_ENABLED,
+    MEMORY_PER_TURN_MIN_SCORE,
+    MEMORY_PER_TURN_TOP_K,
 )
 from .harness import AgentHarness
 from .tasks import Task
@@ -157,14 +160,40 @@ class AgentRuntime:
             except Exception as _routing_err:
                 log.warning(f"Agent routing failed (best-effort): {_routing_err}")
 
-        if not history:
+        _is_first_turn = not history
+
+        if _is_first_turn:
             full_prompt = agent_prefix + self.base_system_prompt + (
                 self.owner_extensions if is_owner else ""
             ) + memory_context
             history.append({"role": "system", "content": full_prompt})
 
+        # --- PHASE 23: PER-TURN MEMORY INJECTION ---
+        # Phase 17 already injected deep context into the system prompt on
+        # turn one, so this compact inline prefix only fires on later turns
+        # in the same conversation — otherwise ARNIE goes cold after the
+        # first message. Best-effort: never blocks the response path.
+        _user_message_text = clean_content
+        if MEMORY_PER_TURN_ENABLED and not _is_first_turn:
+            try:
+                from capabilities.vault import retrieve_relevant
+                _snippets = retrieve_relevant(
+                    query=clean_content,
+                    top_k=MEMORY_PER_TURN_TOP_K,
+                    min_score=MEMORY_PER_TURN_MIN_SCORE,
+                )
+                if _snippets:
+                    _mem_prefix = (
+                        "[CONTEXT: "
+                        + " | ".join(s[:200] for s in _snippets)
+                        + "]\n\n"
+                    )
+                    _user_message_text = _mem_prefix + clean_content
+            except Exception:
+                pass  # memory injection is best-effort; never block the response
+
         self.harness.save_memory(channel_id, user_id, "user", clean_content)
-        history.append({"role": "user", "content": clean_content})
+        history.append({"role": "user", "content": _user_message_text})
 
         swarm_match = re.match(
             r"^\s*(?:launch|run|deploy)\s+swarm:\s*(.+)$",

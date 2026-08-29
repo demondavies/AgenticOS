@@ -1230,19 +1230,61 @@
                     <span>🧬 Agent Status</span>
                 </div>
 
-                <div class="agent-row">
-                    <span class="agent-dot" id="agentDotHermes"></span>
-                    <span class="agent-name">hermes3:8b</span>
-                    <span class="agent-badge" id="agentBadgeHermes">ACTIVE</span>
+                <div class="agent-row" id="agentRow_arnie">
+                    <span class="agent-dot standby" id="agentDot_arnie"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Arnie</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Chat · orchestration</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_arnie">IDLE</span>
                 </div>
 
-                <div class="agent-row">
-                    <span class="agent-dot standby" id="agentDotPhi"></span>
-                    <span class="agent-name">phi3:mini</span>
-                    <span class="agent-badge standby" id="agentBadgePhi">STANDBY</span>
+                <div class="agent-row" id="agentRow_scout">
+                    <span class="agent-dot standby" id="agentDot_scout"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Scout</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Prospects research</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_scout">IDLE</span>
                 </div>
 
-                <div class="panel-subheader">System RAM</div>
+                <div class="agent-row" id="agentRow_pitch">
+                    <span class="agent-dot standby" id="agentDot_pitch"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Pitch</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Outreach copywriting</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_pitch">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_atlas">
+                    <span class="agent-dot standby" id="agentDot_atlas"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Atlas</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Client success</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_atlas">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_forge">
+                    <span class="agent-dot standby" id="agentDot_forge"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Forge</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Automation build</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_forge">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_coordinator">
+                    <span class="agent-dot standby" id="agentDot_coordinator"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Coordinator</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Orchestration</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_coordinator">IDLE</span>
+                </div>
+
+                <div class="panel-subheader" style="margin-top:6px">System RAM</div>
                 <div class="vram-bar-track"><div class="vram-bar-fill" id="agentRamBar"></div></div>
                 <div class="vram-bar-label" id="agentRamLabel">--% · --/-- GB</div>
             </div>
@@ -1459,6 +1501,39 @@
             if (open) setTimeout(() => document.getElementById('chatInput')?.focus(), 250);
         }
 
+        const KNOWN_AGENTS = ['arnie','scout','pitch','atlas','forge','coordinator','researcher','coder','reviewer'];
+
+        function updateAgentStatuses(tasks) {
+            // Count running/assigned tasks per agent
+            const running = {};
+            const hasWork = {};
+            tasks.forEach(t => {
+                const a = (t.assigned_agent || '').toLowerCase();
+                if (!a) return;
+                if (t.status === 'running' || t.status === 'assigned') running[a] = (running[a]||0)+1;
+                if (t.status === 'completed' || t.status === 'queued') hasWork[a] = true;
+            });
+
+            KNOWN_AGENTS.forEach(name => {
+                const dot   = document.getElementById('agentDot_'   + name);
+                const badge = document.getElementById('agentBadge_' + name);
+                if (!dot || !badge) return;
+                if (running[name]) {
+                    dot.className   = 'agent-dot';
+                    badge.className = 'agent-badge';
+                    badge.textContent = 'RUNNING';
+                } else if (hasWork[name]) {
+                    dot.className   = 'agent-dot standby';
+                    badge.className = 'agent-badge standby';
+                    badge.textContent = 'STANDBY';
+                } else {
+                    dot.className   = 'agent-dot standby';
+                    badge.className = 'agent-badge standby';
+                    badge.textContent = 'IDLE';
+                }
+            });
+        }
+
         function updateKpis(tasks) {
             const today = new Date().toDateString();
             const todayTasks = tasks.filter(t => t.created_at && new Date(t.created_at).toDateString() === today);
@@ -1473,6 +1548,7 @@
             if (el('kpiAgentsActive')) el('kpiAgentsActive').textContent = running.length || '1';
             if (el('kpiHoursSaved'))   el('kpiHoursSaved').textContent   = hoursSaved + 'h';
             if (el('kpiSuccessRate'))  el('kpiSuccessRate').textContent  = rate + '%';
+            updateAgentStatuses(tasks);
         }
 
                 document.addEventListener("DOMContentLoaded", () => {

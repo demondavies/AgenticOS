@@ -247,6 +247,25 @@
             min-height: 0;
         }
 
+        .col-side.col-right {
+            overflow-y: auto;
+        }
+
+        .vault-capture-row {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .vault-capture-row .panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #clientCrmPanelEl {
+            flex: 1;
+            min-height: 280px;
+        }
+
         .col-center {
             min-width: 0;
             display: flex;
@@ -1191,8 +1210,9 @@
         </div>
 
         <!-- RIGHT COLUMN -->
-        <div class="col-side">
+        <div class="col-side col-right">
 
+            <div class="vault-capture-row">
             <div class="panel" id="vaultPanelEl">
                 <div class="panel-header">
                     <span>🗓️ Vault Today</span>
@@ -1227,6 +1247,7 @@
                 >
                     💾 SAVE NOTE
                 </button>
+            </div>
             </div>
 
             <div class="panel" id="clientCrmPanelEl">

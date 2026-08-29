@@ -13,6 +13,7 @@ import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 SAVINGS_BASELINES_FILE = Path(
     os.environ.get("SAVINGS_BASELINES_FILE", "savings_baselines.json")
@@ -53,7 +54,7 @@ def log_baseline(
     notes: str = "",
 ) -> SavingsBaseline:
     baselines = _load()
-    baseline_id = f"baseline_{int(datetime.now(timezone.utc).timestamp())}"
+    baseline_id = f"baseline_{int(datetime.now(timezone.utc).timestamp())}_{uuid4().hex[:6]}"
     baseline_monthly_cost = (
         (minutes_per_run * runs_per_month) / 60.0
     ) * staff_hourly_rate

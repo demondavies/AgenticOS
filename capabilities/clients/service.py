@@ -8,6 +8,7 @@ import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 CLIENTS_FILE = Path(os.environ.get("CLIENTS_FILE", "clients.json"))
 
@@ -36,7 +37,7 @@ def _save(clients: list[Client]) -> None:
 
 def add_client(name: str, service: str, notes: str = "") -> Client:
     clients = _load()
-    client_id = f"client_{int(datetime.now(timezone.utc).timestamp())}"
+    client_id = f"client_{int(datetime.now(timezone.utc).timestamp())}_{uuid4().hex[:6]}"
     client = Client(
         id=client_id,
         name=name,

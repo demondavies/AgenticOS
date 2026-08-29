@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 PROSPECTS_FILE = Path(os.environ.get("PROSPECTS_FILE", "prospects.json"))
 
@@ -55,7 +56,7 @@ def add_prospect(
     notes: str = "",
 ) -> Prospect:
     prospects = _load()
-    prospect_id = f"prospect_{int(datetime.now(timezone.utc).timestamp())}"
+    prospect_id = f"prospect_{int(datetime.now(timezone.utc).timestamp())}_{uuid4().hex[:6]}"
     prospect = Prospect(
         id=prospect_id,
         firm_name=firm_name,

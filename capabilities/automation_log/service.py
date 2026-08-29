@@ -13,6 +13,7 @@ import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from capabilities.savings.service import get_baseline
 
@@ -64,7 +65,7 @@ def log_run(
         minutes_saved = baseline.minutes_per_run - (duration_seconds / 60.0)
 
     runs = _load()
-    run_id = f"run_{int(datetime.now(timezone.utc).timestamp())}"
+    run_id = f"run_{int(datetime.now(timezone.utc).timestamp())}_{uuid4().hex[:6]}"
     run = AutomationRun(
         id=run_id,
         client_id=client_id,
@@ -91,24 +92,48 @@ def list_runs(
 
 
 def monthly_summary(client_id: str, year: int, month: int) -> dict:
-    """Tally runs, minutes saved, and £ saved for one client/month.
-
-    £ saved is cross-referenced per-run against that run's own baseline
-    hourly rate (not a single client-wide rate), since a client may have
-    multiple processes automated at different baseline costs.
-    """
+    """Tally runs, minutes saved, and £ saved for one client/month."""
     month_runs = [
         r
         for r in list_runs(client_id)
         if _parse_year_month(r.ran_at) == (year, month)
     ]
 
-    total_runs = len(month_runs)
-    total_minutes_saved = sum(r.minutes_saved for r in month_runs)
+    tally = _tally_runs(month_runs)
+    return {
+        "client_id": client_id,
+        "year": year,
+        "month": month,
+        **tally,
+    }
+
+
+def total_savings_to_date(client_id: str) -> dict:
+    """Tally all-time runs, minutes saved, and £ saved for one client.
+
+    Unlike monthly_summary, this is not scoped to a single calendar month —
+    it's a running lifetime total, used by the Phase 29 client dashboard.
+    """
+    tally = _tally_runs(list_runs(client_id))
+    return {
+        "client_id": client_id,
+        **tally,
+    }
+
+
+def _tally_runs(runs: list[AutomationRun]) -> dict:
+    """Shared aggregation used by monthly_summary and total_savings_to_date.
+
+    £ saved is cross-referenced per-run against that run's own baseline
+    hourly rate (not a single client-wide rate), since a client may have
+    multiple processes automated at different baseline costs.
+    """
+    total_runs = len(runs)
+    total_minutes_saved = sum(r.minutes_saved for r in runs)
 
     baseline_cache: dict[str, object] = {}
     total_gbp_saved = 0.0
-    for run in month_runs:
+    for run in runs:
         if run.baseline_id not in baseline_cache:
             baseline_cache[run.baseline_id] = get_baseline(run.baseline_id)
         baseline = baseline_cache[run.baseline_id]
@@ -116,9 +141,6 @@ def monthly_summary(client_id: str, year: int, month: int) -> dict:
             total_gbp_saved += (run.minutes_saved / 60.0) * baseline.staff_hourly_rate
 
     return {
-        "client_id": client_id,
-        "year": year,
-        "month": month,
         "total_runs": total_runs,
         "total_minutes_saved": round(total_minutes_saved, 2),
         "total_gbp_saved": round(total_gbp_saved, 2),

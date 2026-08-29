@@ -293,6 +293,18 @@ class AgentHarness:
             self.execute_draft_outreach,
         )
 
+        # log_savings_baseline and list_savings_baselines are Phase 26 —
+        # Savings Baseline Logger. Bound here so the Harness owns Task
+        # lifecycle and data persistence, same pattern as client tools.
+        self.tools.bind_handler(
+            "log_savings_baseline",
+            self.execute_log_savings_baseline,
+        )
+        self.tools.bind_handler(
+            "list_savings_baselines",
+            self.execute_list_savings_baselines,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -989,6 +1001,91 @@ class AgentHarness:
             f"💼 LINKEDIN DM\n{linkedin_dm}\n\n"
             f"Saved to prospect record. Review before sending."
         )
+
+    async def execute_log_savings_baseline(
+        self,
+        client_id: str = "",
+        process_name: str = "",
+        minutes_per_run: float = 0.0,
+        runs_per_month: float = 0.0,
+        staff_hourly_rate: float = 0.0,
+    ) -> str:
+        """Log a before-state process baseline through the Savings capability Tool boundary.
+
+        Phase 26: Savings Baseline Logger.
+        Baseline logging is tracked as a first-class Task (workspace="client"),
+        following the same pattern as add_client and update_client_status. The
+        actual JSON persistence is delegated to capabilities.savings.service so
+        core/ never touches the savings baseline store file directly.
+        """
+        from capabilities.savings.service import log_baseline
+
+        if not client_id or not process_name:
+            return "Error: client_id and process_name are required."
+
+        task = Task(
+            title=f"Log savings baseline: {process_name[:50]}",
+            description=f"client_id={client_id}",
+            workspace="client",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("atlas")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            baseline = log_baseline(
+                client_id=client_id,
+                process_name=process_name,
+                minutes_per_run=minutes_per_run,
+                runs_per_month=runs_per_month,
+                staff_hourly_rate=staff_hourly_rate,
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=baseline.id,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return (
+            f"Baseline logged: {baseline.process_name} "
+            f"(ID: {baseline.id})\n"
+            f"{baseline.minutes_per_run} min/run × {baseline.runs_per_month} runs/mo "
+            f"@ £{baseline.staff_hourly_rate}/hr\n"
+            f"Baseline monthly cost: £{baseline.baseline_monthly_cost:.2f}"
+        )
+
+    async def execute_list_savings_baselines(
+        self,
+        client_id: str = "",
+    ) -> str:
+        """Execute the canonical list_savings_baselines Tool as a human-readable summary."""
+        from capabilities.savings.service import list_baselines
+
+        baselines = list_baselines(client_id=client_id or None)
+
+        if not baselines:
+            return "No savings baselines found."
+
+        lines = [
+            f"- {b.process_name}: {b.minutes_per_run} min/run × "
+            f"{b.runs_per_month} runs/mo @ £{b.staff_hourly_rate}/hr "
+            f"= £{b.baseline_monthly_cost:.2f}/mo (ID: {b.id})"
+            for b in baselines
+        ]
+        return "\n".join(lines)
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
         """List Swarm artifacts awaiting approval through the Swarm capability."""

@@ -64,6 +64,10 @@ Prospect workspace (Phase 24):
 Outreach workspace (Phase 25):
     draft_outreach
 
+Savings baseline logging (Phase 26):
+    log_savings_baseline
+    list_savings_baselines
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -765,6 +769,35 @@ async def _draft_outreach(
 
 
 # ============================================================================
+# SAVINGS BASELINE HANDLERS (Phase 26)
+# ============================================================================
+
+
+async def _log_savings_baseline(
+    client_id: str = "",
+    process_name: str = "",
+    minutes_per_run: float = 0.0,
+    runs_per_month: float = 0.0,
+    staff_hourly_rate: float = 0.0,
+) -> str:
+    """Fail clearly until the Harness binds the Savings baseline handler."""
+    raise RuntimeError(
+        "The log_savings_baseline Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _list_savings_baselines(
+    client_id: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Savings baseline handler."""
+    raise RuntimeError(
+        "The list_savings_baselines Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -1378,6 +1411,66 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # SAVINGS BASELINE LOGGING (Phase 26)
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="log_savings_baseline",
+            description=(
+                "Log a before-state process baseline for a client. Arguments: "
+                "client_id (str), process_name (str), minutes_per_run (float), "
+                "runs_per_month (float), staff_hourly_rate (float). Computes "
+                "and stores the baseline monthly cost of the manual process."
+            ),
+            handler=_log_savings_baseline,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 26,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.savings.service.log_baseline"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="list_savings_baselines",
+            description=(
+                "List all logged savings baselines for a client. Argument: "
+                "client_id (str)."
+            ),
+            handler=_list_savings_baselines,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 26,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.savings.service.list_baselines"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -1418,6 +1511,8 @@ def run_tests() -> None:
         "list_prospects",
         "get_prospect",
         "draft_outreach",
+        "log_savings_baseline",
+        "list_savings_baselines",
     }
 
     actual = set(
@@ -1446,6 +1541,7 @@ def run_tests() -> None:
         "list_clients",
         "list_prospects",
         "get_prospect",
+        "list_savings_baselines",
     }
 
     for name in safe_tools:
@@ -1498,6 +1594,7 @@ def run_tests() -> None:
         "run_parallel_agency",
         "add_client",
         "update_client_status",
+        "log_savings_baseline",
     }
 
     for name in controlled_tools:
@@ -1537,6 +1634,8 @@ def run_tests() -> None:
         "update_client_status",
         "list_prospects",
         "get_prospect",
+        "log_savings_baseline",
+        "list_savings_baselines",
     }
 
     for name in deterministic_tools:

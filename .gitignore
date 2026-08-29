@@ -61,6 +61,12 @@ clients.json
 # Phase 24: prospect research data lives at the project root.
 prospects.json
 
+# Phase 26: savings baseline data lives at the project root.
+savings_baselines.json
+
+# Phase 27: automation activity log data lives at the project root.
+automation_runs.json
+
 # ------------------------------------------------------------
 # Generated / temporary files
 # ------------------------------------------------------------

@@ -921,6 +921,8 @@ def create_atlas_agent() -> Agent:
     agent.allow_tool("add_client")
     agent.allow_tool("update_client_status")
     agent.allow_tool("get_current_time")
+    agent.allow_tool("log_savings_baseline")
+    agent.allow_tool("list_savings_baselines")
 
     return agent
 

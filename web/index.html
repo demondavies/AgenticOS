@@ -233,10 +233,11 @@
         .main-layout {
             display: grid;
             grid-template-columns: 300px minmax(0, 620px) minmax(400px, 1fr);
-            align-items: start;
+            align-items: stretch;
             gap: 12px;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
         }
 
         .col-side {
@@ -245,7 +246,15 @@
             flex-direction: column;
             gap: 12px;
             min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            /* Subtle scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
         }
+        .col-side::-webkit-scrollbar { width: 4px; }
+        .col-side::-webkit-scrollbar-track { background: transparent; }
+        .col-side::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 
         .col-side.col-right {
             overflow-y: auto;
@@ -1118,7 +1127,13 @@
             overflow-y: auto;
         }
 
-    </style>
+    
+        /* Task detail modal backdrop animation */
+        #taskModal { animation: fadeIn .15s ease; }
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        #taskModal > div { animation: slideUp .18s ease; }
+        @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+</style>
 </head>
 
 <body>
@@ -1282,6 +1297,33 @@
                         <div style="font-size:10px;color:var(--text-muted)">Orchestration</div>
                     </div>
                     <span class="agent-badge standby" id="agentBadge_coordinator">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_researcher">
+                    <span class="agent-dot standby" id="agentDot_researcher"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Researcher</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Web research</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_researcher">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_coder">
+                    <span class="agent-dot standby" id="agentDot_coder"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Coder</div>
+                        <div style="font-size:10px;color:var(--text-muted)">Code generation</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_coder">IDLE</span>
+                </div>
+
+                <div class="agent-row" id="agentRow_reviewer">
+                    <span class="agent-dot standby" id="agentDot_reviewer"></span>
+                    <div style="flex:1;min-width:0">
+                        <div class="agent-name">Reviewer</div>
+                        <div style="font-size:10px;color:var(--text-muted)">QA · validation</div>
+                    </div>
+                    <span class="agent-badge standby" id="agentBadge_reviewer">IDLE</span>
                 </div>
 
                 <div class="panel-subheader" style="margin-top:6px">System RAM</div>
@@ -2524,6 +2566,8 @@
 
                     const item = document.createElement("div");
                     item.className = "task-item";
+                    item.style.cursor = "pointer";
+                    item.onclick = () => openTaskModal(t);
 
                     const statusClass =
                         "task-status-" + (t.status || "unknown").toLowerCase();
@@ -2803,7 +2847,52 @@
                 .replace(/'/g, "&#039;");
         }
 
-    </script>
+    
+        function openTaskModal(task) {
+            const modal = document.getElementById("taskModal");
+            const content = document.getElementById("taskModalContent");
+            const created = task.created_at ? new Date(task.created_at).toLocaleString() : "—";
+            const updated = task.updated_at ? new Date(task.updated_at).toLocaleString() : "—";
+            const statusClass = "task-status-" + (task.status || "unknown").toLowerCase();
+            const meta = task.metadata ? JSON.stringify(task.metadata, null, 2) : "{}";
+            content.innerHTML = `
+                <div style="margin-bottom:16px">
+                    <div style="font-size:11px;color:var(--text-muted);letter-spacing:.08em;margin-bottom:6px">TASK DETAIL</div>
+                    <div style="font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${escapeHtml(task.title || task.id)}</div>
+                    <span class="task-status-pill ${statusClass}" style="font-size:11px">${escapeHtml((task.status||"unknown").toUpperCase())}</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <tr><td style="color:var(--text-muted);padding:5px 0;width:110px">Task ID</td><td style="font-family:monospace;font-size:11px;color:var(--accent-cyan)">${escapeHtml(task.id||"—")}</td></tr>
+                    <tr><td style="color:var(--text-muted);padding:5px 0">Workspace</td><td>${escapeHtml(task.workspace||"—")}</td></tr>
+                    <tr><td style="color:var(--text-muted);padding:5px 0">Agent</td><td>${escapeHtml(task.assigned_agent||"unassigned")}</td></tr>
+                    <tr><td style="color:var(--text-muted);padding:5px 0">Created</td><td>${created}</td></tr>
+                    <tr><td style="color:var(--text-muted);padding:5px 0">Updated</td><td>${updated}</td></tr>
+                    ${task.description ? `<tr><td style="color:var(--text-muted);padding:5px 0;vertical-align:top">Description</td><td style="white-space:pre-wrap">${escapeHtml(task.description)}</td></tr>` : ""}
+                </table>
+                ${meta !== "{}" ? `<div style="margin-top:14px"><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">METADATA</div><pre style="background:var(--surface);border:1px solid var(--border-color);border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;white-space:pre-wrap">${escapeHtml(meta)}</pre></div>` : ""}
+            `;
+            modal.style.display = "flex";
+        }
 
+        function closeTaskModal() {
+            document.getElementById("taskModal").style.display = "none";
+        }
+
+        // Close on backdrop click
+        document.addEventListener("click", function(e) {
+            const modal = document.getElementById("taskModal");
+            if (e.target === modal) closeTaskModal();
+        });
+
+        </script>
+
+
+    <!-- Task Detail Modal -->
+    <div id="taskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:900;align-items:center;justify-content:center;">
+        <div style="background:var(--panel-bg);border:1px solid var(--border-color);border-radius:12px;width:520px;max-height:80vh;overflow-y:auto;padding:24px;position:relative;">
+            <button onclick="closeTaskModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;">✕</button>
+            <div id="taskModalContent"></div>
+        </div>
+    </div>
 </body>
 </html>

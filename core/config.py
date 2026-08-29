@@ -27,6 +27,14 @@ You have access to privileged local agent tools. If a tool matches the user requ
 - If the user wants to add, onboard, or register a new client or prospect, call 'add_client'.
 - If the user wants to list, show, or check clients or the CRM, call 'list_clients'.
 - If the user wants to update, move, or change a client's status, call 'update_client_status'.
+- If the user wants to research a prospect, firm, or accountancy practice, call 'research_prospect'.
+- If the user wants to list, show, or check prospects, call 'list_prospects'.
+- If the user wants to get details on a specific prospect, call 'get_prospect'.
+- If the user wants to draft outreach, write a cold email, or create a LinkedIn DM for a prospect, call 'draft_outreach'.
+- If the user wants to log a savings baseline for a client process, call 'log_savings_baseline'.
+- If the user wants to log an automation run or record time saved, call 'log_automation_run'.
+- If the user wants to generate a monthly savings report or retainer invoice, call 'generate_savings_report'.
+- If the user wants to see the client dashboard, pipeline overview, or MRR summary, call 'get_client_dashboard'.
 
 
 To call a tool, respond ONLY with an XML block matching this exact format:

@@ -49,7 +49,7 @@ DEFAULT_MODEL = "hermes3:8b"
 # Kaizen Studios outreach sender identity
 # Update these when you have an email and website.
 # ─────────────────────────────────────────────────────────────────────────────
-KAIZEN_SENDER_NAME = "BB"
+KAIZEN_SENDER_NAME = "Kane"
 KAIZEN_SENDER_TITLE = "Founder"
 KAIZEN_SENDER_COMPANY = "Kaizen Studios"
 KAIZEN_SENDER_EMAIL = ""        # not yet — leave blank, use LinkedIn CTA

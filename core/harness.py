@@ -789,10 +789,8 @@ class AgentHarness:
 
             # Truncated raw notes for storage
             raw_notes = (
-                f"General: {general_research[:300]}
-"
-                f"Stack: {stack_results[:200]}
-"
+                f"General: {general_research[:300]}\n"
+                f"Stack: {stack_results[:200]}\n"
                 f"Pain: {pain_results[:200]}"
             )
 

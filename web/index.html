@@ -1043,58 +1043,61 @@
             letter-spacing: 0.08em;
         }
 
-        /* ── CHAT DRAWER ─────────────────────────────────────────────────── */
+        /* ── CHAT DRAWER (tab pattern) ───────────────────────────────────── */
         .chat-drawer {
             position: fixed;
             bottom: 0;
-            right: 24px;
-            width: 480px;
-            height: 500px;
+            right: 32px;
+            width: 380px;
             z-index: 300;
-            transform: translateY(calc(100% + 4px));
-            transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
             display: flex;
             flex-direction: column;
-            pointer-events: none;
         }
-        .chat-drawer.open {
-            transform: translateY(0);
-            pointer-events: all;
-        }
-        .chat-drawer .panel {
-            flex: 1;
-            border-radius: 10px 10px 0 0;
-            box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
-        }
-        .chat-fab {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 301;
-            background: var(--accent-pink);
-            border: none;
-            border-radius: 28px;
-            padding: 0 18px;
-            height: 44px;
-            font-size: 13px;
-            font-weight: 700;
-            color: #fff;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        .chat-tab-header {
             display: flex;
             align-items: center;
-            gap: 7px;
-            letter-spacing: 0.03em;
-            transition: transform 0.15s, box-shadow 0.15s;
+            gap: 8px;
+            padding: 9px 14px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            user-select: none;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.35);
+            transition: background 0.15s;
+            flex-shrink: 0;
         }
-        .chat-fab:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+        .chat-tab-header:hover { background: var(--surface); }
+        .chat-tab-label { flex: 1; }
+        .chat-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.22s;
+        }
+        .chat-drawer.open .chat-chevron { transform: rotate(180deg); }
+        .chat-body {
+            height: 0;
+            overflow: hidden;
+            transition: height 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .chat-drawer.open .chat-body { height: 460px; }
+        .chat-body .panel {
+            height: 100%;
+            border-radius: 0;
+            border-bottom: none;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.4);
         }
         .chat-fab-dot {
             width: 7px; height: 7px;
             border-radius: 50%;
             background: #4ade80;
+            flex-shrink: 0;
             animation: pulse 2s infinite;
         }
 
@@ -1173,10 +1176,6 @@
     </div>
 
     <!-- SWARM STAGING MODAL -->
-    <button class="chat-fab" id="chatFabBtn" onclick="toggleChat()" style="position:static;box-shadow:none;border-radius:8px;height:34px;padding:0 14px;font-size:12px;">
-        <span class="chat-fab-dot" id="chatFabDot"></span> ARNIE CHAT
-    </button>
-
     <div id="swarmApprovalCard" class="staging-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="color:var(--accent-amber);font-weight:700;">⚠️ SWARM STAGING BUFFER</span>
@@ -1379,27 +1378,28 @@
 
     </div>
 
-    <!-- CHAT DRAWER -->
+    <!-- CHAT DRAWER (tab pattern) -->
     <div class="chat-drawer" id="chatDrawer">
-        <div class="panel" id="chatPanelEl">
-            <div class="panel-header">
-                <span>💬 ARNIE CHAT</span>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <span class="status-pill" id="chatStatus">ONLINE</span>
-                    <button onclick="toggleChat()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">✕</button>
+        <div class="chat-tab-header" onclick="toggleChat()">
+            <span class="chat-fab-dot" id="chatFabDot"></span>
+            <span class="chat-tab-label">💬 ARNIE CHAT</span>
+            <span class="status-pill" id="chatStatus" style="font-size:9px;padding:2px 7px">ONLINE</span>
+            <span class="chat-chevron">▲</span>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="panel" id="chatPanelEl">
+                <div id="chatBox" class="chat-history">
+                    <div class="msg arnie-msg">
+                        <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                    </div>
                 </div>
-            </div>
-            <div id="chatBox" class="chat-history">
-                <div class="msg arnie-msg">
-                    <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                <div class="chat-input-wrapper">
+                    <input id="chatInput" class="chat-input" type="text" placeholder="Command Arnie, run swarms, query vector store..." autocomplete="off">
+                    <button id="voiceMicBtn" class="btn" type="button">🎙️ MIC</button>
+                    <button id="sendChatBtn" class="btn" type="button" style="background:var(--accent-pink);border:none;font-weight:700;">SEND</button>
                 </div>
+                <div class="voice-hint">🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS</div>
             </div>
-            <div class="chat-input-wrapper">
-                <input id="chatInput" class="chat-input" type="text" placeholder="Command Arnie, run swarms, query vector store..." autocomplete="off">
-                <button id="voiceMicBtn" class="btn" type="button">🎙️ MIC</button>
-                <button id="sendChatBtn" class="btn" type="button" style="background:var(--accent-pink);border:none;font-weight:700;">SEND</button>
-            </div>
-            <div class="voice-hint">🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS</div>
         </div>
     </div>
 

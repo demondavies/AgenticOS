@@ -245,3 +245,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/tools.py`: `_draft_outreach` stub handler; `draft_outreach` Tool registered (phase=25, workspace="outreach", risk=CONTROLLED, synthesis_required=True)
 - `core/harness.py`: `bind_handler("draft_outreach", self.execute_draft_outreach)`; `execute_draft_outreach` — loads Prospect, builds ARNIE system prompt (Kaizen Studios offer, tone, word limits), calls `self.chat()` with prospect profile as user message, parses `=== EMAIL SUBJECT === / === EMAIL BODY === / === LINKEDIN DM ===` delimiters, stores drafts via `save_outreach`, returns formatted drafts for review
 - Note: ARNIE is the lead agent of Kaizen OS — system prompt established this identity for all outreach generation
+
+### Workspace Routing Wired Into select_agent() (`eecdabd`)
+- `core/agents.py`: extracted the workspace->agent mapping into module-level `WORKSPACE_AGENT_NAMES`; added `AgentRegistry.find_by_workspace()`; `get_system_prompt_for_workspace()` now delegates to it instead of holding its own copy of the mapping
+- `core/harness.py`: `select_agent()` now consults `find_by_workspace(task.workspace)` between the metadata-agent check and the Coordinator fallback — previously every Task fell through to Coordinator regardless of workspace
+- Routing: prospects→Scout, outreach→Pitch, client→Atlas, development→Forge, agency→Researcher, swarm/personal/system/media stay on Coordinator
+- Also fixed a pre-existing SyntaxError in `execute_research_prospect` (literal newlines inside f-strings instead of `\n`) that was blocking `core/harness.py` from importing at all — landed as its own commit (`e05376a`) ahead of the routing change
+- Verified live: `core.harness` smoke-test task (`workspace="development"`) now resolves to Forge/qwen2.5-coder:7b instead of always defaulting to Coordinator/hermes3:8b

@@ -194,7 +194,7 @@ class AgentRuntime:
 
         self.harness.save_memory(channel_id, user_id, "user", clean_content)
         # Per-turn persona guardrail: prevent asterisk action narration
-        _PERSONA_REMINDER = "[RULE: Never use *asterisk* action text or describe your own actions. No *laughs*, *speaks*, etc. Respond naturally as Arnold Schwarzenegger would speak — direct, confident, no stage directions.]\n"
+        _PERSONA_REMINDER = "[ABSOLUTE RULE: Do NOT write asterisks around anything. No *action*, no *voice*, no *laughs*. Zero asterisks. Speak directly.]\n"
         history.append({"role": "user", "content": _PERSONA_REMINDER + _user_message_text})
 
         swarm_match = re.match(

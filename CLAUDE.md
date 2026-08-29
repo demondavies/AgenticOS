@@ -60,6 +60,9 @@ Capability  (capabilities/)
 | 21 | Dashboard 2.0 (particle neural net centre, micro-apps panel, YouTube Studio widget, agent status feed) | ✅ Done |
 | 22 | Bot token moved out of bot.py into .env / secrets manager | ✅ Done |
 | 23 | Per-turn memory injection (currently first-turn only) | ✅ Done |
+| 24 | Kaizen Studios — Lead Research Engine (Scout agent, prospects workspace) | ✅ Done |
+| 25 | Kaizen Studios — Outreach Drafting Engine (Pitch agent, outreach workspace) | ✅ Done |
+| 26 | Kaizen Studios — Savings Baseline Logger (Atlas agent, client workspace) | ✅ Done |
 
 ---
 

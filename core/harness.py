@@ -1103,6 +1103,16 @@ class AgentHarness:
                 return agent
 
         # --------------------------------------------------------------
+        # Workspace-based selection
+        # --------------------------------------------------------------
+
+        if task.workspace:
+            workspace_agent = self.agents.find_by_workspace(task.workspace)
+
+            if workspace_agent is not None:
+                return workspace_agent
+
+        # --------------------------------------------------------------
         # Default
         # --------------------------------------------------------------
 

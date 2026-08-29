@@ -491,11 +491,13 @@ class AgentRegistry:
         mapping = {
             "agency": "Researcher",
             "swarm": "Coordinator",
-            "development": "Coder",
+            "development": "Forge",
             "media": "Coordinator",
             "personal": "Coordinator",
             "system": "Coordinator",
-            "client": "Researcher",
+            "client": "Atlas",
+            "prospects": "Scout",
+            "outreach": "Pitch",
         }
 
         agent_name = mapping.get(workspace)
@@ -728,6 +730,248 @@ def create_reviewer_agent() -> Agent:
     return agent
 
 
+
+def create_scout_agent() -> Agent:
+    """
+    Create the SCOUT Agent.
+
+    SCOUT researches UK accountancy firms, builds structured Prospect
+    records, and surfaces qualifying signals for PITCH.
+    """
+
+    agent = Agent(
+        name="Scout",
+        role="Lead research specialist",
+        description=(
+            "Researches UK accountancy practices, extracts software stack "
+            "and pain signals, and populates the Prospect store for PITCH."
+        ),
+        system_prompt=(
+            "You are Scout, the lead research agent for Kaizen Studios. "
+            "Your job is to find and qualify UK independent accountancy "
+            "practices (1-10 staff, £200k-£2m revenue) as potential Kaizen "
+            "clients. Research each firm thoroughly: identify their software "
+            "stack, surface inefficiency signals, and produce a clear, "
+            "structured prospect record. Be precise and evidence-based."
+        ),
+        workspace="prospects",
+        model_profile=AgentModelProfile(
+            capability="research",
+            preferred_model="hermes3:8b",
+            local_only=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="research",
+            description="Research accountancy firms and synthesise findings.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="web_research",
+            description="Deep-research firms from permitted web sources.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="prospect_qualification",
+            description="Qualify prospects against Kaizen Studios' ICP.",
+        )
+    )
+
+    agent.allow_tool("web_search")
+    agent.allow_tool("research_prospect")
+    agent.allow_tool("list_prospects")
+    agent.allow_tool("get_prospect")
+
+    return agent
+
+
+def create_pitch_agent() -> Agent:
+    """
+    Create the PITCH Agent.
+
+    PITCH drafts personalised cold email and LinkedIn DM copy for each
+    qualified prospect, drawing on Scout's research.
+    """
+
+    agent = Agent(
+        name="Pitch",
+        role="Outreach copywriting specialist",
+        description=(
+            "Generates personalised cold email and LinkedIn DM copy for "
+            "qualified prospects, grounded in Scout's research."
+        ),
+        system_prompt=(
+            "You are Pitch, the outreach copywriting agent for Kaizen Studios. "
+            "Using research provided by Scout, you write concise, personalised "
+            "cold emails (under 130 words) and LinkedIn DMs (under 90 words) "
+            "for UK accountancy practice owners. Lead with their specific pain, "
+            "reference concrete detail from their firm, and make one clear call "
+            "to action: a free 30-minute discovery call. Never sound like a "
+            "template. Never exaggerate. Be direct and professional."
+        ),
+        workspace="outreach",
+        model_profile=AgentModelProfile(
+            capability="synthesis",
+            preferred_model="hermes3:8b",
+            local_only=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="copywriting",
+            description="Write personalised outreach copy.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="synthesis",
+            description="Synthesise research into targeted messaging.",
+        )
+    )
+
+    agent.allow_tool("get_prospect")
+    agent.allow_tool("draft_outreach")
+
+    return agent
+
+
+def create_atlas_agent() -> Agent:
+    """
+    Create the ATLAS Agent.
+
+    ATLAS handles client success: onboarding, savings baseline logging,
+    monthly reporting, and retainer management.
+    """
+
+    agent = Agent(
+        name="Atlas",
+        role="Client success specialist",
+        description=(
+            "Manages the post-sale client relationship: onboarding, "
+            "savings tracking, monthly reporting, and retainer billing."
+        ),
+        system_prompt=(
+            "You are Atlas, the client success agent for Kaizen Studios. "
+            "You manage every active client relationship after the Kaizen "
+            "Audit is delivered. Your responsibilities are: onboarding new "
+            "clients, logging before-state baselines (time per process, "
+            "frequency, staff cost), tracking automation savings, generating "
+            "monthly savings reports, and producing retainer invoices "
+            "(20% of documented savings from Month 4 onward). "
+            "Be methodical, transparent, and client-facing in tone."
+        ),
+        workspace="client",
+        model_profile=AgentModelProfile(
+            capability="reasoning",
+            preferred_model="hermes3:8b",
+            local_only=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="client_management",
+            description="Manage active client accounts and relationships.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="reporting",
+            description="Generate savings reports and retainer invoices.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="onboarding",
+            description="Onboard new Kaizen Studios clients.",
+        )
+    )
+
+    agent.allow_tool("get_client")
+    agent.allow_tool("list_clients")
+    agent.allow_tool("add_client")
+    agent.allow_tool("update_client_status")
+    agent.allow_tool("get_current_time")
+
+    return agent
+
+
+def create_forge_agent() -> Agent:
+    """
+    Create the FORGE Agent.
+
+    FORGE builds and maintains automations: writing scripts, connecting
+    APIs, and implementing the technical layer for each client workflow.
+    """
+
+    agent = Agent(
+        name="Forge",
+        role="Automation build specialist",
+        description=(
+            "Designs and builds client automations: scripts, API "
+            "integrations, and workflow implementations."
+        ),
+        system_prompt=(
+            "You are Forge, the automation build agent for Kaizen Studios. "
+            "You implement the technical solutions identified during the "
+            "Kaizen Audit. Write clean, maintainable Python. Prefer simple "
+            "solutions over clever ones. Document what each automation does, "
+            "what triggers it, and how to verify it ran correctly. "
+            "Every automation you build should save the client measurable time."
+        ),
+        workspace="development",
+        model_profile=AgentModelProfile(
+            capability="coding",
+            preferred_model="qwen2.5-coder:7b",
+            local_only=True,
+        ),
+        execution_policy=AgentExecutionPolicy(
+            max_retries=2,
+            max_tool_calls=20,
+            require_approval_for_privileged_tools=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="coding",
+            description="Write and modify automation scripts.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="debugging",
+            description="Diagnose and fix automation failures.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="api_integration",
+            description="Connect external APIs and services.",
+        )
+    )
+
+    agent.allow_tool("run_terminal_command")
+    agent.allow_tool("search_vault")
+    agent.allow_tool("read_obsidian_note")
+    agent.allow_tool("write_obsidian_note")
+    agent.allow_tool("launch_app")
+
+    return agent
+
+
 def create_default_agent_registry() -> AgentRegistry:
     """
     Create the initial built-in Agent registry.
@@ -739,6 +983,12 @@ def create_default_agent_registry() -> AgentRegistry:
     registry.register(create_researcher_agent())
     registry.register(create_coder_agent())
     registry.register(create_reviewer_agent())
+
+    # Kaizen Studios specialist agents
+    registry.register(create_scout_agent())
+    registry.register(create_pitch_agent())
+    registry.register(create_atlas_agent())
+    registry.register(create_forge_agent())
 
     return registry
 
@@ -910,7 +1160,7 @@ def run_tests() -> None:
 
     agents = default_registry.list_agents()
 
-    assert len(agents) == 4
+    assert len(agents) == 8
 
     names = {
         item.name
@@ -921,6 +1171,10 @@ def run_tests() -> None:
     assert "Researcher" in names
     assert "Coder" in names
     assert "Reviewer" in names
+    assert "Scout" in names
+    assert "Pitch" in names
+    assert "Atlas" in names
+    assert "Forge" in names
 
     coordinator = default_registry.find_by_name("Coordinator")
     assert coordinator is not None

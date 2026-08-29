@@ -492,13 +492,14 @@
         /* -------- CENTER COLUMN: particle canvas + chat -------- */
 
         #particlePanelEl {
-            flex: 0 0 304px;
+            flex: 0 0 220px;
             padding: 10px;
+            overflow: hidden;
         }
 
         #particleCanvas {
             width: 100%;
-            height: 280px;
+            height: 180px;
             display: block;
             border-radius: 6px;
             background: rgba(0, 0, 0, 0.35);
@@ -881,7 +882,7 @@
             }
 
             #particlePanelEl {
-                flex: 0 0 260px;
+                flex: 0 0 200px;
             }
 
             header {
@@ -1272,7 +1273,44 @@
         // INITIALIZATION
         // ============================================================
 
-        document.addEventListener("DOMContentLoaded", () => {
+        // ── Utility functions ──────────────────────────────────────────────────
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function appendChatMessage(role, text) {
+            const box = document.getElementById('chatBox');
+            if (!box) return;
+            const div = document.createElement('div');
+            div.className = role === 'owner' ? 'msg user-msg' : 'msg arnie-msg';
+            div.innerHTML = role === 'owner'
+                ? '<b>YOU:</b> ' + escapeHtml(text)
+                : '<b>ARNIE:</b> ' + escapeHtml(text);
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function fetchYoutubeStats() { /* YouTube stats — stub */ }
+
+        function connectEventStream() {
+            const es = new EventSource('/api/events');
+            es.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'task_update') fetchAndRenderTasks();
+                } catch {}
+            };
+            es.onerror = () => es.close();
+        }
+
+        function showStagingCard(data) {
+            const card = document.getElementById('swarmStagingCard');
+            if (card) { card.style.display = 'block'; }
+        }
+
+        // ── End utilities ────────────────────────────────────────────────────────
+                document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("sendChatBtn")
                 .addEventListener("click", sendMessage);
@@ -2392,6 +2430,26 @@
                 headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({ message: `draft outreach for ${prospectId}` })
             }).then(r => r.json()).then(d => appendChatMessage('arnie', d.reply || '—'));
+        }
+
+        function openAuditModal() {
+            const m = document.getElementById('auditModal');
+            m.style.display = 'flex';
+        }
+
+        function closeAuditModal() {
+            const m = document.getElementById('auditModal');
+            m.style.display = 'none';
+        }
+
+        function startAudit() {
+            const firm      = (document.getElementById('auditFirmInput')    || {}).value || '';
+            const prospectId = (document.getElementById('auditProspectInput') || {}).value || '';
+            if (!firm.trim()) { alert('Enter a firm name.'); return; }
+            const url = '/audit?firm=' + encodeURIComponent(firm.trim()) +
+                        (prospectId ? '&prospect_id=' + encodeURIComponent(prospectId) : '');
+            window.open(url, '_blank');
+            closeAuditModal();
         }
 
         function auditProspectLaunch(firmName, prospectId) {

@@ -305,6 +305,18 @@ class AgentHarness:
             self.execute_list_savings_baselines,
         )
 
+        # log_automation_run and get_monthly_automation_summary are Phase 27
+        # — Automation Activity Logger. Bound here so the Harness owns Task
+        # lifecycle and data persistence, same pattern as savings baselines.
+        self.tools.bind_handler(
+            "log_automation_run",
+            self.execute_log_automation_run,
+        )
+        self.tools.bind_handler(
+            "get_monthly_automation_summary",
+            self.execute_get_monthly_automation_summary,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -1086,6 +1098,89 @@ class AgentHarness:
             for b in baselines
         ]
         return "\n".join(lines)
+
+    async def execute_log_automation_run(
+        self,
+        client_id: str = "",
+        process_name: str = "",
+        baseline_id: str = "",
+        duration_seconds: float = 0.0,
+    ) -> str:
+        """Log an automation run through the Automation log capability Tool boundary.
+
+        Phase 27: Automation Activity Logger.
+        Run logging is tracked as a first-class Task (workspace="client"),
+        following the same pattern as log_savings_baseline. The actual JSON
+        persistence and minutes-saved calculation is delegated to
+        capabilities.automation_log.service.
+        """
+        from capabilities.automation_log.service import log_run
+
+        if not client_id or not process_name or not baseline_id:
+            return "Error: client_id, process_name, and baseline_id are required."
+
+        task = Task(
+            title=f"Log automation run: {process_name[:50]}",
+            description=f"client_id={client_id}, baseline_id={baseline_id}",
+            workspace="client",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+
+        task.assign("atlas")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            run = log_run(
+                client_id=client_id,
+                process_name=process_name,
+                baseline_id=baseline_id,
+                duration_seconds=duration_seconds,
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+
+        task.complete(
+            TaskResult(
+                success=True,
+                output=run.id,
+            )
+        )
+        self.task_store.save_task(task)
+
+        return (
+            f"Automation run logged: {run.process_name} "
+            f"(ID: {run.id})\n"
+            f"Duration: {run.duration_seconds:.0f}s | "
+            f"Minutes saved: {run.minutes_saved:.1f}"
+        )
+
+    async def execute_get_monthly_automation_summary(
+        self,
+        client_id: str = "",
+        year: int = 0,
+        month: int = 0,
+    ) -> str:
+        """Execute the canonical get_monthly_automation_summary Tool as a human-readable summary."""
+        from capabilities.automation_log.service import monthly_summary
+
+        if not client_id or not year or not month:
+            return "Error: client_id, year, and month are required."
+
+        summary = monthly_summary(client_id=client_id, year=year, month=month)
+
+        return (
+            f"Automation summary for {client_id} — {summary['year']}-{summary['month']:02d}\n"
+            f"Total runs: {summary['total_runs']}\n"
+            f"Total minutes saved: {summary['total_minutes_saved']}\n"
+            f"Total £ saved: £{summary['total_gbp_saved']}"
+        )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
         """List Swarm artifacts awaiting approval through the Swarm capability."""

@@ -68,6 +68,10 @@ Savings baseline logging (Phase 26):
     log_savings_baseline
     list_savings_baselines
 
+Automation activity logging (Phase 27):
+    log_automation_run
+    get_monthly_automation_summary
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -798,6 +802,36 @@ async def _list_savings_baselines(
 
 
 # ============================================================================
+# AUTOMATION ACTIVITY LOG HANDLERS (Phase 27)
+# ============================================================================
+
+
+async def _log_automation_run(
+    client_id: str = "",
+    process_name: str = "",
+    baseline_id: str = "",
+    duration_seconds: float = 0.0,
+) -> str:
+    """Fail clearly until the Harness binds the Automation log handler."""
+    raise RuntimeError(
+        "The log_automation_run Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _get_monthly_automation_summary(
+    client_id: str = "",
+    year: int = 0,
+    month: int = 0,
+) -> str:
+    """Fail clearly until the Harness binds the Automation log handler."""
+    raise RuntimeError(
+        "The get_monthly_automation_summary Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -1471,6 +1505,67 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # AUTOMATION ACTIVITY LOGGING (Phase 27)
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="log_automation_run",
+            description=(
+                "Log one automation run for a client. Arguments: client_id "
+                "(str), process_name (str), baseline_id (str), "
+                "duration_seconds (float). Minutes saved are computed against "
+                "the referenced Savings Baseline's minutes_per_run."
+            ),
+            handler=_log_automation_run,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 27,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.automation_log.service.log_run"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_monthly_automation_summary",
+            description=(
+                "Get a client's automation activity summary for one calendar "
+                "month. Arguments: client_id (str), year (int), month (int). "
+                "Returns total runs, total minutes saved, and total £ saved."
+            ),
+            handler=_get_monthly_automation_summary,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 27,
+                "workspace": "client",
+                "capability_handler": (
+                    "capabilities.automation_log.service.monthly_summary"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -1513,6 +1608,8 @@ def run_tests() -> None:
         "draft_outreach",
         "log_savings_baseline",
         "list_savings_baselines",
+        "log_automation_run",
+        "get_monthly_automation_summary",
     }
 
     actual = set(
@@ -1542,6 +1639,7 @@ def run_tests() -> None:
         "list_prospects",
         "get_prospect",
         "list_savings_baselines",
+        "get_monthly_automation_summary",
     }
 
     for name in safe_tools:
@@ -1595,6 +1693,7 @@ def run_tests() -> None:
         "add_client",
         "update_client_status",
         "log_savings_baseline",
+        "log_automation_run",
     }
 
     for name in controlled_tools:
@@ -1636,6 +1735,8 @@ def run_tests() -> None:
         "get_prospect",
         "log_savings_baseline",
         "list_savings_baselines",
+        "log_automation_run",
+        "get_monthly_automation_summary",
     }
 
     for name in deterministic_tools:

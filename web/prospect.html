@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospect Profile — Kaizen OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root {
+    --bg:          #0D1421;
+    --surface:     #131C2E;
+    --surface2:    #1A2540;
+    --border:      #1E2D45;
+    --border2:     #263755;
+    --gold:        #C8A96E;
+    --gold-dim:    #8A6E42;
+    --text:        #E8EAF0;
+    --muted:       #7A8BAA;
+    --green:       #4CAF8A;
+    --amber:       #E8A838;
+    --red:         #E05A6A;
+    --blue:        #4A8FD4;
+    --cyan:        #A8C4E8;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    transition: color 0.15s;
+}
+.back-btn:hover { color: var(--gold); }
+.back-sep { color: var(--border2); font-size: 18px; }
+.firm-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+}
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid;
+}
+.status-pill.researched { color: var(--muted);  border-color: var(--border2); background: rgba(122,139,170,0.08); }
+.status-pill.pitched    { color: var(--amber);  border-color: rgba(232,168,56,0.3); background: rgba(232,168,56,0.08); }
+.status-pill.audited    { color: var(--green);  border-color: rgba(76,175,138,0.3); background: rgba(76,175,138,0.08); }
+.status-pill.client     { color: var(--gold);   border-color: rgba(200,169,110,0.3); background: rgba(200,169,110,0.08); }
+
+/* ── MAIN LAYOUT ── */
+.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+}
+@media (max-width: 760px) {
+    .page { grid-template-columns: 1fr; }
+}
+
+/* ── CARDS ── */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+}
+.card-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ── LEFT COLUMN ── */
+.left-col { display: flex; flex-direction: column; gap: 16px; }
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.detail-key {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.detail-val {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+}
+.detail-val a {
+    color: var(--gold);
+    text-decoration: none;
+}
+.detail-val a:hover { text-decoration: underline; }
+
+.pain-tag {
+    display: inline-block;
+    background: rgba(200,169,110,0.1);
+    border: 1px solid rgba(200,169,110,0.2);
+    color: var(--gold);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    margin: 2px 2px 2px 0;
+}
+
+/* ── ACTION BUTTONS ── */
+.actions-card { display: flex; flex-direction: column; gap: 8px; }
+.act-btn {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 7px;
+    border: 1px solid;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s;
+    text-decoration: none;
+}
+.act-btn.primary {
+    background: rgba(200,169,110,0.12);
+    border-color: rgba(200,169,110,0.35);
+    color: var(--gold);
+}
+.act-btn.primary:hover { background: rgba(200,169,110,0.2); }
+.act-btn.secondary {
+    background: rgba(74,143,212,0.08);
+    border-color: rgba(74,143,212,0.3);
+    color: var(--blue);
+}
+.act-btn.secondary:hover { background: rgba(74,143,212,0.15); }
+.act-btn.ghost {
+    background: transparent;
+    border-color: var(--border2);
+    color: var(--muted);
+}
+.act-btn.ghost:hover { border-color: var(--border2); color: var(--text); }
+
+/* ── RIGHT COLUMN ── */
+.right-col { display: flex; flex-direction: column; gap: 16px; }
+
+/* Stat tiles */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.stat-tile {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.stat-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+}
+.stat-val {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--gold);
+    line-height: 1;
+}
+.stat-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
+/* Process table */
+.proc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+.proc-table th {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+.proc-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text);
+}
+.proc-table tr:last-child td { border-bottom: none; }
+.proc-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.flag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    border: 1px solid;
+}
+.flag-pill.quick_win { color: var(--green); border-color: rgba(76,175,138,0.4); background: rgba(76,175,138,0.1); }
+.flag-pill.automate  { color: var(--blue);  border-color: rgba(74,143,212,0.4); background: rgba(74,143,212,0.1); }
+.flag-pill.review    { color: var(--amber); border-color: rgba(232,168,56,0.4); background: rgba(232,168,56,0.1); }
+.flag-pill.keep      { color: var(--muted); border-color: var(--border2); background: transparent; }
+
+.score-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.score-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--gold);
+    transition: width 0.4s ease;
+}
+.score-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* Report link banner */
+.report-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(76,175,138,0.07);
+    border: 1px solid rgba(76,175,138,0.25);
+    border-radius: 8px;
+    padding: 14px 18px;
+}
+.report-banner-text { font-size: 13px; color: var(--text); }
+.report-banner-text span { color: var(--green); font-weight: 600; }
+.report-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(76,175,138,0.15);
+    border: 1px solid rgba(76,175,138,0.35);
+    border-radius: 6px;
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.report-link:hover { background: rgba(76,175,138,0.25); }
+
+/* Audit history */
+.history-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.history-row:last-child { border-bottom: none; }
+.history-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+.history-dot.complete { background: var(--green); }
+.history-info { flex: 1; }
+.history-title { font-size: 13px; font-weight: 500; }
+.history-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.empty-state .ico { font-size: 28px; margin-bottom: 10px; opacity: 0.5; }
+
+/* Loading */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <a href="/" class="back-btn">← KAIZEN OS</a>
+    <span class="back-sep">/</span>
+    <div class="firm-title" id="firmTitle">Loading…</div>
+    <span class="status-pill" id="statusPill"></span>
+</div>
+
+<div class="page" id="pageContent">
+    <div class="loading" style="grid-column:1/-1">Loading prospect data…</div>
+</div>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(n) {
+    if (typeof n !== 'number') return '—';
+    return '£' + Math.round(n).toLocaleString('en-GB');
+}
+
+function statusClass(s) {
+    return ['researched','pitched','audited','client'].includes(s) ? s : 'researched';
+}
+
+function statusLabel(s) {
+    const map = { researched:'Researched', pitched:'Pitched', audited:'Audited', client:'Client' };
+    return map[s] || s;
+}
+
+function flagPill(flag) {
+    const labels = { quick_win:'Quick Win', automate:'Automate', review:'Review', keep:'Keep' };
+    return `<span class="flag-pill ${esc(flag)}">${labels[flag] || flag}</span>`;
+}
+
+function scoreBar(val, max) {
+    const pct = max > 0 ? Math.min(100, (val / max) * 100) : 0;
+    return `<div class="score-bar-wrap">
+        <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%"></div></div>
+        <span class="score-num">${Math.round(val)}</span>
+    </div>`;
+}
+
+// ── Pain tags ────────────────────────────────────────────────────────────────
+function painTags(pain) {
+    if (!pain) return '<span style="color:var(--muted)">—</span>';
+    const parts = pain.split(/[,;·•]/g).map(s => s.trim()).filter(Boolean);
+    return parts.map(p => `<span class="pain-tag">${esc(p)}</span>`).join('');
+}
+
+// ── Audit sessions for this prospect ────────────────────────────────────────
+async function fetchAuditSessions(prospectId, firmName) {
+    try {
+        const res = await fetch('/api/audit/sessions');
+        if (!res.ok) return [];
+        const data = await res.json();
+        const sessions = (data.sessions || data) || [];
+        return sessions.filter(s =>
+            (prospectId && s.prospect_id === prospectId) ||
+            (firmName && s.firm_name && s.firm_name.toLowerCase() === firmName.toLowerCase())
+        );
+    } catch { return []; }
+}
+
+// ── Build left column ─────────────────────────────────────────────────────────
+function buildLeft(p, auditSessions) {
+    const latestAudit = auditSessions.filter(s => s.status !== 'in_progress').sort((a,b) => b.started_at > a.started_at ? 1:-1)[0];
+    const hasReport   = latestAudit && latestAudit.report_path;
+    const status      = p.status || 'researched';
+
+    let actionsHtml = '';
+    if (status === 'researched') {
+        actionsHtml = `<button class="act-btn secondary" onclick="doPitch()">✉ Draft Pitch Email</button>`;
+    }
+    if (status !== 'audited' && status !== 'client') {
+        actionsHtml += `<button class="act-btn primary" onclick="doAudit()">⟐ Start Live Audit</button>`;
+    }
+    if (hasReport) {
+        actionsHtml += `<a class="act-btn primary" href="/api/audit/report/${esc(latestAudit.id)}" target="_blank">📄 View Audit Report</a>`;
+    }
+    actionsHtml += `<a class="act-btn ghost" href="/audit?firm=${encodeURIComponent(p.firm_name)}&prospect_id=${esc(p.id)}" target="_blank">+ New Audit Session</a>`;
+
+    const rows = [
+        { key: 'Firm', val: `<strong>${esc(p.firm_name)}</strong>` },
+        { key: 'Status', val: `<span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>` },
+        p.contact_name ? { key: 'Contact', val: esc(p.contact_name) } : null,
+        p.email        ? { key: 'Email',   val: `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` } : null,
+        p.linkedin_url ? { key: 'LinkedIn',val: `<a href="${esc(p.linkedin_url)}" target="_blank">View Profile ↗</a>` } : null,
+        p.website      ? { key: 'Website', val: `<a href="${esc(p.website)}" target="_blank">${esc(p.website)} ↗</a>` } : null,
+        p.industry     ? { key: 'Industry',val: esc(p.industry) } : null,
+        p.employee_count ? { key: 'Size', val: `${esc(p.employee_count)} employees` } : null,
+        { key: 'Pain Signals', val: painTags(p.pain_signal || p.pain_signals) },
+        p.tech_stack || p.tools ? { key: 'Tech Stack', val: esc(p.tech_stack || p.tools) } : null,
+        auditSessions.length ? { key: 'Audit Sessions', val: `${auditSessions.length} session${auditSessions.length > 1 ? 's' : ''}` } : null,
+        p.added_at || p.created_at ? { key: 'Added', val: fmtDate(p.added_at || p.created_at) } : null,
+    ].filter(Boolean);
+
+    return `
+    <div class="left-col">
+        <div class="card">
+            <div class="card-label">Firm Details</div>
+            ${rows.map(r => `
+            <div class="detail-row">
+                <span class="detail-key">${esc(r.key)}</span>
+                <span class="detail-val">${r.val}</span>
+            </div>`).join('')}
+        </div>
+
+        <div class="card actions-card">
+            <div class="card-label">Actions</div>
+            ${actionsHtml || '<span style="color:var(--muted);font-size:12px">No actions available.</span>'}
+        </div>
+    </div>`;
+}
+
+// ── Build right column ────────────────────────────────────────────────────────
+function buildRight(p, auditSessions) {
+    const completed = auditSessions
+        .filter(s => s.status === 'complete' || s.status === 'report_generated')
+        .sort((a,b) => b.started_at > a.started_at ? 1:-1);
+    const latest = completed[0];
+
+    let statsHtml = '';
+    let procHtml  = '';
+    let reportBanner = '';
+
+    if (latest) {
+        // Compute stats from scores array
+        const scores = latest.scores || [];
+        const monthlyCost = scores.reduce((s,x) => s + (x.monthly_cost || 0), 0);
+        const annualSaving = scores.reduce((s,x) => s + (x.annual_saving || x.annualSaving || 0), 0);
+        const quickWins = scores.filter(x => x.flag === 'quick_win' || x.recommendation === 'quick_win').length;
+        const procCount = (latest.processes || []).length || scores.length;
+
+        statsHtml = `
+        <div class="stat-grid">
+            <div class="stat-tile">
+                <div class="stat-label">Monthly Cost</div>
+                <div class="stat-val">${fmt(monthlyCost)}</div>
+                <div class="stat-sub">in audited processes</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">Annual Saving</div>
+                <div class="stat-val" style="color:var(--green)">${fmt(annualSaving)}</div>
+                <div class="stat-sub">if automated</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">Quick Wins</div>
+                <div class="stat-val" style="color:var(--amber)">${quickWins}</div>
+                <div class="stat-sub">ready to automate</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">Processes</div>
+                <div class="stat-val" style="color:var(--cyan)">${procCount}</div>
+                <div class="stat-sub">mapped in audit</div>
+            </div>
+        </div>`;
+
+        // Report banner
+        if (latest.report_path || latest.status === 'report_generated') {
+            reportBanner = `
+            <div class="report-banner">
+                <div class="report-banner-text">
+                    <span>Audit report ready</span> · ${fmtDate(latest.completed_at || latest.started_at)}
+                </div>
+                <a class="report-link" href="/api/audit/report/${esc(latest.id)}" target="_blank">
+                    📄 Open Full Report
+                </a>
+            </div>`;
+        }
+
+        // Process table
+        if (scores.length) {
+            const maxScore = Math.max(...scores.map(x => x.quick_win_score || x.quickWinScore || 0), 1);
+            const rows = scores
+                .sort((a,b) => (b.quick_win_score || b.quickWinScore || 0) - (a.quick_win_score || a.quickWinScore || 0))
+                .map(x => {
+                    const flag   = x.flag || x.recommendation || 'review';
+                    const score  = x.quick_win_score || x.quickWinScore || 0;
+                    const name   = x.name || x.process_id || '—';
+                    const cost   = x.monthly_cost;
+                    const saving = x.annual_saving || x.annualSaving;
+                    const tools  = x.tools || '';
+                    return `<tr>
+                        <td>${esc(name)}</td>
+                        <td>${flagPill(flag)}</td>
+                        <td>${scoreBar(score, maxScore)}</td>
+                        <td style="font-family:'DM Mono',monospace;font-size:12px">${typeof cost==='number' ? fmt(cost)+'/mo' : '—'}</td>
+                        <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--green)">${typeof saving==='number' ? fmt(saving)+'/yr' : '—'}</td>
+                        <td style="color:var(--muted);font-size:11px">${esc(tools)}</td>
+                    </tr>`;
+                }).join('');
+
+            procHtml = `
+            <div class="card">
+                <div class="card-label">Process Breakdown</div>
+                <div style="overflow-x:auto">
+                <table class="proc-table">
+                    <thead>
+                        <tr>
+                            <th>Process</th>
+                            <th>Flag</th>
+                            <th>QW Score</th>
+                            <th>Monthly Cost</th>
+                            <th>Annual Saving</th>
+                            <th>Tools</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                </div>
+            </div>`;
+        }
+    }
+
+    // Audit history
+    const historyRows = auditSessions
+        .sort((a,b) => b.started_at > a.started_at ? 1:-1)
+        .map(s => {
+            const done = s.status !== 'in_progress';
+            return `<div class="history-row">
+                <div class="history-dot ${done ? 'complete' : ''}"></div>
+                <div class="history-info">
+                    <div class="history-title">${done ? 'Audit Completed' : 'Audit In Progress'}</div>
+                    <div class="history-meta">${fmtDate(s.started_at)} · ${s.auditor || 'Kane'} · ${(s.processes||[]).length || 0} processes</div>
+                </div>
+                ${(s.report_path || s.status==='report_generated') ? `<a class="report-link" style="padding:4px 10px;font-size:11px" href="/api/audit/report/${esc(s.id)}" target="_blank">📄 Report</a>` : ''}
+            </div>`;
+        }).join('');
+
+    const noAudit = !auditSessions.length;
+
+    return `
+    <div class="right-col">
+        ${noAudit ? `
+        <div class="card">
+            <div class="empty-state">
+                <div class="ico">⟐</div>
+                <div>No audit sessions yet for this firm.</div>
+                <div style="margin-top:8px"><button class="act-btn primary" style="display:inline-flex;width:auto;margin:0 auto" onclick="doAudit()">⟐ Start Live Audit</button></div>
+            </div>
+        </div>` : ''}
+
+        ${statsHtml ? `<div>${statsHtml}</div>` : ''}
+        ${reportBanner}
+        ${procHtml}
+
+        ${auditSessions.length ? `
+        <div class="card">
+            <div class="card-label">Audit History</div>
+            ${historyRows}
+        </div>` : ''}
+    </div>`;
+}
+
+// ── Date formatting ──────────────────────────────────────────────────────────
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso);
+        return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+    } catch { return iso; }
+}
+
+// ── Actions ──────────────────────────────────────────────────────────────────
+let _prospect = null;
+
+function doPitch() {
+    if (!_prospect) return;
+    window.location.href = `/?pitchProspect=${encodeURIComponent(_prospect.id)}`;
+}
+
+function doAudit() {
+    if (!_prospect) return;
+    window.open(`/audit?firm=${encodeURIComponent(_prospect.firm_name)}&prospect_id=${encodeURIComponent(_prospect.id)}`, '_blank');
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+async function init() {
+    const params     = new URLSearchParams(location.search);
+    const prospectId = params.get('id');
+
+    if (!prospectId) {
+        document.getElementById('pageContent').innerHTML =
+            '<div class="loading" style="grid-column:1/-1">No prospect ID specified.</div>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/prospects/${encodeURIComponent(prospectId)}`);
+        if (!res.ok) throw new Error('Not found');
+        const data = await res.json();
+        const p = data.prospect || data;
+        _prospect = p;
+
+        const status = p.status || 'researched';
+        document.getElementById('firmTitle').textContent  = p.firm_name || prospectId;
+        document.title = `${p.firm_name} — Kaizen OS`;
+
+        const pill = document.getElementById('statusPill');
+        pill.textContent  = statusLabel(status);
+        pill.className    = `status-pill ${statusClass(status)}`;
+
+        const auditSessions = await fetchAuditSessions(prospectId, p.firm_name);
+
+        document.getElementById('pageContent').innerHTML =
+            buildLeft(p, auditSessions) + buildRight(p, auditSessions);
+
+    } catch(e) {
+        document.getElementById('pageContent').innerHTML =
+            '<div class="loading" style="grid-column:1/-1;color:var(--red)">Failed to load prospect.</div>';
+    }
+}
+
+init();
+</script>
+</body>
+</html>

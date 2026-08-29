@@ -2334,6 +2334,11 @@
                     const stack = p.software_stack || '—';
                     const row = document.createElement('div');
                     row.className = 'prospect-row';
+                    row.style.cursor = 'pointer';
+                    row.onclick = (e) => {
+                        if (e.target.closest('.pact-btn')) return;
+                        window.open(`/prospect/${p.id}`, '_blank');
+                    };
                     row.innerHTML = `
                         <div class="prospect-top">
                             <span class="prospect-firm">${escapeHtml(p.firm_name)}</span>
@@ -2344,7 +2349,7 @@
                             <span class="prospect-stack">${escapeHtml(stack)}</span>
                             <div class="prospect-actions">
                                 ${status === 'researched' ? `<button class="pact-btn pitch" onclick="pitchProspect('${p.id}')">✉ Pitch</button>` : ''}
-                                <button class="pact-btn audit" onclick="auditProspectLaunch('${escapeHtml(p.firm_name)}','${p.id}')">⟐ Audit</button>
+                                ${status === 'audited' ? `<button class="pact-btn audit" style="background:rgba(76,175,138,0.12);border-color:rgba(76,175,138,0.35);color:#4CAF8A" onclick="window.open('/prospect/${p.id}','_blank')">📄 Report</button>` : `<button class="pact-btn audit" onclick="auditProspectLaunch('${escapeHtml(p.firm_name)}','${p.id}')">⟐ Audit</button>`}
                             </div>
                         </div>`;
                     el.appendChild(row);

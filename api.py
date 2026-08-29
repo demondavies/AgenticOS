@@ -403,6 +403,14 @@ def create_app(
         completed = audit_complete_session(session_id, notes=payload.notes)
         return JSONResponse(content={"session": asdict(completed)})
 
+
+    @app.get("/prospect/{prospect_id}", response_class=FileResponse)
+    async def prospect_profile(prospect_id: str):
+        p = os.path.join(os.path.dirname(__file__), "web", "prospect.html")
+        if not os.path.exists(p):
+            return JSONResponse(status_code=404, content={"error": "web/prospect.html missing."})
+        return FileResponse(p)
+
     @app.get("/audit", response_class=FileResponse)
     async def audit_interface():
         audit_path = os.path.join(os.path.dirname(__file__), "web", "audit.html")

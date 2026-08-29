@@ -338,7 +338,9 @@
         }
 
         #agentStatusPanelEl {
-            flex: 0 0 192px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
         }
 
         #youtubePanelEl {
@@ -728,42 +730,84 @@
 
         /* -------- AGENT STATUS -------- */
 
-        .agent-row {
+        /* ── AGENT CARDS ─────────────────────────────────────────────────── */
+        .agent-card {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 10px 11px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            background: rgba(255,255,255,0.02);
+            flex-shrink: 0;
+        }
+        .agent-card:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0,255,255,0.04);
+        }
+        .agent-card-top {
             display: flex;
             align-items: center;
-            gap: 7px;
-            font-size: 11px;
-            padding: 2px 0;
+            gap: 8px;
         }
-
+        .agent-card-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .agent-card-meta {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .agent-role-tag {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            color: var(--accent-cyan);
+            background: rgba(0,255,255,0.08);
+            padding: 2px 7px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .agent-ws-tag {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .05em;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.05);
+            padding: 2px 7px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .agent-card-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
         .agent-dot {
-            width: 7px;
-            height: 7px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
             background: var(--accent-green);
             box-shadow: 0 0 8px var(--accent-green);
             flex-shrink: 0;
         }
-
         .agent-dot.standby {
             background: var(--text-muted);
             box-shadow: none;
         }
-
-        .agent-name {
-            flex: 1;
-            color: var(--text-main);
-        }
-
         .agent-badge {
             font-size: 9px;
-            padding: 1px 6px;
+            padding: 2px 7px;
             border-radius: 10px;
             border: 1px solid var(--accent-green);
             color: var(--accent-green);
             white-space: nowrap;
         }
-
         .agent-badge.standby {
             border-color: var(--text-muted);
             color: var(--text-muted);
@@ -1134,6 +1178,33 @@
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
         #taskModal > div { animation: slideUp .18s ease; }
         @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+        /* ── TASKS ROW (centre col bottom) ──────────────────────────────── */
+        .tasks-row {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+        }
+        .tasks-row > .panel {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        /* ── AGENT DETAIL MODAL ──────────────────────────────────────────── */
+        #agentDetailModal { animation: fadeIn .15s ease; }
+        #agentDetailModal > div { animation: slideUp .18s ease; }
+        .agent-tool-chip {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            margin: 2px 3px 2px 0;
+            font-family: monospace;
+        }
+
 </style>
 </head>
 
@@ -1241,91 +1312,88 @@
         <!-- LEFT COLUMN: Agent Status + Tasks -->
         <div class="col-side">
 
-            <div class="panel" id="agentStatusPanelEl" style="flex-shrink:0">
+            <!-- AGENT STATUS — full left column -->
+            <div class="panel" id="agentStatusPanelEl">
                 <div class="panel-header">
                     <span>🧬 Agent Status</span>
+                    <span style="font-size:10px;color:var(--text-muted);font-weight:400;letter-spacing:0">click to inspect</span>
                 </div>
 
-                <div class="agent-row" id="agentRow_arnie">
-                    <span class="agent-dot standby" id="agentDot_arnie"></span>
-                    <span class="agent-name" style="flex:1">Arnie</span>
-                    <span class="agent-badge standby" id="agentBadge_arnie">IDLE</span>
+                <div class="agent-card" id="agentRow_arnie" onclick="openAgentDetail('arnie')">
+                    <div class="agent-card-top">
+                        <span class="agent-dot standby" id="agentDot_arnie"></span>
+                        <span class="agent-card-name">Arnie</span>
+                        <span class="agent-badge standby" id="agentBadge_arnie">IDLE</span>
+                    </div>
+                    <div class="agent-card-meta">
+                        <span class="agent-role-tag">Commander</span>
+                        <span class="agent-ws-tag">Personal</span>
+                    </div>
+                    <div class="agent-card-desc">Your AI voice. Handles chat, task routing, and direct commands.</div>
                 </div>
 
-                <div class="agent-row" id="agentRow_scout">
-                    <span class="agent-dot standby" id="agentDot_scout"></span>
-                    <span class="agent-name" style="flex:1">Scout</span>
-                    <span class="agent-badge standby" id="agentBadge_scout">IDLE</span>
+
+                <div class="agent-card" id="agentRow_scout" onclick="openAgentDetail('scout')">
+                    <div class="agent-card-top">
+                        <span class="agent-dot standby" id="agentDot_scout"></span>
+                        <span class="agent-card-name">Scout</span>
+                        <span class="agent-badge standby" id="agentBadge_scout">IDLE</span>
+                    </div>
+                    <div class="agent-card-meta">
+                        <span class="agent-role-tag">Coordinator</span>
+                        <span class="agent-ws-tag">Personal</span>
+                    </div>
+                    <div class="agent-card-desc">Multi-agent task routing, swarm coordination, and CRM oversight.</div>
                 </div>
 
-                <div class="agent-row" id="agentRow_pitch">
-                    <span class="agent-dot standby" id="agentDot_pitch"></span>
-                    <span class="agent-name" style="flex:1">Pitch</span>
-                    <span class="agent-badge standby" id="agentBadge_pitch">IDLE</span>
+                <div class="agent-card" id="agentRow_pitch" onclick="openAgentDetail('pitch')">
+                    <div class="agent-card-top">
+                        <span class="agent-dot standby" id="agentDot_pitch"></span>
+                        <span class="agent-card-name">Pitch</span>
+                        <span class="agent-badge standby" id="agentBadge_pitch">IDLE</span>
+                    </div>
+                    <div class="agent-card-meta">
+                        <span class="agent-role-tag">Researcher</span>
+                        <span class="agent-ws-tag">Agency</span>
+                    </div>
+                    <div class="agent-card-desc">Web research, prospect discovery, competitor analysis, and sourcing.</div>
                 </div>
 
-                <div class="agent-row" id="agentRow_atlas">
-                    <span class="agent-dot standby" id="agentDot_atlas"></span>
-                    <span class="agent-name" style="flex:1">Atlas</span>
-                    <span class="agent-badge standby" id="agentBadge_atlas">IDLE</span>
+                <div class="agent-card" id="agentRow_atlas" onclick="openAgentDetail('atlas')">
+                    <div class="agent-card-top">
+                        <span class="agent-dot standby" id="agentDot_atlas"></span>
+                        <span class="agent-card-name">Atlas</span>
+                        <span class="agent-badge standby" id="agentBadge_atlas">IDLE</span>
+                    </div>
+                    <div class="agent-card-meta">
+                        <span class="agent-role-tag">Coder</span>
+                        <span class="agent-ws-tag">Development</span>
+                    </div>
+                    <div class="agent-card-desc">Code generation, debugging, technical builds, and development tasks.</div>
                 </div>
 
-                <div class="agent-row" id="agentRow_forge">
-                    <span class="agent-dot standby" id="agentDot_forge"></span>
-                    <span class="agent-name" style="flex:1">Forge</span>
-                    <span class="agent-badge standby" id="agentBadge_forge">IDLE</span>
+                <div class="agent-card" id="agentRow_forge" onclick="openAgentDetail('forge')">
+                    <div class="agent-card-top">
+                        <span class="agent-dot standby" id="agentDot_forge"></span>
+                        <span class="agent-card-name">Forge</span>
+                        <span class="agent-badge standby" id="agentBadge_forge">IDLE</span>
+                    </div>
+                    <div class="agent-card-meta">
+                        <span class="agent-role-tag">Reviewer</span>
+                        <span class="agent-ws-tag">Development</span>
+                    </div>
+                    <div class="agent-card-desc">Code review, quality assurance, and testing before deployment.</div>
                 </div>
 
-                <div class="agent-row" id="agentRow_coordinator">
-                    <span class="agent-dot standby" id="agentDot_coordinator"></span>
-                    <span class="agent-name" style="flex:1">Coordinator</span>
-                    <span class="agent-badge standby" id="agentBadge_coordinator">IDLE</span>
-                </div>
 
-                <div class="agent-row" id="agentRow_researcher">
-                    <span class="agent-dot standby" id="agentDot_researcher"></span>
-                    <span class="agent-name" style="flex:1">Researcher</span>
-                    <span class="agent-badge standby" id="agentBadge_researcher">IDLE</span>
-                </div>
 
-                <div class="agent-row" id="agentRow_coder">
-                    <span class="agent-dot standby" id="agentDot_coder"></span>
-                    <span class="agent-name" style="flex:1">Coder</span>
-                    <span class="agent-badge standby" id="agentBadge_coder">IDLE</span>
-                </div>
-
-                <div class="agent-row" id="agentRow_reviewer">
-                    <span class="agent-dot standby" id="agentDot_reviewer"></span>
-                    <span class="agent-name" style="flex:1">Reviewer</span>
-                    <span class="agent-badge standby" id="agentBadge_reviewer">IDLE</span>
-                </div>
 
                 <div class="panel-subheader" style="margin-top:6px">System RAM</div>
                 <div class="vram-bar-track"><div class="vram-bar-fill" id="agentRamBar"></div></div>
                 <div class="vram-bar-label" id="agentRamLabel">--% · --/-- GB</div>
             </div>
 
-            <div class="panel" id="tasksPanelEl">
-                <div class="panel-header">
-                    <span>📋 Active Tasks</span>
-                    <select id="tasksStatusFilter" class="tasks-filter-select">
-                        <option value="">All</option>
-                        <option value="queued">Queued</option>
-                        <option value="assigned">Assigned</option>
-                        <option value="running">Running</option>
-                        <option value="completed">Completed</option>
-                        <option value="failed">Failed</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                </div>
-
-                <div class="workspace-badges" id="workspaceBadges"></div>
-
-                <div id="taskList" class="task-list">
-                    Loading tasks...
-                </div>
-            </div>
-
+            <!-- YouTube Studio — compact at bottom -->
             <div class="panel" id="youtubePanelEl" style="flex-shrink:0">
                 <div class="panel-header">
                     <span>▶️ YouTube Studio</span>
@@ -1358,20 +1426,43 @@
                 <canvas id="particleCanvas"></canvas>
             </div>
 
-            <!-- TASK BOARD — primary monitoring surface -->
-            <div class="panel" id="taskBoardPanel" style="flex:1;min-height:0">
-                <div class="panel-header">
-                    <span>📋 Task Board</span>
-                    <select id="tasksStatusFilter2" class="tasks-filter-select" onchange="document.getElementById('tasksStatusFilter').value=this.value;fetchAndRenderTasks()">
-                        <option value="">All</option>
-                        <option value="queued">Queued</option>
-                        <option value="running">Running</option>
-                        <option value="completed">Completed</option>
-                        <option value="failed">Failed</option>
-                    </select>
+            <!-- TASK BOARD + ACTIVE TASKS side by side -->
+            <div class="tasks-row">
+
+                <div class="panel" id="taskBoardPanel">
+                    <div class="panel-header">
+                        <span>📋 Task Board</span>
+                        <select id="tasksStatusFilter2" class="tasks-filter-select" onchange="document.getElementById('tasksStatusFilter').value=this.value;fetchAndRenderTasks()">
+                            <option value="">All</option>
+                            <option value="queued">Queued</option>
+                            <option value="running">Running</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="workspace-badges" id="workspaceBadges2"></div>
+                    <div id="taskList2" class="task-list" style="overflow-y:auto;flex:1"></div>
                 </div>
-                <div class="workspace-badges" id="workspaceBadges2"></div>
-                <div id="taskList2" class="task-list" style="overflow-y:auto;flex:1"></div>
+
+                <div class="panel" id="tasksPanelEl">
+                    <div class="panel-header">
+                        <span>📋 Active Tasks</span>
+                        <select id="tasksStatusFilter" class="tasks-filter-select">
+                            <option value="">All</option>
+                            <option value="queued">Queued</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="running">Running</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="workspace-badges" id="workspaceBadges"></div>
+                    <div id="taskList" class="task-list" style="overflow-y:auto;flex:1">
+                        Loading tasks...
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -2859,6 +2950,88 @@
             if (e.target === modal) closeTaskModal();
         });
 
+        // ── AGENT DETAIL MODAL ────────────────────────────────────────────────
+        const AGENT_DEFS = {
+            arnie: {
+                name: "Arnie",
+                role: "Commander / Interface",
+                workspace: "Personal",
+                description: "Your AI brain and primary interface. Handles natural language commands, routes tasks to the right agents, and maintains the OS persona.",
+                tools: ["chat", "get_current_time", "get_system_metrics", "create_task", "list_tasks", "execute_intent"]
+            },
+            scout: {
+                name: "Scout",
+                role: "Coordinator",
+                workspace: "Personal",
+                description: "Manages multi-agent workflows and swarm coordination. Routes tool calls across the agent network, handles CRM oversight, and orchestrates parallel workstreams.",
+                tools: ["list_prospects", "get_prospect", "list_clients", "add_client", "draft_outreach", "research_prospect", "launch_swarm", "run_parallel_agency", "generate_image"]
+            },
+            pitch: {
+                name: "Pitch",
+                role: "Researcher",
+                workspace: "Agency",
+                description: "Deep prospect discovery and market intelligence. Researches companies, identifies pain signals, builds target lists, and sources competitive information.",
+                tools: ["run_agency_research", "research_prospect", "web_search", "web_fetch", "list_prospects", "get_prospect"]
+            },
+            atlas: {
+                name: "Atlas",
+                role: "Coder",
+                workspace: "Development",
+                description: "Technical build agent. Handles code generation, debugging, architecture decisions, and all development tasks.",
+                tools: ["create_file", "edit_file", "run_command", "web_search", "create_task"]
+            },
+            forge: {
+                name: "Forge",
+                role: "Reviewer",
+                workspace: "Development",
+                description: "Code review, quality assurance, and testing. Validates output before deployment and ensures standards are met.",
+                tools: ["read_file", "web_search", "create_task", "run_command"]
+            }
+        };
+
+        function openAgentDetail(agentId) {
+            const agent = AGENT_DEFS[agentId];
+            if (!agent) return;
+            const dot = document.getElementById("agentDot_" + agentId);
+            const badge = document.getElementById("agentBadge_" + agentId);
+            const isActive = dot && !dot.classList.contains("standby");
+            const statusText = badge ? badge.textContent : "IDLE";
+            const statusColor = isActive ? "var(--accent-green)" : "var(--text-muted)";
+
+            const toolChips = (agent.tools || []).map(t =>
+                `<span class="agent-tool-chip">${t}</span>`
+            ).join("");
+
+            document.getElementById("agentDetailContent").innerHTML = `
+                <div style="margin-bottom:20px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <span style="width:12px;height:12px;border-radius:50%;background:${statusColor};box-shadow:0 0 8px ${statusColor};display:inline-block;flex-shrink:0"></span>
+                        <span style="font-size:22px;font-weight:700;color:var(--text-primary)">${agent.name}</span>
+                        <span style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid ${statusColor};color:${statusColor};font-weight:700">${statusText}</span>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:12px">
+                        <span class="agent-role-tag" style="font-size:10px;padding:3px 10px">${agent.role.toUpperCase()}</span>
+                        <span class="agent-ws-tag" style="font-size:10px;padding:3px 10px">${agent.workspace.toUpperCase()}</span>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:0">${agent.description}</p>
+                </div>
+                <div style="border-top:1px solid var(--border-color);padding-top:16px">
+                    <div style="font-size:10px;letter-spacing:.08em;color:var(--accent-cyan);font-weight:700;margin-bottom:10px">AVAILABLE TOOLS</div>
+                    <div>${toolChips}</div>
+                </div>
+            `;
+            document.getElementById("agentDetailModal").style.display = "flex";
+        }
+
+        function closeAgentDetail() {
+            document.getElementById("agentDetailModal").style.display = "none";
+        }
+
+        document.addEventListener("click", function(e) {
+            const modal = document.getElementById("agentDetailModal");
+            if (e.target === modal) closeAgentDetail();
+        });
+
         </script>
 
 
@@ -2869,5 +3042,14 @@
             <div id="taskModalContent"></div>
         </div>
     </div>
+
+    <!-- Agent Detail Modal -->
+    <div id="agentDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:910;align-items:center;justify-content:center;">
+        <div style="background:var(--panel-bg);border:1px solid var(--border-color);border-radius:12px;width:540px;max-height:85vh;overflow-y:auto;padding:28px;position:relative;">
+            <button onclick="closeAgentDetail()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;">✕</button>
+            <div id="agentDetailContent"></div>
+        </div>
+    </div>
+
 </body>
 </html>

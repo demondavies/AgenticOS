@@ -330,7 +330,7 @@ def create_app(
                 content={"error": "web/index.html file missing."},
             )
 
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
 
 
@@ -416,6 +416,6 @@ def create_app(
         audit_path = os.path.join(os.path.dirname(__file__), "web", "audit.html")
         if not os.path.exists(audit_path):
             return JSONResponse(status_code=404, content={"error": "web/audit.html missing."})
-        return FileResponse(audit_path)
+        return FileResponse(audit_path, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
     return app

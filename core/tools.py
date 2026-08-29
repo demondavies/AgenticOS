@@ -1414,6 +1414,10 @@ def run_tests() -> None:
         "add_client",
         "list_clients",
         "update_client_status",
+        "research_prospect",
+        "list_prospects",
+        "get_prospect",
+        "draft_outreach",
     }
 
     actual = set(
@@ -1440,6 +1444,8 @@ def run_tests() -> None:
         "list_tasks",
         "get_task",
         "list_clients",
+        "list_prospects",
+        "get_prospect",
     }
 
     for name in safe_tools:
@@ -1529,6 +1535,8 @@ def run_tests() -> None:
         "add_client",
         "list_clients",
         "update_client_status",
+        "list_prospects",
+        "get_prospect",
     }
 
     for name in deterministic_tools:

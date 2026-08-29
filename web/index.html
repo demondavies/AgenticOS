@@ -1008,6 +1008,113 @@
         .spill-audited    { background: rgba(76,175,138,0.12);  color: var(--accent-green); border-color: rgba(76,175,138,0.3); }
         .spill-client     { background: rgba(74,191,204,0.12);  color: var(--accent-teal);  border-color: rgba(74,191,204,0.3); }
 
+
+        /* ── KPI BAR ─────────────────────────────────────────────────────── */
+        .kpi-bar {
+            display: flex;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .kpi-tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 5px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            min-width: 110px;
+            gap: 1px;
+        }
+        .kpi-val {
+            font-size: 18px;
+            font-weight: 700;
+            font-family: 'DM Mono', monospace;
+            color: var(--accent-cyan);
+            line-height: 1.2;
+        }
+        .kpi-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ── CHAT DRAWER ─────────────────────────────────────────────────── */
+        .chat-drawer {
+            position: fixed;
+            bottom: 0;
+            right: 24px;
+            width: 480px;
+            height: 500px;
+            z-index: 300;
+            transform: translateY(calc(100% + 4px));
+            transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+        .chat-drawer.open {
+            transform: translateY(0);
+            pointer-events: all;
+        }
+        .chat-drawer .panel {
+            flex: 1;
+            border-radius: 10px 10px 0 0;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+        }
+        .chat-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 301;
+            background: var(--accent-pink);
+            border: none;
+            border-radius: 28px;
+            padding: 0 18px;
+            height: 44px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            letter-spacing: 0.03em;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .chat-fab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+        }
+        .chat-fab-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        /* ── NEURAL STRIP (thin) ─────────────────────────────────────────── */
+        #particlePanelEl {
+            flex: 0 0 auto;
+        }
+        #particlePanelEl canvas {
+            height: 90px !important;
+        }
+
+        /* ── TASK BOARD (centre, wide) ───────────────────────────────────── */
+        #tasksPanelEl {
+            flex: 1;
+            min-height: 0;
+        }
+        #taskList {
+            overflow-y: auto;
+        }
+
     </style>
 </head>
 
@@ -1066,6 +1173,10 @@
     </div>
 
     <!-- SWARM STAGING MODAL -->
+    <button class="chat-fab" id="chatFabBtn" onclick="toggleChat()" style="position:static;box-shadow:none;border-radius:8px;height:34px;padding:0 14px;font-size:12px;">
+        <span class="chat-fab-dot" id="chatFabDot"></span> ARNIE CHAT
+    </button>
+
     <div id="swarmApprovalCard" class="staging-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="color:var(--accent-amber);font-weight:700;">⚠️ SWARM STAGING BUFFER</span>
@@ -1085,11 +1196,57 @@
         </div>
     </div>
 
+    <!-- KPI BAR -->
+    <div class="kpi-bar">
+        <div class="kpi-tile">
+            <div class="kpi-val" id="kpiTasksToday">—</div>
+            <div class="kpi-label">Tasks Today</div>
+        </div>
+        <div class="kpi-tile">
+            <div class="kpi-val" id="kpiAgentsActive" style="color:var(--accent-green)">—</div>
+            <div class="kpi-label">Agents Active</div>
+        </div>
+        <div class="kpi-tile">
+            <div class="kpi-val" id="kpiHoursSaved" style="color:var(--accent-amber)">—</div>
+            <div class="kpi-label">Hours Saved</div>
+        </div>
+        <div class="kpi-tile">
+            <div class="kpi-val" id="kpiProspects" style="color:var(--gold, #C8A96E)">—</div>
+            <div class="kpi-label">Prospects</div>
+        </div>
+        <div class="kpi-tile">
+            <div class="kpi-val" id="kpiSuccessRate" style="color:var(--accent-cyan)">—</div>
+            <div class="kpi-label">Success Rate</div>
+        </div>
+    </div>
+
     <!-- MAIN 3-COLUMN LAYOUT -->
     <div class="main-layout">
 
-        <!-- LEFT COLUMN -->
+        <!-- LEFT COLUMN: Agent Status + Tasks -->
         <div class="col-side">
+
+            <div class="panel" id="agentStatusPanelEl" style="flex-shrink:0">
+                <div class="panel-header">
+                    <span>🧬 Agent Status</span>
+                </div>
+
+                <div class="agent-row">
+                    <span class="agent-dot" id="agentDotHermes"></span>
+                    <span class="agent-name">hermes3:8b</span>
+                    <span class="agent-badge" id="agentBadgeHermes">ACTIVE</span>
+                </div>
+
+                <div class="agent-row">
+                    <span class="agent-dot standby" id="agentDotPhi"></span>
+                    <span class="agent-name">phi3:mini</span>
+                    <span class="agent-badge standby" id="agentBadgePhi">STANDBY</span>
+                </div>
+
+                <div class="panel-subheader">System RAM</div>
+                <div class="vram-bar-track"><div class="vram-bar-fill" id="agentRamBar"></div></div>
+                <div class="vram-bar-label" id="agentRamLabel">--% · --/-- GB</div>
+            </div>
 
             <div class="panel" id="tasksPanelEl">
                 <div class="panel-header">
@@ -1112,34 +1269,11 @@
                 </div>
             </div>
 
-            <div class="panel" id="agentStatusPanelEl">
-                <div class="panel-header">
-                    <span>🧬 Agent Status</span>
-                </div>
-
-                <div class="agent-row">
-                    <span class="agent-dot" id="agentDotHermes"></span>
-                    <span class="agent-name">hermes3:8b</span>
-                    <span class="agent-badge" id="agentBadgeHermes">ACTIVE</span>
-                </div>
-
-                <div class="agent-row">
-                    <span class="agent-dot standby" id="agentDotPhi"></span>
-                    <span class="agent-name">phi3:mini</span>
-                    <span class="agent-badge standby" id="agentBadgePhi">STANDBY</span>
-                </div>
-
-                <div class="panel-subheader">System RAM</div>
-                <div class="vram-bar-track"><div class="vram-bar-fill" id="agentRamBar"></div></div>
-                <div class="vram-bar-label" id="agentRamLabel">--% · --/-- GB</div>
-            </div>
-
-            <div class="panel" id="youtubePanelEl">
+            <div class="panel" id="youtubePanelEl" style="flex-shrink:0">
                 <div class="panel-header">
                     <span>▶️ YouTube Studio</span>
                     <span class="status-pill" id="youtubeStatusPill" style="opacity:.6;">OFFLINE</span>
                 </div>
-
                 <div class="yt-grid">
                     <div class="yt-tile"><div class="yt-num" id="ytSubs">—</div><div class="yt-label">Subscribers</div></div>
                     <div class="yt-tile"><div class="yt-num" id="ytVideos">—</div><div class="yt-label">Videos</div></div>
@@ -1149,106 +1283,44 @@
 
         </div>
 
-        <!-- CENTER COLUMN -->
+        <!-- CENTRE COLUMN: Neural strip + Task Board -->
         <div class="col-center">
 
             <div class="panel" id="particlePanelEl">
                 <div class="panel-header">
                     <span>◈ AGENT NEURAL ACTIVITY</span>
-                </div>
-
-                <canvas id="particleCanvas"></canvas>
-
-                <div class="particle-legend">
-                    <span><i style="background:#f97316;"></i>agency</span>
-                    <span><i style="background:#3b82f6;"></i>swarm</span>
-                    <span><i style="background:#22c55e;"></i>personal</span>
-                    <span><i style="background:#f59e0b;"></i>media</span>
-                    <span><i style="background:#a855f7;"></i>development</span>
-                    <span><i style="background:#9ca3af;"></i>system</span>
-                </div>
-            </div>
-
-            <div class="panel" id="chatPanelEl">
-
-                <div class="panel-header">
-                    <span>💬 TACTICAL CHAT TERMINAL</span>
-                    <span class="status-pill" id="chatStatus">ONLINE</span>
-                </div>
-
-                <div id="chatBox" class="chat-history">
-                    <div class="msg arnie-msg">
-                        <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                    <div class="particle-legend" style="margin:0;padding:0;border:none;background:none">
+                        <span><i style="background:#f97316;"></i>agency</span>
+                        <span><i style="background:#3b82f6;"></i>swarm</span>
+                        <span><i style="background:#22c55e;"></i>personal</span>
+                        <span><i style="background:#f59e0b;"></i>media</span>
+                        <span><i style="background:#a855f7;"></i>development</span>
+                        <span><i style="background:#9ca3af;"></i>system</span>
                     </div>
                 </div>
-
-                <div class="chat-input-wrapper">
-                    <input
-                        id="chatInput"
-                        class="chat-input"
-                        type="text"
-                        placeholder="Command Arnie, run swarms, query vector store..."
-                        autocomplete="off"
-                    >
-
-                    <button id="voiceMicBtn" class="btn" type="button">
-                        🎙️ MIC
-                    </button>
-
-                    <button id="sendChatBtn" class="btn"
-                            type="button"
-                            style="background:var(--accent-pink);border:none;font-weight:700;">
-                        SEND
-                    </button>
-                </div>
-
-                <div class="voice-hint">
-                    🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS
-                </div>
-
+                <canvas id="particleCanvas"></canvas>
             </div>
+
+            <!-- TASK BOARD — primary monitoring surface -->
+            <div class="panel" id="taskBoardPanel" style="flex:1;min-height:0">
+                <div class="panel-header">
+                    <span>📋 Task Board</span>
+                    <select id="tasksStatusFilter2" class="tasks-filter-select" onchange="document.getElementById('tasksStatusFilter').value=this.value;fetchAndRenderTasks()">
+                        <option value="">All</option>
+                        <option value="queued">Queued</option>
+                        <option value="running">Running</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="workspace-badges" id="workspaceBadges2"></div>
+                <div id="taskList2" class="task-list" style="overflow-y:auto;flex:1"></div>
+            </div>
+
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT COLUMN: Pipeline + Vault/Capture + Events -->
         <div class="col-side col-right">
-
-            <div class="vault-capture-row">
-            <div class="panel" id="vaultPanelEl">
-                <div class="panel-header">
-                    <span>🗓️ Vault Today</span>
-                    <span id="vaultPreviewTitle" class="status-pill">—</span>
-                </div>
-
-                <div id="vaultPreview" class="vault-preview">Loading...</div>
-
-                <div class="panel-subheader">Recent Files</div>
-
-                <div id="vaultFileList" class="file-list">
-                    Loading vault notes...
-                </div>
-            </div>
-
-            <div class="panel" id="capturePanelEl">
-                <div class="panel-header">
-                    <span>✍️ Quick Capture</span>
-                    <span id="quickCaptureStatus" class="status-pill" style="visibility:hidden;">Saved ✓</span>
-                </div>
-
-                <textarea
-                    id="quickCaptureText"
-                    class="capture-area"
-                    placeholder="Jot a quick note..."
-                ></textarea>
-
-                <button
-                    id="quickCaptureSaveBtn"
-                    class="btn"
-                    style="background:var(--accent-cyan);color:#000;font-weight:700;align-self:flex-end;"
-                >
-                    💾 SAVE NOTE
-                </button>
-            </div>
-            </div>
 
             <div class="panel" id="clientCrmPanelEl">
                 <div class="panel-header">
@@ -1273,11 +1345,31 @@
                 </div>
             </div>
 
-            <div class="panel" id="eventsPanelEl">
+            <div class="vault-capture-row" style="flex-shrink:0">
+            <div class="panel" id="vaultPanelEl">
+                <div class="panel-header">
+                    <span>🗓️ Vault Today</span>
+                    <span id="vaultPreviewTitle" class="status-pill">—</span>
+                </div>
+                <div id="vaultPreview" class="vault-preview">Loading...</div>
+                <div class="panel-subheader">Recent Files</div>
+                <div id="vaultFileList" class="file-list">Loading vault notes...</div>
+            </div>
+
+            <div class="panel" id="capturePanelEl">
+                <div class="panel-header">
+                    <span>✍️ Quick Capture</span>
+                    <span id="quickCaptureStatus" class="status-pill" style="visibility:hidden;">Saved ✓</span>
+                </div>
+                <textarea id="quickCaptureText" class="capture-area" placeholder="Jot a quick note..."></textarea>
+                <button id="quickCaptureSaveBtn" class="btn" style="background:var(--accent-cyan);color:#000;font-weight:700;align-self:flex-end;">💾 SAVE NOTE</button>
+            </div>
+            </div>
+
+            <div class="panel" id="eventsPanelEl" style="flex-shrink:0;max-height:180px">
                 <div class="panel-header">
                     <span>📡 Live Events / Routines</span>
                 </div>
-
                 <div id="eventList" class="event-list">
                     <div class="event-list-empty">Waiting for events...</div>
                 </div>
@@ -1285,6 +1377,30 @@
 
         </div>
 
+    </div>
+
+    <!-- CHAT DRAWER -->
+    <div class="chat-drawer" id="chatDrawer">
+        <div class="panel" id="chatPanelEl">
+            <div class="panel-header">
+                <span>💬 ARNIE CHAT</span>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span class="status-pill" id="chatStatus">ONLINE</span>
+                    <button onclick="toggleChat()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">✕</button>
+                </div>
+            </div>
+            <div id="chatBox" class="chat-history">
+                <div class="msg arnie-msg">
+                    <b>ARNIE:</b> AGENTIC OS ONLINE. I AM READY TO PUMP SOME IRON AND EXECUTE TASKS!
+                </div>
+            </div>
+            <div class="chat-input-wrapper">
+                <input id="chatInput" class="chat-input" type="text" placeholder="Command Arnie, run swarms, query vector store..." autocomplete="off">
+                <button id="voiceMicBtn" class="btn" type="button">🎙️ MIC</button>
+                <button id="sendChatBtn" class="btn" type="button" style="background:var(--accent-pink);border:none;font-weight:700;">SEND</button>
+            </div>
+            <div class="voice-hint">🎙️ MIC listens locally → silence detection → Faster-Whisper → ARNIE → THE OAK → local TTS</div>
+        </div>
     </div>
 
 
@@ -1334,6 +1450,31 @@
         }
 
         // ── End utilities ────────────────────────────────────────────────────────
+
+        function toggleChat() {
+            const drawer = document.getElementById('chatDrawer');
+            const btn    = document.getElementById('chatFabBtn');
+            const open   = drawer.classList.toggle('open');
+            if (btn) btn.style.background = open ? 'var(--accent-cyan)' : 'var(--accent-pink)';
+            if (open) setTimeout(() => document.getElementById('chatInput')?.focus(), 250);
+        }
+
+        function updateKpis(tasks) {
+            const today = new Date().toDateString();
+            const todayTasks = tasks.filter(t => t.created_at && new Date(t.created_at).toDateString() === today);
+            const running = tasks.filter(t => t.status === 'running' || t.status === 'assigned');
+            const done    = tasks.filter(t => t.status === 'completed');
+            const failed  = tasks.filter(t => t.status === 'failed');
+            const total   = done.length + failed.length;
+            const rate    = total ? Math.round((done.length / total) * 100) : 100;
+            const hoursSaved = Math.round(done.length * 0.4 * 10) / 10;
+            const el = id => document.getElementById(id);
+            if (el('kpiTasksToday'))   el('kpiTasksToday').textContent   = todayTasks.length || done.length;
+            if (el('kpiAgentsActive')) el('kpiAgentsActive').textContent = running.length || '1';
+            if (el('kpiHoursSaved'))   el('kpiHoursSaved').textContent   = hoursSaved + 'h';
+            if (el('kpiSuccessRate'))  el('kpiSuccessRate').textContent  = rate + '%';
+        }
+
                 document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("sendChatBtn")

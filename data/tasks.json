@@ -1,0 +1,57 @@
+[
+  {
+    "id": "task_seed_001",
+    "title": "Research prospect: Meridian Accounting Group",
+    "description": "Deep research on Meridian Accounting Group",
+    "status": "completed",
+    "workspace": "prospects",
+    "assigned_agent": "scout",
+    "created_at": "2026-08-29T20:07:04.563471+00:00",
+    "updated_at": "2026-08-29T20:07:04.563471+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "task_seed_002",
+    "title": "Draft outreach: Castleton & Reed",
+    "description": "Cold email + LinkedIn DM for Castleton & Reed",
+    "status": "completed",
+    "workspace": "outreach",
+    "assigned_agent": "pitch",
+    "created_at": "2026-08-29T20:07:04.563471+00:00",
+    "updated_at": "2026-08-29T20:07:04.563471+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "task_seed_003",
+    "title": "Audit session: Meridian Accounting Group",
+    "description": "Process audit and ROI report",
+    "status": "completed",
+    "workspace": "audit",
+    "assigned_agent": "atlas",
+    "created_at": "2026-08-29T20:07:04.563471+00:00",
+    "updated_at": "2026-08-29T20:07:04.563471+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "task_seed_004",
+    "title": "Research prospect: Novus Partners",
+    "description": "Background research on Novus Partners",
+    "status": "running",
+    "workspace": "prospects",
+    "assigned_agent": "scout",
+    "created_at": "2026-08-29T20:07:04.563471+00:00",
+    "updated_at": "2026-08-29T20:07:04.563471+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "task_seed_005",
+    "title": "Web research: UK accountancy automation trends",
+    "description": "Market intelligence for pitch deck",
+    "status": "queued",
+    "workspace": "research",
+    "assigned_agent": "researcher",
+    "created_at": "2026-08-29T20:07:04.563471+00:00",
+    "updated_at": "2026-08-29T20:07:04.563471+00:00",
+    "metadata": {}
+  }
+]

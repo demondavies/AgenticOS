@@ -392,18 +392,19 @@ class IntentRouter:
         #   Write outreach for prospect_abc123
         # ------------------------------------------------------------
         outreach_match = re.search(
-            r"\b(?:draft|write|generate)\s+outreach\s+(?:for\s+)?(prospect_\S+)",
+            r"\b(?:draft|write|generate|create)\s+(?:outreach|email|cold\s+email|dm|linkedin)\s+(?:for\s+)?(prospect_\S+|.+?)\s*[?.!]?$",
             lower,
         )
         if not outreach_match:
             outreach_match = re.search(
-                r"\bpitch\s+(prospect_\S+)",
+                r"\b(?:pitch|email|reach\s+out\s+to)\s+(prospect_\S+|.+?)\s*[?.!]?$",
                 lower,
             )
         if outreach_match:
+            target = outreach_match.group(1).strip()
             return Intent(
                 tool_name="draft_outreach",
-                arguments={"prospect_id": outreach_match.group(1).strip()},
+                arguments={"prospect_id": target},
             )
 
         # ------------------------------------------------------------

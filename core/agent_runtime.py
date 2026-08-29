@@ -310,8 +310,7 @@ class AgentRuntime:
                     f"[{direct_tool_name}]: {err}"
                 )
                 bot_reply = (
-                    f"I couldn't execute the {direct_tool_name} capability: "
-                    f"{err}"
+                    f"Get to the choppa — but that capability hit a wall: {err}"
                 )
                 self.harness.save_memory(
                     channel_id,

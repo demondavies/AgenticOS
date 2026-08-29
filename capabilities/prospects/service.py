@@ -99,6 +99,18 @@ def get_prospect(prospect_id: str) -> Prospect | None:
     return None
 
 
+def get_prospect_by_name(name: str) -> "Prospect | None":
+    """Fuzzy-match a prospect by firm name (case-insensitive substring)."""
+    name_lower = name.lower().strip()
+    best = None
+    for p in _load():
+        if p.firm_name.lower() == name_lower:
+            return p
+        if name_lower in p.firm_name.lower():
+            best = p
+    return best
+
+
 def update_prospect_status(
     prospect_id: str,
     status: str,

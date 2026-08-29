@@ -918,14 +918,17 @@ class AgentHarness:
         a personalised cold email and LinkedIn DM anchored in the Kaizen Studios
         offer, then stores the drafts back in the prospect record.
         """
-        from capabilities.prospects.service import get_prospect, save_outreach
+        from capabilities.prospects.service import get_prospect, get_prospect_by_name, save_outreach
 
         if not prospect_id:
             return "Error: prospect_id is required."
 
+        # Accept either a prospect ID or a firm name
         prospect = get_prospect(prospect_id)
         if prospect is None:
-            return f"Prospect '{prospect_id}' not found."
+            prospect = get_prospect_by_name(prospect_id)
+        if prospect is None:
+            return f"No prospect found matching '{prospect_id}'. Try 'list prospects' to see IDs."
 
         task = Task(
             title=f"Draft outreach: {prospect.firm_name[:45]}",

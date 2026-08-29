@@ -1028,6 +1028,9 @@ async function submitAudit(notes) {
       pain: s.pain,
     }));
 
+  const submitBtn = document.querySelector('#complete-modal button[onclick*="submit"], #complete-modal .modal-actions button:last-child');
+  if (submitBtn) { submitBtn.textContent = 'Generating report…'; submitBtn.disabled = true; }
+
   try {
     const res = await fetch(`/api/audit/${sessionId}/complete`, {
       method: 'POST',
@@ -1035,18 +1038,75 @@ async function submitAudit(notes) {
       body: JSON.stringify({ processes: activeProcesses, staff_rates: staffRates, notes }),
     });
     const data = await res.json();
-    if (data.ok) {
-      document.getElementById('complete-modal').classList.remove('open');
-      alert(`✅ Audit saved!\n\nSession: ${sessionId}\nQuick wins: ${data.quick_wins}\nEst. annual saving: £${data.annual_saving}\n\nRun: python -c "from core.harness import *; ..." to generate the report.`);
+
+    document.getElementById('complete-modal').classList.remove('open');
+
+    if (data.session) {
+      showCompletionBanner(data.session);
     } else {
-      alert('Error saving audit: ' + (data.error || 'unknown'));
+      showError('Error saving audit: ' + (data.error || 'unknown'));
     }
   } catch (err) {
-    // Offline / no API — save to localStorage as fallback
+    // Offline — save to localStorage
     localStorage.setItem(`audit_${sessionId}`, JSON.stringify({ activeProcesses, staffRates, notes }));
     document.getElementById('complete-modal').classList.remove('open');
-    alert(`✅ Saved locally (API offline).\nKey: audit_${sessionId}`);
+    showCompletionBanner(null);
   }
+}
+
+function showCompletionBanner(session) {
+  // Remove any existing banner
+  document.getElementById('completion-banner')?.remove();
+
+  const reportUrl = session?.report_url || null;
+  const scores   = session?.scores || [];
+  const qwCount  = scores.filter(s => s.flag === 'quick_win').length;
+  const annSaving = scores.reduce((sum, s) => sum + (s.flag === 'quick_win' ? (s.annual_saving_estimate || 0) : 0), 0);
+
+  const banner = document.createElement('div');
+  banner.id = 'completion-banner';
+  banner.style.cssText = `
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(13,20,33,0.92);
+    display: flex; align-items: center; justify-content: center;
+  `;
+  banner.innerHTML = `
+    <div style="background:#131C2E;border:1px solid rgba(200,169,110,0.4);border-radius:14px;
+                padding:36px 40px;max-width:480px;width:90%;text-align:center;font-family:'DM Sans',system-ui,sans-serif;">
+      <div style="font-size:32px;margin-bottom:12px;">✓</div>
+      <div style="font-size:20px;font-weight:700;color:#E8EAF0;margin-bottom:6px;">Audit Complete</div>
+      <div style="font-size:13px;color:#7A8BAA;margin-bottom:24px;">${firmName} · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+
+      <div style="display:flex;gap:0;margin-bottom:28px;border:1px solid #1E2D45;border-radius:8px;overflow:hidden;">
+        <div style="flex:1;padding:14px;border-right:1px solid #1E2D45;">
+          <div style="font-size:10px;color:#7A8BAA;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">Quick Wins</div>
+          <div style="font-size:22px;font-weight:700;color:#E8A838;font-family:'DM Mono',monospace;">${qwCount}</div>
+        </div>
+        <div style="flex:1;padding:14px;">
+          <div style="font-size:10px;color:#7A8BAA;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">Annual Saving</div>
+          <div style="font-size:22px;font-weight:700;color:#4CAF8A;font-family:'DM Mono',monospace;">£${annSaving.toLocaleString('en-GB',{maximumFractionDigits:0})}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        ${reportUrl ? `<a href="${reportUrl}" target="_blank"
+            style="background:#C8A96E;color:#0D1421;border:none;padding:11px 24px;border-radius:7px;
+                   font-weight:700;font-size:14px;text-decoration:none;cursor:pointer;">
+            View Report →
+          </a>` : ''}
+        <button onclick="document.getElementById('completion-banner').remove()"
+          style="background:none;border:1px solid #263755;color:#7A8BAA;padding:11px 20px;
+                 border-radius:7px;font-size:14px;cursor:pointer;font-family:inherit;">
+          Back to OS
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(banner);
+}
+
+function showError(msg) {
+  alert(msg);
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────

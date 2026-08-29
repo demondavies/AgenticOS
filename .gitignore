@@ -162,3 +162,5 @@ data/chroma_db/
 .ijfw/
 AGENTS.md
 audit_sessions.json
+reports/
+reports/*.html

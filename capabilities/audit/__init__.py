@@ -16,3 +16,5 @@ from .service import (
     complete_session,
     mark_report_generated,
 )
+
+from .report import generate_report

@@ -22,7 +22,9 @@ from capabilities.audit.service import (
     save_processes as audit_save_processes,
     complete_session as audit_complete_session,
     list_sessions as audit_list_sessions,
+    mark_report_generated as audit_mark_report,
 )
+from capabilities.audit.report import generate_report as audit_generate_report
 
 from capabilities.vault import (
     get_vault_location,

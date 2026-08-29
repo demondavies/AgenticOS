@@ -193,7 +193,9 @@ class AgentRuntime:
                 pass  # memory injection is best-effort; never block the response
 
         self.harness.save_memory(channel_id, user_id, "user", clean_content)
-        history.append({"role": "user", "content": _user_message_text})
+        # Per-turn persona guardrail: prevent asterisk action narration
+        _PERSONA_REMINDER = "[RULE: Never use *asterisk* action text or describe your own actions. No *laughs*, *speaks*, etc. Respond naturally as Arnold Schwarzenegger would speak — direct, confident, no stage directions.]\n"
+        history.append({"role": "user", "content": _PERSONA_REMINDER + _user_message_text})
 
         swarm_match = re.match(
             r"^\s*(?:launch|run|deploy)\s+swarm:\s*(.+)$",

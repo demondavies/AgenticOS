@@ -112,6 +112,24 @@ def create_app(
             }
         )
 
+    @app.post("/api/chat/reset")
+    async def api_chat_reset():
+        """Clear web chat history so the updated system prompt takes effect."""
+        try:
+            harness.memory.clear_channel(web_channel_id)
+        except Exception:
+            # Fallback: delete directly via sqlite
+            import sqlite3, os
+            db_path = os.path.join(os.path.dirname(__file__), "data", "memory.db")
+            con = sqlite3.connect(db_path)
+            con.execute("DELETE FROM messages WHERE channel_id=?", (web_channel_id,))
+            con.execute("DELETE FROM channel_summaries WHERE channel_id=?", (web_channel_id,))
+            con.commit()
+            con.close()
+        # Also reset the in-memory history buffer in agent_runtime
+        agent_runtime.conversation_history.pop(web_channel_id, None)
+        return JSONResponse(content={"status": "ok", "message": "Chat history cleared."})
+
     @app.post("/api/voice/transcribe")
     async def api_voice_transcribe():
         return await voice_api.transcribe()

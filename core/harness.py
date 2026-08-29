@@ -935,6 +935,7 @@ class AgentHarness:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
+                model=DEFAULT_MODEL,
                 capability="outreach",
                 source="execute_draft_outreach",
             )

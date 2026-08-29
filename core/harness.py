@@ -330,6 +330,12 @@ class AgentHarness:
             self.execute_generate_savings_report,
         )
 
+        # get_client_dashboard is Phase 29 — Client Status Dashboard.
+        self.tools.bind_handler(
+            "get_client_dashboard",
+            self.execute_get_client_dashboard,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -1217,6 +1223,39 @@ class AgentHarness:
             f"Notes: {client.notes[:200] if client.notes else 'none'}"
         )
 
+    @staticmethod
+    def _determine_billing_mode(
+        client: Any,
+        *,
+        year: int,
+        month: int,
+        documented_savings: float,
+    ) -> tuple[str, float]:
+        """Shared Kaizen Studios retainer billing logic.
+
+        Months 1-3 of the client relationship (counted from client.created_at)
+        bill a fixed £750/mo retainer. From month 4 onward, billing switches
+        to 20% of that month's documented £ savings, with a £750 floor.
+        Shared by execute_generate_savings_report and
+        execute_get_client_dashboard so both always agree on the current
+        retainer amount.
+        """
+        from datetime import datetime
+
+        created = datetime.fromisoformat(client.created_at)
+        months_active = (year - created.year) * 12 + (month - created.month) + 1
+
+        if months_active <= 3:
+            return (
+                f"Fixed retainer (month {months_active} of onboarding)",
+                750.0,
+            )
+
+        return (
+            "20% of documented savings",
+            max(750.0, documented_savings * 0.20),
+        )
+
     async def execute_generate_savings_report(
         self,
         client_id: str = "",
@@ -1236,7 +1275,6 @@ class AgentHarness:
         """
         import os
         import re as _re
-        from datetime import datetime
         from capabilities.clients.service import get_client
         from capabilities.automation_log.service import monthly_summary
         from capabilities.savings.service import list_baselines
@@ -1251,16 +1289,10 @@ class AgentHarness:
         summary = monthly_summary(client_id=client_id, year=year, month=month)
         baselines = list_baselines(client_id=client_id)
 
-        created = datetime.fromisoformat(client.created_at)
-        months_active = (year - created.year) * 12 + (month - created.month) + 1
-
-        if months_active <= 3:
-            billing_mode = f"Fixed retainer (month {months_active} of onboarding)"
-            retainer_amount = 750.0
-        else:
-            documented_savings = summary["total_gbp_saved"]
-            billing_mode = "20% of documented savings"
-            retainer_amount = max(750.0, documented_savings * 0.20)
+        billing_mode, retainer_amount = self._determine_billing_mode(
+            client, year=year, month=month,
+            documented_savings=summary["total_gbp_saved"],
+        )
 
         task = Task(
             title=f"Generate savings report: {client.name[:40]} — {year}-{month:02d}",
@@ -1364,6 +1396,60 @@ class AgentHarness:
             f"Savings report generated for {client.name} — {year}-{month:02d}\n"
             f"Report saved to: {report_path}\n\n"
             f"--- RETAINER INVOICE ---\n{invoice_text}"
+        )
+
+    async def execute_get_client_dashboard(self) -> str:
+        """Build a structured status dashboard across every active client.
+
+        Phase 29: Client Status Dashboard.
+        For each active client: this calendar month's automation summary,
+        total £ savings to date (all-time, not just this month), the
+        current retainer amount (same billing-mode logic as
+        execute_generate_savings_report, via _determine_billing_mode), and
+        status. Returned as a JSON string.
+        """
+        import json as _json
+        from datetime import datetime, timezone
+        from capabilities.clients.service import list_clients
+        from capabilities.automation_log.service import (
+            monthly_summary,
+            total_savings_to_date,
+        )
+
+        now = datetime.now(timezone.utc)
+        active_clients = list_clients(status="active")
+
+        clients_summary = []
+        for client in active_clients:
+            summary = monthly_summary(
+                client_id=client.id, year=now.year, month=now.month
+            )
+            to_date = total_savings_to_date(client.id)
+            billing_mode, retainer_amount = self._determine_billing_mode(
+                client, year=now.year, month=now.month,
+                documented_savings=summary["total_gbp_saved"],
+            )
+
+            clients_summary.append(
+                {
+                    "client_id": client.id,
+                    "name": client.name,
+                    "service": client.service,
+                    "status": client.status,
+                    "latest_monthly_summary": summary,
+                    "total_savings_to_date_gbp": to_date["total_gbp_saved"],
+                    "current_retainer_amount_gbp": round(retainer_amount, 2),
+                    "billing_mode": billing_mode,
+                }
+            )
+
+        return _json.dumps(
+            {
+                "generated_at": now.isoformat(),
+                "active_client_count": len(clients_summary),
+                "clients": clients_summary,
+            },
+            indent=2,
         )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:

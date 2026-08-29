@@ -76,6 +76,9 @@ Client detail lookup + savings reporting (Phase 28):
     get_client
     generate_savings_report
 
+Client status dashboard (Phase 29):
+    get_client_dashboard
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -858,6 +861,19 @@ async def _generate_savings_report(
     """Fail clearly until the Harness binds the Savings report handler."""
     raise RuntimeError(
         "The generate_savings_report Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
+# CLIENT STATUS DASHBOARD HANDLER (Phase 29)
+# ============================================================================
+
+
+async def _get_client_dashboard() -> str:
+    """Fail clearly until the Harness binds the Client dashboard handler."""
+    raise RuntimeError(
+        "The get_client_dashboard Tool has not been bound to the "
         "AgenticOS Harness."
     )
 
@@ -1659,6 +1675,39 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ========================================================================
+    # CLIENT STATUS DASHBOARD (Phase 29)
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="get_client_dashboard",
+            description=(
+                "Get a structured status dashboard across every active client: "
+                "this month's automation summary, total £ savings to date, "
+                "the current retainer amount, and status. No arguments. "
+                "Returns a JSON string."
+            ),
+            handler=_get_client_dashboard,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 29,
+                "workspace": "client",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_get_client_dashboard"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
     return registry
 
 
@@ -1705,6 +1754,7 @@ def run_tests() -> None:
         "get_monthly_automation_summary",
         "get_client",
         "generate_savings_report",
+        "get_client_dashboard",
     }
 
     actual = set(
@@ -1736,6 +1786,7 @@ def run_tests() -> None:
         "list_savings_baselines",
         "get_monthly_automation_summary",
         "get_client",
+        "get_client_dashboard",
     }
 
     for name in safe_tools:
@@ -1834,6 +1885,7 @@ def run_tests() -> None:
         "log_automation_run",
         "get_monthly_automation_summary",
         "get_client",
+        "get_client_dashboard",
     }
 
     for name in deterministic_tools:

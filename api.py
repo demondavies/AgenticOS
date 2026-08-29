@@ -331,6 +331,36 @@ def create_app(
         return FileResponse(index_path)
 
 
+
+    @app.get("/api/prospects")
+    async def get_prospects(status: str | None = None):
+        import json
+        from pathlib import Path
+        pfile = Path("prospects.json")
+        if not pfile.exists():
+            return JSONResponse(content={"prospects": []})
+        with open(pfile) as f:
+            prospects = json.load(f)
+        STRIP = {"notes", "raw_research"}
+        slim = [{k: v for k, v in p.items() if k not in STRIP} for p in prospects]
+        if status:
+            slim = [p for p in slim if p.get("status") == status]
+        return JSONResponse(content={"prospects": slim})
+
+    @app.get("/api/prospects/{prospect_id}")
+    async def get_prospect(prospect_id: str):
+        import json
+        from pathlib import Path
+        pfile = Path("prospects.json")
+        if not pfile.exists():
+            return JSONResponse(status_code=404, content={"error": "No prospects file."})
+        with open(pfile) as f:
+            prospects = json.load(f)
+        for p in prospects:
+            if p["id"] == prospect_id:
+                return JSONResponse(content={"prospect": p})
+        return JSONResponse(status_code=404, content={"error": "Prospect not found."})
+
     # ── Audit routes ─────────────────────────────────────────────────────────
 
     @app.post("/api/audit/session")

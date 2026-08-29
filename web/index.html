@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARNIE // AGENTIC OS CORE MATRIX</title>
+    <title>KAIZEN OS</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -894,6 +894,97 @@
                 justify-content: space-between;
             }
         }
+
+        /* ── Pipeline panel ──────────────────────────────────────────────── */
+        .pipeline-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        .ptab {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .ptab.active {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(200,169,110,0.08);
+        }
+        .pipeline-tab-content { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+
+        .prospect-row {
+            background: var(--surface2);
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            padding: 9px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .prospect-row:hover { border-color: var(--border2); }
+
+        .prospect-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .prospect-firm {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prospect-stack {
+            font-size: 10px;
+            color: var(--accent-teal);
+            font-family: 'DM Mono', monospace;
+        }
+        .prospect-pain {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prospect-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 2px;
+        }
+        .pact-btn {
+            font-size: 10px;
+            font-weight: 600;
+            font-family: inherit;
+            padding: 3px 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all .15s;
+            border: 1px solid var(--border2);
+            background: none;
+            color: var(--text-muted);
+        }
+        .pact-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .pact-btn.pitch { border-color: rgba(200,169,110,0.35); color: var(--gold); }
+        .pact-btn.pitch:hover { background: var(--gold); color: #0D1421; }
+        .pact-btn.audit { border-color: rgba(74,191,204,0.35); color: var(--accent-teal); }
+        .pact-btn.audit:hover { background: var(--accent-teal); color: #0D1421; }
+
+        .spill-researched { background: rgba(74,143,212,0.15); color: var(--accent-blue); border-color: rgba(74,143,212,0.3); }
+        .spill-pitched    { background: rgba(200,169,110,0.12); color: var(--gold);         border-color: rgba(200,169,110,0.3); }
+        .spill-audited    { background: rgba(76,175,138,0.12);  color: var(--accent-green); border-color: rgba(76,175,138,0.3); }
+        .spill-client     { background: rgba(74,191,204,0.12);  color: var(--accent-teal);  border-color: rgba(74,191,204,0.3); }
+
     </style>
 </head>
 
@@ -901,7 +992,7 @@
 
     <!-- HUD HEADER -->
     <header>
-        <div class="logo">◈ ARNIE // AGENTIC OS</div>
+        <div class="logo">◈ KAIZEN OS</div>
 
         <div class="hud-right">
             <div class="hud-metrics">
@@ -1136,16 +1227,25 @@
 
             <div class="panel" id="clientCrmPanelEl">
                 <div class="panel-header">
-                    <span>🤝 Client CRM</span>
+                    <span>◈ Pipeline</span>
+                    <div class="pipeline-tabs">
+                        <button class="ptab active" onclick="switchPipelineTab('prospects', this)">Prospects</button>
+                        <button class="ptab" onclick="switchPipelineTab('clients', this)">Clients</button>
+                    </div>
                 </div>
 
-                <div class="crm-counts">
-                    <div class="crm-count"><b id="crmProspects">0</b><span>Prospects</span></div>
-                    <div class="crm-count"><b id="crmActive">0</b><span>Active</span></div>
-                    <div class="crm-count"><b id="crmCompleted">0</b><span>Completed</span></div>
+                <div id="pipelineProspects" class="pipeline-tab-content">
+                    <div class="task-list-empty">Loading prospects...</div>
                 </div>
 
-                <div id="crmList" class="file-list">Loading clients...</div>
+                <div id="pipelineClients" class="pipeline-tab-content" style="display:none;">
+                    <div class="crm-counts">
+                        <div class="crm-count"><b id="crmProspects">0</b><span>Prospects</span></div>
+                        <div class="crm-count"><b id="crmActive">0</b><span>Active</span></div>
+                        <div class="crm-count"><b id="crmCompleted">0</b><span>Completed</span></div>
+                    </div>
+                    <div id="crmList" class="file-list">Loading clients...</div>
+                </div>
             </div>
 
             <div class="panel" id="eventsPanelEl">
@@ -1216,8 +1316,8 @@
             fetchAndRenderTasks();
             setInterval(fetchAndRenderTasks, 5000);
 
-            fetchClients();
-            setInterval(fetchClients, 10000);
+            fetchPipeline();
+            setInterval(fetchPipeline, 10000);
 
             fetchYoutubeStats();
 
@@ -2197,345 +2297,100 @@
 
 
         // ============================================================
-        // 🤝 CLIENT CRM — /api/clients doesn't exist yet, so this reads
-        // the client workspace's Tasks (Phase 19) as the CRM source.
+        // ◈ PIPELINE — Prospects + Clients
         // ============================================================
 
-        async function fetchClients() {
+        function switchPipelineTab(tab, el) {
+            document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('pipelineProspects').style.display = tab === 'prospects' ? 'flex' : 'none';
+            document.getElementById('pipelineClients').style.display   = tab === 'clients'  ? 'flex' : 'none';
+        }
 
-            const listEl = document.getElementById("crmList");
+        const STATUS_LABEL = { researched: 'RESEARCHED', pitched: 'PITCHED', audited: 'AUDITED', client: 'CLIENT' };
+        const STATUS_CLASS = { researched: 'spill-researched', pitched: 'spill-pitched', audited: 'spill-audited', client: 'spill-client' };
 
+        async function fetchPipeline() {
+            const el = document.getElementById('pipelineProspects');
             try {
+                const res = await fetch('/api/prospects');
+                if (!res.ok) throw new Error(res.status);
+                const { prospects } = await res.json();
 
-                const res = await fetch("/api/tasks?workspace=client");
-
-                if (!res.ok) {
-                    throw new Error("Tasks endpoint returned HTTP " + res.status);
-                }
-
-                const data = await res.json();
-                const tasks = data.tasks || [];
-
-                const prospects = tasks.filter(t =>
-                    ["queued", "created"].includes((t.status || "").toLowerCase())
-                ).length;
-
-                const active = tasks.filter(t =>
-                    ["running", "assigned"].includes((t.status || "").toLowerCase())
-                ).length;
-
-                const completed = tasks.filter(t =>
-                    (t.status || "").toLowerCase() === "completed"
-                ).length;
-
-                document.getElementById("crmProspects").innerText = prospects;
-                document.getElementById("crmActive").innerText = active;
-                document.getElementById("crmCompleted").innerText = completed;
-
-                const activeTasks = tasks
-                    .filter(t => ["running", "assigned"].includes((t.status || "").toLowerCase()))
-                    .slice(0, 5);
-
-                if (activeTasks.length === 0) {
-                    listEl.innerHTML =
-                        '<div class="task-list-empty">No active clients.</div>';
+                if (!prospects.length) {
+                    el.innerHTML = '<div class="task-list-empty">No prospects yet. Run Scout to begin.</div>';
                     return;
                 }
 
-                listEl.innerHTML = "";
+                // Deduplicate by firm_name, keep latest
+                const seen = {};
+                prospects.forEach(p => { seen[p.firm_name] = p; });
+                const unique = Object.values(seen);
 
+                el.innerHTML = '';
+                unique.forEach(p => {
+                    const status = p.status || 'researched';
+                    const pain = (p.pain_signals || '').split('.')[0].trim() || '—';
+                    const stack = p.software_stack || '—';
+                    const row = document.createElement('div');
+                    row.className = 'prospect-row';
+                    row.innerHTML = `
+                        <div class="prospect-top">
+                            <span class="prospect-firm">${escapeHtml(p.firm_name)}</span>
+                            <span class="status-pill ${STATUS_CLASS[status] || ''}">${STATUS_LABEL[status] || status.toUpperCase()}</span>
+                        </div>
+                        <div class="prospect-pain">${escapeHtml(pain)}</div>
+                        <div class="prospect-top">
+                            <span class="prospect-stack">${escapeHtml(stack)}</span>
+                            <div class="prospect-actions">
+                                ${status === 'researched' ? `<button class="pact-btn pitch" onclick="pitchProspect('${p.id}')">✉ Pitch</button>` : ''}
+                                <button class="pact-btn audit" onclick="auditProspectLaunch('${escapeHtml(p.firm_name)}','${p.id}')">⟐ Audit</button>
+                            </div>
+                        </div>`;
+                    el.appendChild(row);
+                });
+            } catch(e) {
+                el.innerHTML = '<div class="task-list-empty">Failed to load prospects.</div>';
+            }
+
+            // Clients tab
+            try {
+                const res = await fetch('/api/tasks?workspace=client');
+                if (!res.ok) throw new Error(res.status);
+                const { tasks } = await res.json();
+                const listEl = document.getElementById('crmList');
+                const prospects2 = tasks.filter(t => ['queued','created'].includes((t.status||'').toLowerCase())).length;
+                const active    = tasks.filter(t => ['running','assigned'].includes((t.status||'').toLowerCase())).length;
+                const completed = tasks.filter(t => (t.status||'').toLowerCase() === 'completed').length;
+                document.getElementById('crmProspects').innerText = prospects2;
+                document.getElementById('crmActive').innerText    = active;
+                document.getElementById('crmCompleted').innerText = completed;
+                const activeTasks = tasks.filter(t => ['running','assigned'].includes((t.status||'').toLowerCase())).slice(0,5);
+                if (!activeTasks.length) { listEl.innerHTML = '<div class="task-list-empty">No active clients.</div>'; return; }
+                listEl.innerHTML = '';
                 activeTasks.forEach(t => {
-
-                    const statusClass =
-                        "task-status-" + (t.status || "unknown").toLowerCase();
-
-                    const item = document.createElement("div");
-                    item.className = "crm-item";
-
-                    item.innerHTML =
-                        '<span class="crm-item-title">' +
-                            escapeHtml(t.title || t.id) +
-                        "</span>" +
-                        '<span class="task-status-pill ' + statusClass + '">' +
-                            escapeHtml((t.status || "unknown").toUpperCase()) +
-                        "</span>";
-
+                    const item = document.createElement('div');
+                    item.className = 'crm-item';
+                    item.innerHTML = `<span class="crm-item-title">${escapeHtml(t.title||t.id)}</span><span class="task-status-pill task-status-${(t.status||'unknown').toLowerCase()}">${escapeHtml((t.status||'unknown').toUpperCase())}</span>`;
                     listEl.appendChild(item);
                 });
-
-            } catch (e) {
-
-                listEl.innerHTML =
-                    '<div class="task-list-empty">Failed to load clients.</div>';
-
-                console.error("Client CRM error:", e);
-            }
+            } catch(e) { /* clients tab stays empty */ }
         }
 
-
-        // ============================================================
-        // ▶️ YOUTUBE STUDIO — no /api/youtube endpoint exists yet;
-        // this stays placeholder tiles unless/until that lands.
-        // ============================================================
-
-        async function fetchYoutubeStats() {
-
-            try {
-
-                const res = await fetch("/api/youtube");
-
-                if (!res.ok) {
-                    return;
-                }
-
-                const data = await res.json();
-
-                document.getElementById("ytSubs").innerText = data.subscribers ?? "—";
-                document.getElementById("ytVideos").innerText = data.videos ?? "—";
-                document.getElementById("ytUpload").innerText = data.last_upload ?? "—";
-
-                const pill = document.getElementById("youtubeStatusPill");
-                pill.innerText = "CONNECTED";
-                pill.style.opacity = "1";
-
-            } catch (e) {
-                // No endpoint yet — leave placeholder tiles as-is.
-            }
-        }
-
-
-        // ============================================================
-        // EVENTS — always-on SSE stream
-        // ============================================================
-
-        const MAX_EVENT_ITEMS = 50;
-
-        let eventSource = null;
-
-        function connectEventStream() {
-
-            if (eventSource) {
-                return;
-            }
-
-            eventSource = new EventSource("/api/events");
-
-            eventSource.onmessage = (message) => {
-
-                let event;
-
-                try {
-                    event = JSON.parse(message.data);
-                } catch (e) {
-                    console.error("Malformed event payload:", e);
-                    return;
-                }
-
-                appendEventItem(event);
-            };
-
-            eventSource.onerror = (e) => {
-                console.error("Event stream error:", e);
-            };
-        }
-
-        function appendEventItem(event) {
-
-            const listEl = document.getElementById("eventList");
-            const empty = listEl.querySelector(".event-list-empty");
-
-            if (empty) {
-                empty.remove();
-            }
-
-            const item = document.createElement("div");
-            item.className = "event-item";
-
-            const severityClass =
-                "event-severity-" + (event.severity || "info").toLowerCase();
-
-            item.innerHTML =
-                '<div class="event-item-main">' +
-                    '<span class="event-item-title">' +
-                        escapeHtml(event.name || "event") +
-                    "</span>" +
-                    '<span class="event-item-meta">' +
-                        escapeHtml(event.created_at || "") +
-                    "</span>" +
-                "</div>" +
-                '<span class="event-severity-pill ' + severityClass + '">' +
-                    escapeHtml((event.severity || "info").toUpperCase()) +
-                "</span>";
-
-            listEl.appendChild(item);
-            listEl.scrollTop = listEl.scrollHeight;
-
-            while (listEl.children.length > MAX_EVENT_ITEMS) {
-                listEl.removeChild(listEl.firstChild);
-            }
-
-            // Purely decorative — pulse a node on the particle canvas to
-            // reflect live agent activity. Doesn't need to map exactly.
-            const workspaceHint = (event.workspace || event.data && event.data.workspace || "");
-            pulseParticlesForWorkspace(
-                PARTICLE_TYPES.includes(workspaceHint)
-                    ? workspaceHint
-                    : PARTICLE_TYPES[Math.floor(Math.random() * PARTICLE_TYPES.length)]
-            );
-        }
-
-
-        // ============================================================
-        // SWARM STAGING (floating overlay modal)
-        // ============================================================
-
-        function showStagingCard(taskId, filename) {
-
-            activeStagedTaskId = taskId;
-
-            document.getElementById("stagedTaskId").innerText =
-                "ID: " + taskId;
-
-            document.getElementById("stagedFilename").value =
-                filename;
-
-            document.getElementById("swarmApprovalCard")
-                .style.display = "block";
-        }
-
-
-        async function approveStagedSwarm() {
-
-            if (!activeStagedTaskId) {
-                return;
-            }
-
-            const filename =
-                document.getElementById("stagedFilename").value;
-
-            try {
-
-                const res = await fetch("/api/swarm/approve", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        task_id: activeStagedTaskId,
-                        target_filename: filename
-                    })
-                });
-
-                const data = await res.json();
-
-                if (res.ok) {
-
-                    alert(data.message);
-
-                    document.getElementById("swarmApprovalCard")
-                        .style.display = "none";
-
-                    activeStagedTaskId = null;
-
-                    fetchVaultFiles();
-
-                } else {
-
-                    alert(
-                        "Disk write error: " +
-                        (data.error || "Unknown error.")
-                    );
-                }
-
-            } catch (e) {
-
-                alert("Swarm approval request failed.");
-                console.error("Swarm approval error:", e);
-            }
-        }
-
-
-        async function rejectStagedSwarm() {
-
-            if (!activeStagedTaskId) {
-                return;
-            }
-
-            try {
-
-                await fetch(
-                    "/api/swarm/reject/" +
-                    activeStagedTaskId,
-                    {
-                        method: "DELETE"
-                    }
-                );
-
-                document.getElementById("swarmApprovalCard")
-                    .style.display = "none";
-
-                activeStagedTaskId = null;
-
-                alert("Artifact discarded!");
-
-            } catch (e) {
-
-                alert("Failed to discard artifact.");
-                console.error("Swarm rejection error:", e);
-            }
-        }
-
-
-        // ============================================================
-        // SECURITY
-        // ============================================================
-
-        function escapeHtml(text) {
-
-            return String(text ?? "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-
-    
-    // ── Audit quick-start ────────────────────────────────────────────────
-    function openAuditModal() {
-        const m = document.getElementById('auditModal');
-        m.style.display = 'flex';
-        document.getElementById('auditFirmInput').focus();
-    }
-    function closeAuditModal() {
-        document.getElementById('auditModal').style.display = 'none';
-    }
-    async function startAudit() {
-        const firm = document.getElementById('auditFirmInput').value.trim();
-        const prospect_id = document.getElementById('auditProspectInput').value.trim();
-        if (!firm) { document.getElementById('auditFirmInput').focus(); return; }
-        const btn = document.querySelector('#auditModal button:last-child');
-        btn.textContent = 'Creating…'; btn.disabled = true;
-        try {
-            const res = await fetch('/api/audit/session', {
+        function pitchProspect(prospectId) {
+            appendChatMessage('owner', `Draft outreach for ${prospectId}`);
+            fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ firm_name: firm, prospect_id })
-            });
-            const data = await res.json();
-            if (data.session) {
-                closeAuditModal();
-                window.location.href = `/audit?session=${data.session.id}&firm=${encodeURIComponent(firm)}`;
-            }
-        } catch(e) {
-            btn.textContent = 'Error — retry'; btn.disabled = false;
+                body: JSON.stringify({ message: `draft outreach for ${prospectId}` })
+            }).then(r => r.json()).then(d => appendChatMessage('arnie', d.reply || '—'));
         }
-    }
-    document.getElementById('auditFirmInput')?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') startAudit();
-    });
 
-</script>
+        function auditProspectLaunch(firmName, prospectId) {
+            document.getElementById('auditFirmInput').value    = firmName;
+            document.getElementById('auditProspectInput').value = prospectId;
+            openAuditModal();
+        }
 
-</body>
-</html>
+                        // ============================================================
+        // ▶️ YOUTUBE STUDIO

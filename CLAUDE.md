@@ -65,6 +65,7 @@ Capability  (capabilities/)
 | 26 | Kaizen Studios — Savings Baseline Logger (Atlas agent, client workspace) | ✅ Done |
 | 27 | Kaizen Studios — Automation Activity Logger (Atlas agent, client workspace) | ✅ Done |
 | 28 | Kaizen Studios — Monthly Savings Report + get_client (Atlas agent, client workspace) | ✅ Done |
+| 29 | Kaizen Studios — Client Status Dashboard (Atlas agent, client workspace) | ✅ Done |
 
 ---
 
@@ -75,9 +76,9 @@ Capability  (capabilities/)
 | `core/harness.py` | Central orchestration — agent selection, model routing, policy, tool execution, swarm, memory, voice, events |
 | `core/agent_runtime.py` | Conversational orchestration — intent → tool → response loop |
 | `core/policy.py` | PolicyEngine — ALLOW / APPROVAL_REQUIRED / DENY |
-| `core/tools.py` | ToolRegistry — 12 canonical tools |
+| `core/tools.py` | ToolRegistry — 29 canonical tools (see Phase log for the full workspace breakdown) |
 | `core/tasks.py` | Task domain object + lifecycle |
-| `core/agents.py` | Agent definitions (Coordinator, Researcher, Coder, Reviewer) |
+| `core/agents.py` | Agent definitions — Coordinator, Researcher, Coder, Reviewer, plus Kaizen Studios specialists Scout, Pitch, Atlas, Forge; `WORKSPACE_AGENT_NAMES` maps workspace → agent for `select_agent()` |
 | `core/models.py` | ModelProvider Protocol, OllamaProvider, ModelRegistry |
 | `core/config.py` | DEFAULT_MODEL, BASE_SYSTEM_PROMPT, OWNER_EXTENSIONS |
 | `core/scheduler.py` | Timing only — no business logic |
@@ -284,3 +285,15 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/agents.py`: Atlas granted `generate_savings_report`
 - `.gitignore`: `data/reports/` excluded as runtime output
 - Verified live end-to-end against real Ollama: backdated a test client 5 months to force the 20%-of-savings branch, logged a baseline + automation run, generated a real report — both tools correctly authorized for Atlas, the £750 floor applied correctly, a real ~2KB HTML file written and read back
+
+### ID Collision Fix Across All Four JSON Capability Stores (`b4927d4`)
+- `capabilities/clients/service.py`, `capabilities/prospects/service.py`, `capabilities/savings/service.py`, `capabilities/automation_log/service.py`: all four generated record IDs via `int(datetime.now(timezone.utc).timestamp())` — second-granularity, so two records created in the same wall-clock second get the exact same ID and silently corrupt each other's data
+- Caught live while building the Phase 29 dashboard test: two clients created back-to-back in one test run collided, merging one client's name with the other's financial data in the dashboard output
+- Fixed by appending a short `uuid4().hex[:6]` suffix to the existing timestamp-based ID in all four services — safe unilaterally since nothing parses structure out of these IDs beyond string equality
+- Same commit also carries `capabilities/automation_log/service.py`'s `total_savings_to_date()` addition (factored out of `monthly_summary` via a shared `_tally_runs()` helper) — landed together since both touched the same file in the same working session; see Phase 29 below for what it's used for
+
+### Phase 29 — Client Status Dashboard (`a7d29ab`)
+- `core/harness.py`: extracted Phase 28's billing-mode calculation into a shared `_determine_billing_mode()` static method so `execute_generate_savings_report` and the new `execute_get_client_dashboard` always agree; `execute_get_client_dashboard()` loads every active client, this month's automation summary, all-time savings via `total_savings_to_date`, and the current retainer amount — returns a JSON string
+- `core/tools.py`: `get_client_dashboard` (SAFE, no arguments), workspace="client", phase=29
+- `core/agents.py`: Atlas granted `get_client_dashboard`
+- Verified live end-to-end: two active clients (one fresh -> fixed £750 retainer, one backdated 5 months with logged savings -> 20%-of-savings mode, floored to £750) plus one prospect-status client — dashboard correctly includes only the two active clients with the right billing mode and figures, prospect excluded

@@ -59,7 +59,7 @@ Capability  (capabilities/)
 | 20 | Parallel agency execution — run_parallel_agency fans out concurrent research | ✅ Done |
 | 21 | Dashboard 2.0 (particle neural net centre, micro-apps panel, YouTube Studio widget, agent status feed) | ✅ Done |
 | 22 | Bot token moved out of bot.py into .env / secrets manager | ✅ Done |
-| 23 | Per-turn memory injection (currently first-turn only) | ⏳ Queued |
+| 23 | Per-turn memory injection (currently first-turn only) | ✅ Done |
 
 ---
 
@@ -220,3 +220,9 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - Every existing JS function preserved verbatim by element ID: chat, voice pipeline, SSE stream, vault preview/quick capture, swarm approval, cron/RAG/memory buttons — zero behavior regressions
 - No external CDN dependencies; Google Fonts import removed in favour of a local monospace stack
 - Verified live: launched via `python bot.py`, Playwright screenshot confirmed correct render with no console errors beyond the expected `/api/youtube` 404; `/api/chat` smoke-tested end-to-end through the real Harness/Ollama pipeline; fixed two panel-height overflow bugs found in the first screenshot pass (Quick Capture save button, Agent Status RAM bar)
+### Phase 23 — Per-Turn Memory Injection (`0c2d0a3`)
+- `core/config.py`: MEMORY_PER_TURN_ENABLED=True, MEMORY_PER_TURN_TOP_K=3, MEMORY_PER_TURN_MIN_SCORE=0.68 (tighter than Phase 17's first-turn top_k=5/min_score=0.65 since this runs every turn)
+- `core/agent_runtime.py`: `execute()` now computes `_is_first_turn = not history` before the Phase 17 system-prompt block (replaces the old inline `if not history:` check); a new block prepends a compact `[CONTEXT: ...]` prefix onto the in-memory `history` entry for every turn after the first, via `retrieve_relevant()` (same import pattern as Phase 17, since `VaultService` doesn't exist as a class — `capabilities/vault/service.py` only exposes module-level functions)
+- `harness.save_memory()` still persists the raw, unprefixed `clean_content` — only the transient LLM-facing `history` list carries the prefix, so the stored conversation memory never gets polluted with injected context
+- Best-effort: any `retrieve_relevant` failure silently falls back to the original message, never blocking the response path
+- Verified live: a two-turn conversation on a fresh channel (via a `harness.chat` spy, since the persisted store never shows the transient prefix) confirmed no injection on turn 1, `retrieve_relevant` called with the configured top_k/min_score on turn 2, the model actually received the `[CONTEXT:]`-prefixed message on turn 2, and the persisted store stayed unprefixed throughout

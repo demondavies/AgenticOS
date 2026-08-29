@@ -56,7 +56,11 @@ class IntentRouter:
         # ------------------------------------------------------------
         if re.search(
             r"\b(?:system\s+metrics|hardware\s+metrics|"
-            r"system\s+telemetry|hardware\s+telemetry)\b",
+            r"system\s+telemetry|hardware\s+telemetry|"
+            r"agent\s+status|agents\s+status|check\s+agents?|"
+            r"how\s+(?:are\s+)?(?:the\s+)?agents?|"
+            r"os\s+(?:look|status|running)|"
+            r"how(?:'s|\s+is)\s+(?:the\s+)?(?:os|system))\b",
             lower,
         ) or (
             "cpu" in lower
@@ -293,9 +297,11 @@ class IntentRouter:
         # LIST TASKS
         # ------------------------------------------------------------
         if re.search(
-            r"\b(?:list|show|what(?:'s| are)|display)\s+(?:(?:my|all|current|active|running)\s+)?tasks?\b"
+            r"\b(?:list|show|what(?:'s| are)|display|check)\s+(?:(?:my|all|current|active|running|pending)\s+)?tasks?\b"
             r"|\btask\s+queue\b"
-            r"|\bwhat(?:'s| is)\s+(?:arnie\s+)?(?:working\s+on|running)\b",
+            r"|\bwhat(?:'s| is)\s+(?:arnie\s+)?(?:working\s+on|running)\b"
+            r"|\bany\s+(?:pending|active|running|current)\s+tasks?\b"
+            r"|\btasks?\s+pending\b",
             lower,
         ):
             return Intent(tool_name="list_tasks")
@@ -348,8 +354,9 @@ class IntentRouter:
         #   Show prospects with status qualified
         # ------------------------------------------------------------
         prospects_list_match = re.search(
-            r"\b(?:list|show|display)\s+(?:all\s+)?prospects?\b"
-            r"(?:\s+with\s+status\s+(\S+))?",
+            r"\b(?:list|show|display|check)\s+(?:all\s+)?(?:prospects?|pipeline)\b"
+            r"(?:\s+with\s+status\s+(\S+))?"
+            r"|\bpipeline\s+(?:status|overview|check)?\b",
             lower,
         )
         if prospects_list_match:

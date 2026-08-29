@@ -592,6 +592,7 @@ aside h3 {
     <div class="score-tile">
       <div class="label">Annual Saving</div>
       <div class="value green" id="stat-annual">£0</div>
+      <div id="stat-annual-sub" style="font-size:10px;color:var(--text-dim);margin-top:3px;"></div>
     </div>
     <div class="score-tile">
       <div class="label">Quick Wins</div>
@@ -945,11 +946,15 @@ function updateStats() {
   const scores = getActiveScores();
   const activeCount = scores.length;
   const monthlyCost = scores.reduce((s, x) => s + x.timeCost, 0);
-  const annualSaving = scores.filter(x => x.flag === 'quick_win').reduce((s, x) => s + x.annualSaving, 0);
+  const annualSavingTotal = scores.reduce((s, x) => s + x.annualSaving, 0);
+  const annualSavingQW    = scores.filter(x => x.flag === 'quick_win').reduce((s, x) => s + x.annualSaving, 0);
   const qwCount = scores.filter(x => x.flag === 'quick_win').length;
+  const fmt = n => '£' + Math.round(n).toLocaleString('en-GB');
 
-  document.getElementById('stat-monthly').textContent = '£' + monthlyCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  document.getElementById('stat-annual').textContent = '£' + annualSaving.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  document.getElementById('stat-monthly').textContent = fmt(monthlyCost);
+  document.getElementById('stat-annual').textContent  = fmt(annualSavingTotal);
+  const subEl = document.getElementById('stat-annual-sub');
+  if (subEl) subEl.textContent = qwCount > 0 ? fmt(annualSavingQW) + ' quick wins' : '';
   document.getElementById('stat-qw').textContent = qwCount;
   document.getElementById('stat-active').textContent = activeCount;
   document.getElementById('active-count-display').textContent = `${activeCount} process${activeCount !== 1 ? 'es' : ''} active`;
@@ -1061,7 +1066,7 @@ function showCompletionBanner(session) {
   const reportUrl = session?.report_url || null;
   const scores   = session?.scores || [];
   const qwCount  = scores.filter(s => s.flag === 'quick_win').length;
-  const annSaving = scores.reduce((sum, s) => sum + (s.flag === 'quick_win' ? (s.annual_saving_estimate || 0) : 0), 0);
+  const annSaving = scores.reduce((sum, s) => sum + (s.annual_saving_estimate || 0), 0);
 
   const banner = document.createElement('div');
   banner.id = 'completion-banner';

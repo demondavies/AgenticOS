@@ -56,6 +56,11 @@ Client workspace (Phase 19):
     list_clients
     update_client_status
 
+Prospect workspace (Phase 24):
+    research_prospect
+    list_prospects
+    get_prospect
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -706,6 +711,42 @@ async def _update_client_status(
 
 
 # ============================================================================
+# PROSPECT WORKSPACE HANDLERS
+# ============================================================================
+
+
+async def _research_prospect(
+    firm_name: str = "",
+    website: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Prospect research handler."""
+    raise RuntimeError(
+        "The research_prospect Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _list_prospects(
+    status: Optional[str] = None,
+) -> str:
+    """Fail clearly until the Harness binds the Prospect listing handler."""
+    raise RuntimeError(
+        "The list_prospects Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+async def _get_prospect(
+    prospect_id: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Prospect get handler."""
+    raise RuntimeError(
+        "The get_prospect Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -1196,6 +1237,92 @@ def create_default_registry() -> ToolRegistry:
                 "authoritative": True,
                 "handler_bound_by": "AgentHarness",
                 "workspace_approval_required": True,
+            },
+        )
+    )
+
+    # ========================================================================
+    # PROSPECT WORKSPACE
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="research_prospect",
+            description=(
+                "Research a UK accountancy practice by name and optional website. "
+                "Runs targeted web searches to build a structured lead profile — "
+                "staff signals, software stack (Xero/Sage/QuickBooks), pain signals "
+                "from reviews and job listings — and stores it as a Prospect record."
+            ),
+            handler=_research_prospect,
+            risk=ToolRisk.CONTROLLED,
+            local_access=False,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={
+                "phase": 24,
+                "workspace": "prospects",
+                "capability_handler": (
+                    "capabilities.prospects.service.add_prospect"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="list_prospects",
+            description=(
+                "List all researched prospects. Optional argument: status filter "
+                "(researched/contacted/replied/meeting/closed/rejected)."
+            ),
+            handler=_list_prospects,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 24,
+                "workspace": "prospects",
+                "capability_handler": (
+                    "capabilities.prospects.service.list_prospects"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_prospect",
+            description=(
+                "Retrieve the full detail of a single Prospect by their ID."
+            ),
+            handler=_get_prospect,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={
+                "phase": 24,
+                "workspace": "prospects",
+                "capability_handler": (
+                    "capabilities.prospects.service.get_prospect"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
             },
         )
     )

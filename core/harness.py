@@ -270,6 +270,22 @@ class AgentHarness:
             self.execute_update_client_status,
         )
 
+        # research_prospect, list_prospects, and get_prospect are Phase 24
+        # Lead Research Engine tools. Bound here so the Harness owns the
+        # web research and data persistence, same pattern as client tools.
+        self.tools.bind_handler(
+            "research_prospect",
+            self.execute_research_prospect,
+        )
+        self.tools.bind_handler(
+            "list_prospects",
+            self.execute_list_prospects,
+        )
+        self.tools.bind_handler(
+            "get_prospect",
+            self.execute_get_prospect,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -697,6 +713,151 @@ class AgentHarness:
         self.task_store.save_task(task)
 
         return f"Updated {client.name} → {status}"
+
+    async def execute_research_prospect(
+        self,
+        firm_name: str = "",
+        website: str = "",
+    ) -> str:
+        """Research a UK accountancy practice and build a structured lead profile.
+
+        Phase 24: Lead Research Engine.
+        Runs three targeted web searches — general firm info, software stack
+        signals, and pain signals from reviews/job listings — then synthesises
+        a Prospect record stored in prospects.json.
+        """
+        from capabilities.web.research import deep_research_web
+        from capabilities.web.search import web_search
+        from capabilities.prospects.service import add_prospect
+
+        if not firm_name:
+            return "Error: firm_name is required."
+
+        task = Task(
+            title=f"Research prospect: {firm_name[:50]}",
+            description=f"website={website or 'not provided'}",
+            workspace="prospects",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+        task.assign("arnie")
+        task.start()
+        self.task_store.save_task(task)
+
+        try:
+            # Search 1: General firm info + page extract
+            general_query = f'"{firm_name}" accountant UK'
+            if website:
+                general_query += f" {website}"
+            general_research = await deep_research_web(general_query, crawl_top_n=1)
+
+            # Search 2: Software stack signals
+            stack_results = web_search(
+                f'"{firm_name}" accountant Xero QuickBooks Sage FreeAgent'
+            )
+
+            # Search 3: Pain signals — reviews and job listings
+            pain_results = web_search(
+                f'"{firm_name}" accountant UK reviews hiring jobs vacancy'
+            )
+
+            # Heuristic extraction — software stack
+            combined = (general_research + stack_results).lower()
+            software_stack = "unknown"
+            for sw in ["xero", "quickbooks", "sage", "freeagent", "kashflow"]:
+                if sw in combined:
+                    software_stack = sw.title()
+                    break
+
+            # Heuristic extraction — pain signals
+            pain_lower = pain_results.lower()
+            pain_parts = []
+            if any(w in pain_lower for w in ["hiring", "vacancy", "job", "recruit"]):
+                pain_parts.append("Hiring activity detected (capacity pressure)")
+            if any(w in pain_lower for w in ["review", "trustpilot", "google review"]):
+                pain_parts.append("Public reviews found")
+            if any(w in pain_lower for w in ["manual", "spreadsheet", "excel"]):
+                pain_parts.append("Manual process signals in content")
+            pain_signals = ". ".join(pain_parts) if pain_parts else "No clear signals found."
+
+            # Truncated raw notes for storage
+            raw_notes = (
+                f"General: {general_research[:300]}
+"
+                f"Stack: {stack_results[:200]}
+"
+                f"Pain: {pain_results[:200]}"
+            )
+
+            prospect = add_prospect(
+                firm_name=firm_name,
+                website=website,
+                software_stack=software_stack,
+                pain_signals=pain_signals,
+                notes=raw_notes,
+            )
+
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+        task.complete(TaskResult(success=True, output=prospect.id))
+        self.task_store.save_task(task)
+
+        return (
+            f"Prospect researched: {prospect.firm_name}\n"
+            f"ID: {prospect.id}\n"
+            f"Software stack: {prospect.software_stack}\n"
+            f"Pain signals: {prospect.pain_signals}\n"
+            f"Priority: {prospect.priority} | Status: {prospect.status}"
+        )
+
+    async def execute_list_prospects(
+        self,
+        status: Optional[str] = None,
+    ) -> str:
+        """List all researched prospects, optionally filtered by status."""
+        from capabilities.prospects.service import list_prospects
+
+        prospects = list_prospects(status=status)
+        if not prospects:
+            return "No prospects found."
+
+        lines = [
+            f"- {p.firm_name} [{p.status}] — stack: {p.software_stack} "
+            f"| priority: {p.priority} (ID: {p.id})"
+            for p in prospects
+        ]
+        return "\n".join(lines)
+
+    async def execute_get_prospect(
+        self,
+        prospect_id: str = "",
+    ) -> str:
+        """Retrieve full detail of a single Prospect by ID."""
+        from capabilities.prospects.service import get_prospect
+
+        if not prospect_id:
+            return "Error: prospect_id is required."
+
+        prospect = get_prospect(prospect_id)
+        if prospect is None:
+            return f"Prospect '{prospect_id}' not found."
+
+        return (
+            f"Firm: {prospect.firm_name}\n"
+            f"Website: {prospect.website or 'not recorded'}\n"
+            f"Staff count: {prospect.staff_count}\n"
+            f"Services: {prospect.services}\n"
+            f"Software stack: {prospect.software_stack}\n"
+            f"Pain signals: {prospect.pain_signals}\n"
+            f"Priority: {prospect.priority} | Status: {prospect.status}\n"
+            f"Researched: {prospect.researched_at}\n"
+            f"Notes: {prospect.notes[:200] if prospect.notes else 'none'}"
+        )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:
         """List Swarm artifacts awaiting approval through the Swarm capability."""

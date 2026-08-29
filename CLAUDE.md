@@ -232,3 +232,9 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - Uses module-level retrieve_relevant() from capabilities/vault — no VaultService class exists
 - Verified: turn 2+ carries memory prefix, memory store stays unpolluted (stores raw clean_content)
 
+### Phase 24 — Lead Research Engine (Kaizen Studios)
+- `capabilities/prospects/__init__.py` + `capabilities/prospects/service.py`: new Prospect dataclass (id, firm_name, website, staff_count, services, software_stack, pain_signals, priority, status, researched_at, notes, outreach_email, outreach_dm); JSON-backed store at `prospects.json`; CRUD: `add_prospect`, `list_prospects`, `get_prospect`, `update_prospect_status`
+- `core/tools.py`: added Prospect workspace to module docstring; 3 stub handlers (`_research_prospect`, `_list_prospects`, `_get_prospect`); 3 Tool registrations (phase=24, workspace="prospects", handler_bound_by="AgentHarness")
+- `core/harness.py`: 3 `bind_handler` calls for prospect tools; `execute_research_prospect` (runs `deep_research_web` + 2× `web_search`, heuristic extraction of software stack and pain signals, stores Prospect via capability); `execute_list_prospects`; `execute_get_prospect`
+- `.gitignore`: `prospects.json` excluded (runtime data, same as `clients.json`)
+- Architecture: same workspace/Task tracking pattern as Phase 19 (client workspace) — research mission tracked as `workspace="prospects"` Task, Harness owns persistence, capability layer never touches Tool registry directly

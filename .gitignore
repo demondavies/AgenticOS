@@ -58,6 +58,9 @@ data/runtime/
 # Phase 19: client CRM data lives at the project root, not under data/.
 clients.json
 
+# Phase 24: prospect research data lives at the project root.
+prospects.json
+
 # ------------------------------------------------------------
 # Generated / temporary files
 # ------------------------------------------------------------

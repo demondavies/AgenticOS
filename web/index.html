@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KAIZEN OS</title>
 
@@ -2459,4 +2462,110 @@
         }
 
                         // ============================================================
-        // ▶️ YOUTUBE STUDIO
+        // ▶️ YOUTUBE STUDIO        // ============================================================
+        // ▶️ YOUTUBE STUDIO — no /api/youtube endpoint exists yet
+        // ============================================================
+
+        async function fetchYoutubeStats() {
+            try {
+                const res = await fetch("/api/youtube");
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById("ytSubs").innerText    = data.subscribers ?? "—";
+                document.getElementById("ytVideos").innerText  = data.videos ?? "—";
+                document.getElementById("ytUpload").innerText  = data.last_upload ?? "—";
+                const pill = document.getElementById("youtubeStatusPill");
+                pill.innerText = "CONNECTED";
+                pill.style.opacity = "1";
+            } catch (e) { /* no endpoint yet */ }
+        }
+
+        // ── Events SSE ───────────────────────────────────────────────────────────
+        const MAX_EVENT_ITEMS = 50;
+        let eventSource = null;
+
+        function connectEventStream() {
+            if (eventSource) return;
+            eventSource = new EventSource("/api/events");
+            eventSource.onmessage = (message) => {
+                let event;
+                try { event = JSON.parse(message.data); } catch (e) { return; }
+                appendEventItem(event);
+            };
+            eventSource.onerror = (e) => { console.error("Event stream error:", e); };
+        }
+
+        function appendEventItem(event) {
+            const listEl = document.getElementById("eventList");
+            const empty  = listEl.querySelector(".event-list-empty");
+            if (empty) empty.remove();
+            const item = document.createElement("div");
+            item.className = "event-item";
+            const severityClass = "event-severity-" + (event.severity || "info").toLowerCase();
+            item.innerHTML =
+                '<div class="event-item-main">' +
+                    '<span class="event-item-title">'  + escapeHtml(event.name || "event") + "</span>" +
+                    '<span class="event-item-meta">'   + escapeHtml(event.created_at || "") + "</span>" +
+                "</div>" +
+                '<span class="event-severity-pill ' + severityClass + '">' +
+                    escapeHtml((event.severity || "info").toUpperCase()) +
+                "</span>";
+            listEl.appendChild(item);
+            listEl.scrollTop = listEl.scrollHeight;
+            while (listEl.children.length > MAX_EVENT_ITEMS) listEl.removeChild(listEl.firstChild);
+            const workspaceHint = (event.workspace || (event.data && event.data.workspace) || "");
+            pulseParticlesForWorkspace(
+                PARTICLE_TYPES.includes(workspaceHint)
+                    ? workspaceHint
+                    : PARTICLE_TYPES[Math.floor(Math.random() * PARTICLE_TYPES.length)]
+            );
+        }
+
+        // ── Swarm staging ────────────────────────────────────────────────────────
+        function showStagingCard(taskId, filename) {
+            activeStagedTaskId = taskId;
+            document.getElementById("stagedTaskId").innerText = "ID: " + taskId;
+            document.getElementById("stagedFilename").value   = filename;
+            document.getElementById("swarmApprovalCard").style.display = "block";
+        }
+
+        async function approveStagedSwarm() {
+            if (!activeStagedTaskId) return;
+            const filename = document.getElementById("stagedFilename").value;
+            try {
+                const res  = await fetch("/api/swarm/approve", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ task_id: activeStagedTaskId, target_filename: filename })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message);
+                    document.getElementById("swarmApprovalCard").style.display = "none";
+                    activeStagedTaskId = null;
+                    fetchVaultFiles();
+                } else { alert("Disk write error: " + (data.error || "Unknown error.")); }
+            } catch (e) { alert("Swarm approval request failed."); }
+        }
+
+        async function rejectStagedSwarm() {
+            if (!activeStagedTaskId) return;
+            try {
+                await fetch("/api/swarm/reject/" + activeStagedTaskId, { method: "DELETE" });
+                document.getElementById("swarmApprovalCard").style.display = "none";
+                activeStagedTaskId = null;
+                alert("Artifact discarded!");
+            } catch (e) { alert("Failed to discard artifact."); }
+        }
+
+        // ── Security ─────────────────────────────────────────────────────────────
+        function escapeHtml(text) {
+            return String(text ?? "")
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+    </script>
+
+</body>
+</html>

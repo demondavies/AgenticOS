@@ -286,6 +286,13 @@ class AgentHarness:
             self.execute_get_prospect,
         )
 
+        # draft_outreach is Phase 25 — Outreach Drafting Engine.
+        # Bound here so the Harness can call self.chat() for LLM generation.
+        self.tools.bind_handler(
+            "draft_outreach",
+            self.execute_draft_outreach,
+        )
+
         # get_daily_vault_summary needs a model provider, so the Harness owns
         # the provider selection and binds the capability through the Tool
         # Registry. The Vault capability never constructs its own registry.
@@ -857,6 +864,131 @@ class AgentHarness:
             f"Priority: {prospect.priority} | Status: {prospect.status}\n"
             f"Researched: {prospect.researched_at}\n"
             f"Notes: {prospect.notes[:200] if prospect.notes else 'none'}"
+        )
+
+    async def execute_draft_outreach(
+        self,
+        prospect_id: str = "",
+    ) -> str:
+        """Draft a personalised cold email and LinkedIn DM for a prospect.
+
+        Phase 25: Outreach Drafting Engine.
+        Loads the prospect profile, uses the LLM (via self.chat) to generate
+        a personalised cold email and LinkedIn DM anchored in the Kaizen Studios
+        offer, then stores the drafts back in the prospect record.
+        """
+        from capabilities.prospects.service import get_prospect, save_outreach
+
+        if not prospect_id:
+            return "Error: prospect_id is required."
+
+        prospect = get_prospect(prospect_id)
+        if prospect is None:
+            return f"Prospect '{prospect_id}' not found."
+
+        task = Task(
+            title=f"Draft outreach: {prospect.firm_name[:45]}",
+            description=f"prospect_id={prospect_id}",
+            workspace="outreach",
+        )
+        task.queue()
+        self.task_store.save_task(task)
+        task.assign("arnie")
+        task.start()
+        self.task_store.save_task(task)
+
+        system_prompt = (
+            "You are ARNIE, the lead agent of Kaizen OS — the AI systems platform "
+            "of Kaizen Studios. Kaizen Studios helps UK independent accountancy "
+            "practices (1-10 staff) reclaim 10+ hours a week by replacing manual "
+            "processes with AI automation.\n\n"
+            "The offer: a free 30-minute discovery call where you identify their "
+            "biggest time drain and give a clear recommendation — no pitch, no "
+            "obligation. If they proceed: a £497 Kaizen Audit (2hr deep-dive + "
+            "written report), then a £1,500-3,500 Build, then a £750/mo retainer "
+            "converting to 20% of documented savings from month 4.\n\n"
+            "You write direct, specific outreach — no buzzwords, no generic AI "
+            "claims. Reference the firm's actual software stack and pain signals. "
+            "Email body under 130 words. LinkedIn DM under 90 words. "
+            "One clear ask: book a 30-minute call.\n\n"
+            "Output format — use these exact delimiters, nothing else:\n"
+            "=== EMAIL SUBJECT ===\n"
+            "<subject line>\n"
+            "=== EMAIL BODY ===\n"
+            "<email body>\n"
+            "=== LINKEDIN DM ===\n"
+            "<linkedin dm>"
+        )
+
+        user_message = (
+            f"Draft outreach for this prospect:\n\n"
+            f"Firm: {prospect.firm_name}\n"
+            f"Website: {prospect.website or 'not listed'}\n"
+            f"Software stack: {prospect.software_stack}\n"
+            f"Pain signals: {prospect.pain_signals}\n"
+            f"Services: {prospect.services}\n"
+            f"Priority: {prospect.priority}\n\n"
+            f"Generate the email subject, email body, and LinkedIn DM."
+        )
+
+        try:
+            response = await self.chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                capability="outreach",
+                source="execute_draft_outreach",
+            )
+        except Exception as err:
+            task.fail(str(err))
+            self.task_store.save_task(task)
+            raise
+
+        # Parse response into sections
+        import re as _re
+        email_subject = ""
+        email_body = ""
+        linkedin_dm = ""
+
+        subject_match = _re.search(
+            r"=== EMAIL SUBJECT ===\s*(.+?)\s*=== EMAIL BODY ===",
+            response, _re.DOTALL
+        )
+        body_match = _re.search(
+            r"=== EMAIL BODY ===\s*(.+?)\s*=== LINKEDIN DM ===",
+            response, _re.DOTALL
+        )
+        dm_match = _re.search(
+            r"=== LINKEDIN DM ===\s*(.+?)$",
+            response, _re.DOTALL
+        )
+
+        if subject_match:
+            email_subject = subject_match.group(1).strip()
+        if body_match:
+            email_body = body_match.group(1).strip()
+        if dm_match:
+            linkedin_dm = dm_match.group(1).strip()
+
+        # Fallback: store raw response if parsing fails
+        if not email_body:
+            email_body = response
+            email_subject = f"Quick question — {prospect.firm_name}"
+
+        full_email = f"Subject: {email_subject}\n\n{email_body}"
+        save_outreach(prospect_id, outreach_email=full_email, outreach_dm=linkedin_dm)
+
+        task.begin_verification()
+        self.task_store.save_task(task)
+        task.complete(TaskResult(success=True, output=prospect_id))
+        self.task_store.save_task(task)
+
+        return (
+            f"Outreach drafted for {prospect.firm_name}\n\n"
+            f"📧 EMAIL\nSubject: {email_subject}\n\n{email_body}\n\n"
+            f"💼 LINKEDIN DM\n{linkedin_dm}\n\n"
+            f"Saved to prospect record. Review before sending."
         )
 
     def list_staged_artifacts(self) -> Dict[str, Dict[str, Any]]:

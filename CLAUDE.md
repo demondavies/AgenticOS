@@ -238,3 +238,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/harness.py`: 3 `bind_handler` calls for prospect tools; `execute_research_prospect` (runs `deep_research_web` + 2× `web_search`, heuristic extraction of software stack and pain signals, stores Prospect via capability); `execute_list_prospects`; `execute_get_prospect`
 - `.gitignore`: `prospects.json` excluded (runtime data, same as `clients.json`)
 - Architecture: same workspace/Task tracking pattern as Phase 19 (client workspace) — research mission tracked as `workspace="prospects"` Task, Harness owns persistence, capability layer never touches Tool registry directly
+
+### Phase 25 — Outreach Drafting Engine (Kaizen Studios)
+- `capabilities/prospects/service.py`: added `save_outreach(prospect_id, outreach_email, outreach_dm)` — updates `outreach_email` and `outreach_dm` fields on an existing Prospect record
+- `capabilities/prospects/__init__.py`: exports `save_outreach`
+- `core/tools.py`: `_draft_outreach` stub handler; `draft_outreach` Tool registered (phase=25, workspace="outreach", risk=CONTROLLED, synthesis_required=True)
+- `core/harness.py`: `bind_handler("draft_outreach", self.execute_draft_outreach)`; `execute_draft_outreach` — loads Prospect, builds ARNIE system prompt (Kaizen Studios offer, tone, word limits), calls `self.chat()` with prospect profile as user message, parses `=== EMAIL SUBJECT === / === EMAIL BODY === / === LINKEDIN DM ===` delimiters, stores drafts via `save_outreach`, returns formatted drafts for review
+- Note: ARNIE is the lead agent of Kaizen OS — system prompt established this identity for all outreach generation

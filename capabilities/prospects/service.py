@@ -102,3 +102,20 @@ def update_prospect_status(
             _save(prospects)
             return p
     return None
+
+def save_outreach(
+    prospect_id: str,
+    outreach_email: str = "",
+    outreach_dm: str = "",
+) -> Prospect | None:
+    """Store generated outreach drafts against a Prospect record (Phase 25)."""
+    prospects = _load()
+    for p in prospects:
+        if p.id == prospect_id:
+            if outreach_email:
+                p.outreach_email = outreach_email
+            if outreach_dm:
+                p.outreach_dm = outreach_dm
+            _save(prospects)
+            return p
+    return None

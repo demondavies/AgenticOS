@@ -61,6 +61,9 @@ Prospect workspace (Phase 24):
     list_prospects
     get_prospect
 
+Outreach workspace (Phase 25):
+    draft_outreach
+
 Wave-2 tools are privileged and state-changing. Their registration here
 does NOT bypass PolicyEngine.
 
@@ -747,6 +750,21 @@ async def _get_prospect(
 
 
 # ============================================================================
+# OUTREACH WORKSPACE HANDLERS
+# ============================================================================
+
+
+async def _draft_outreach(
+    prospect_id: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the Outreach drafting handler."""
+    raise RuntimeError(
+        "The draft_outreach Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
 
@@ -1319,6 +1337,39 @@ def create_default_registry() -> ToolRegistry:
                 "workspace": "prospects",
                 "capability_handler": (
                     "capabilities.prospects.service.get_prospect"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    # ========================================================================
+    # OUTREACH WORKSPACE
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="draft_outreach",
+            description=(
+                "Draft a personalised cold email and LinkedIn DM for a prospect. "
+                "Argument: prospect_id (str). Loads the prospect profile from the "
+                "store, generates outreach using the Kaizen Studios offer, and saves "
+                "the drafts back to the prospect record for review before sending."
+            ),
+            handler=_draft_outreach,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=True,
+            metadata={
+                "phase": 25,
+                "workspace": "outreach",
+                "capability_handler": (
+                    "capabilities.prospects.service.save_outreach"
                 ),
                 "async": True,
                 "authoritative": True,

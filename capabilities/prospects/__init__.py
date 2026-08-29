@@ -5,6 +5,7 @@ from capabilities.prospects.service import (
     list_prospects,
     get_prospect,
     update_prospect_status,
+    save_outreach,
     Prospect,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "list_prospects",
     "get_prospect",
     "update_prospect_status",
+    "save_outreach",
     "Prospect",
 ]

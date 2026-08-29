@@ -775,6 +775,28 @@ class PolicyEngine:
                 allow_privileged_tools=False,
                 approval_tools=["update_client_status"],
             ),
+
+            # ----------------------------------------------------------
+            # Prospects (Phase 24 — Lead Research Engine)
+            # ----------------------------------------------------------
+
+            "prospects": WorkspacePolicy(
+                name="prospects",
+                allow_local_access=True,
+                allow_state_mutation=True,
+                allow_privileged_tools=False,
+            ),
+
+            # ----------------------------------------------------------
+            # Outreach (Phase 25 — Outreach Drafting Engine)
+            # ----------------------------------------------------------
+
+            "outreach": WorkspacePolicy(
+                name="outreach",
+                allow_local_access=True,
+                allow_state_mutation=True,
+                allow_privileged_tools=False,
+            ),
         }
 
 

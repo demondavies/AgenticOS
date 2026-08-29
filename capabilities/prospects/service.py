@@ -20,24 +20,34 @@ PROSPECTS_FILE = Path(os.environ.get("PROSPECTS_FILE", "prospects.json"))
 class Prospect:
     id: str
     firm_name: str
-    website: str
-    staff_count: str      # e.g. "3-5", "1-10", "unknown"
-    services: str         # e.g. "Tax, Payroll, Bookkeeping"
-    software_stack: str   # e.g. "Xero", "Sage", "unknown"
-    pain_signals: str     # extracted from reviews / job listings
-    priority: str         # high / medium / low
-    status: str           # researched / contacted / replied / meeting / closed / rejected
-    researched_at: str
+    website: str = ""
+    contact_name: str = ""
+    email: str = ""
+    linkedin_url: str = ""
+    industry: str = ""
+    employee_count: str = ""
+    # Legacy aliases kept for backward compat
+    staff_count: str = ""
+    services: str = ""
+    tech_stack: str = ""
+    software_stack: str = ""
+    pain_signals: str = ""
+    priority: str = "medium"
+    status: str = "researched"
+    researched_at: str = ""
+    added_at: str = ""
     notes: str = ""
-    outreach_email: str = ""   # populated by Phase 25
-    outreach_dm: str = ""      # populated by Phase 25
+    outreach_email: str = ""
+    outreach_dm: str = ""
 
 
 def _load() -> list[Prospect]:
     if not PROSPECTS_FILE.exists():
         return []
     with open(PROSPECTS_FILE, "r", encoding="utf-8") as f:
-        return [Prospect(**p) for p in json.load(f)]
+        raw = json.load(f)
+    valid_fields = {f.name for f in __import__("dataclasses").fields(Prospect)}
+    return [Prospect(**{k: v for k, v in p.items() if k in valid_fields}) for p in raw]
 
 
 def _save(prospects: list[Prospect]) -> None:

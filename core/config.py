@@ -45,6 +45,17 @@ Do not add conversational text before or after the block. Absolute silence excep
 
 DEFAULT_MODEL = "hermes3:8b"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Kaizen Studios outreach sender identity
+# Update these when you have an email and website.
+# ─────────────────────────────────────────────────────────────────────────────
+KAIZEN_SENDER_NAME = "BB"
+KAIZEN_SENDER_TITLE = "Founder"
+KAIZEN_SENDER_COMPANY = "Kaizen Studios"
+KAIZEN_SENDER_EMAIL = ""        # not yet — leave blank, use LinkedIn CTA
+KAIZEN_SENDER_LINKEDIN = ""     # add your LinkedIn profile URL when ready
+
+
 # Optional second ModelProvider: any OpenAI-compatible inference server
 # (LM Studio, vLLM, etc.). Left unset by default — the registry only
 # registers it when OPENAI_COMPAT_HOST is configured.

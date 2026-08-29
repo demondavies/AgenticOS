@@ -938,27 +938,64 @@ class AgentHarness:
         task.start()
         self.task_store.save_task(task)
 
+        from core.config import (
+            KAIZEN_SENDER_NAME,
+            KAIZEN_SENDER_TITLE,
+            KAIZEN_SENDER_COMPANY,
+            KAIZEN_SENDER_EMAIL,
+            KAIZEN_SENDER_LINKEDIN,
+        )
+
+        contact_line = (
+            KAIZEN_SENDER_EMAIL
+            if KAIZEN_SENDER_EMAIL
+            else (
+                f"LinkedIn: {KAIZEN_SENDER_LINKEDIN}"
+                if KAIZEN_SENDER_LINKEDIN
+                else "Reply to this message to arrange a time."
+            )
+        )
+
+        sig = (
+            f"{KAIZEN_SENDER_NAME}\n"
+            f"{KAIZEN_SENDER_TITLE}, {KAIZEN_SENDER_COMPANY}"
+        )
+
         system_prompt = (
-            "You are ARNIE, the lead agent of Kaizen OS — the AI systems platform "
-            "of Kaizen Studios. Kaizen Studios helps UK independent accountancy "
-            "practices (1-10 staff) reclaim 10+ hours a week by replacing manual "
-            "processes with AI automation.\n\n"
-            "The offer: a free 30-minute discovery call where you identify their "
-            "biggest time drain and give a clear recommendation — no pitch, no "
-            "obligation. If they proceed: a £497 Kaizen Audit (2hr deep-dive + "
-            "written report), then a £1,500-3,500 Build, then a £750/mo retainer "
-            "converting to 20% of documented savings from month 4.\n\n"
-            "You write direct, specific outreach — no buzzwords, no generic AI "
-            "claims. Reference the firm's actual software stack and pain signals. "
-            "Email body under 130 words. LinkedIn DM under 90 words. "
-            "One clear ask: book a 30-minute call.\n\n"
-            "Output format — use these exact delimiters, nothing else:\n"
+            "You are a cold outreach copywriter for Kaizen Studios.\n\n"
+
+            "# WHAT KAIZEN STUDIOS DOES\n"
+            "We help UK independent accountancy practices (1-10 staff) replace "
+            "manual processes with AI automation — freeing 10+ hours a week "
+            "without changing their software stack.\n\n"
+
+            "# THE OFFER\n"
+            "A free 30-minute call where we identify their biggest time drain "
+            "and give a clear recommendation. No pitch, no obligation.\n\n"
+
+            "# COPYWRITING RULES — follow these exactly\n"
+            "1. Never open with \'I\'. Open with an observation about THEM.\n"
+            "2. One specific hook from their research — name the signal "
+            "(hiring pressure, a software they use, a service they offer). "
+            "Do not make generic claims.\n"
+            "3. Bridge in one sentence: what that signal tells you.\n"
+            "4. Outcome not feature: \'reclaim time on X process\' not \'AI automation\'.\n"
+            "5. One ask only: a 30-minute call. No alternatives, no links, no lists.\n"
+            "6. UK professional register — measured, direct, no American hype.\n"
+            "7. BANNED words and phrases: \'I\'d love to\', \'excited\', "
+            "\'game-changing\', \'AI-powered\', \'leverage\', \'help you grow\', "
+            "\'save you time\', \'let me\', any exclamation mark.\n"
+            "8. Email body: under 130 words. LinkedIn DM: under 90 words.\n"
+            "9. Sign every email exactly like this (no changes):\n"
+            f"{sig}\n\n"
+
+            "# OUTPUT FORMAT — use these exact delimiters, nothing else\n"
             "=== EMAIL SUBJECT ===\n"
-            "<subject line>\n"
+            "<subject line — specific to this firm, under 8 words>\n"
             "=== EMAIL BODY ===\n"
-            "<email body>\n"
+            "<email body — opens with them, ends with a single CTA line and the sig above>\n"
             "=== LINKEDIN DM ===\n"
-            "<linkedin dm>"
+            "<linkedin dm — one hook, one ask, no sign-off needed>"
         )
 
         user_message = (

@@ -1432,7 +1432,7 @@
                 <div class="panel" id="taskBoardPanel">
                     <div class="panel-header">
                         <span>📋 Task Board</span>
-                        <select id="tasksStatusFilter2" class="tasks-filter-select" onchange="document.getElementById('tasksStatusFilter').value=this.value;fetchAndRenderTasks()">
+                        <select id="tasksStatusFilter2" class="tasks-filter-select" onchange="fetchAndRenderTasks()">
                             <option value="">All</option>
                             <option value="queued">Queued</option>
                             <option value="running">Running</option>
@@ -1446,20 +1446,11 @@
 
                 <div class="panel" id="tasksPanelEl">
                     <div class="panel-header">
-                        <span>📋 Active Tasks</span>
-                        <select id="tasksStatusFilter" class="tasks-filter-select">
-                            <option value="">All</option>
-                            <option value="queued">Queued</option>
-                            <option value="assigned">Assigned</option>
-                            <option value="running">Running</option>
-                            <option value="completed">Completed</option>
-                            <option value="failed">Failed</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
+                        <span>⚡ Live Tasks</span>
+                        <span style="font-size:10px;color:var(--text-muted);font-weight:400;letter-spacing:0">running &amp; queued</span>
                     </div>
-                    <div class="workspace-badges" id="workspaceBadges"></div>
                     <div id="taskList" class="task-list" style="overflow-y:auto;flex:1">
-                        Loading tasks...
+                        Loading...
                     </div>
                 </div>
 
@@ -1680,8 +1671,7 @@
             document.getElementById("cronJobsBtn")
                 .addEventListener("click", checkCronJobs);
 
-            document.getElementById("tasksStatusFilter")
-                .addEventListener("change", () => fetchAndRenderTasks());
+            // tasksStatusFilter removed — Live Tasks is hard-filtered to running/queued
 
             document.getElementById("flushMemoryBtn")
                 .addEventListener("click", triggerMemoryFlush);
@@ -2597,89 +2587,87 @@
 
         const WORKSPACES = ["swarm", "agency", "media", "development", "personal", "system", "client"];
 
-        async function fetchAndRenderTasks() {
+        function renderTaskItem(t) {
+            const item = document.createElement("div");
+            item.className = "task-item";
+            item.style.cursor = "pointer";
+            item.onclick = () => openTaskModal(t);
+            const statusClass = "task-status-" + (t.status || "unknown").toLowerCase();
+            item.innerHTML =
+                '<div class="task-item-main">' +
+                    '<span class="task-item-title">' + escapeHtml(t.title || t.id) + "</span>" +
+                    '<span class="task-item-meta">' +
+                        escapeHtml(t.workspace || "—") + " &middot; " +
+                        escapeHtml(t.assigned_agent || "unassigned") +
+                    "</span>" +
+                "</div>" +
+                '<span class="task-status-pill ' + statusClass + '">' +
+                    escapeHtml((t.status || "unknown").toUpperCase()) +
+                "</span>";
+            return item;
+        }
 
-            const listEl = document.getElementById("taskList");
-            const statusFilter = document.getElementById("tasksStatusFilter").value;
+        async function fetchAndRenderTasks() {
+            const boardEl = document.getElementById("taskList2");
+            const liveEl  = document.getElementById("taskList");
+            const boardFilter = document.getElementById("tasksStatusFilter2").value;
 
             try {
-
                 const res = await fetch("/api/tasks");
-
-                if (!res.ok) {
-                    throw new Error("Tasks endpoint returned HTTP " + res.status);
-                }
-
+                if (!res.ok) throw new Error("HTTP " + res.status);
                 const data = await res.json();
                 const allTasks = data.tasks || [];
 
+                updateKpis(allTasks);
                 renderWorkspaceBadges(allTasks);
-                updateKpis(allTasks);  // always update KPIs before any filter/return
 
-                const tasks = statusFilter
-                    ? allTasks.filter(t => (t.status || "") === statusFilter)
+                // ── TASK BOARD: all tasks, filtered by dropdown ──────────────
+                const boardTasks = boardFilter
+                    ? allTasks.filter(t => (t.status || "") === boardFilter)
                     : allTasks;
 
-                if (tasks.length === 0) {
-                    listEl.innerHTML =
-                        '<div class="task-list-empty">No tasks recorded yet.</div>';
-                    return;
+                if (boardTasks.length === 0) {
+                    boardEl.innerHTML = '<div class="task-list-empty">No tasks recorded yet.</div>';
+                } else {
+                    boardEl.innerHTML = "";
+                    boardTasks.forEach(t => boardEl.appendChild(renderTaskItem(t)));
                 }
 
-                listEl.innerHTML = "";
+                // ── LIVE TASKS: only running + queued ────────────────────────
+                const liveTasks = allTasks.filter(t =>
+                    (t.status || "") === "running" || (t.status || "") === "queued"
+                );
 
-                tasks.forEach(t => {
-
-                    const item = document.createElement("div");
-                    item.className = "task-item";
-                    item.style.cursor = "pointer";
-                    item.onclick = () => openTaskModal(t);
-
-                    const statusClass =
-                        "task-status-" + (t.status || "unknown").toLowerCase();
-
-                    item.innerHTML =
-                        '<div class="task-item-main">' +
-                            '<span class="task-item-title">' +
-                                escapeHtml(t.title || t.id) +
-                            "</span>" +
-                            '<span class="task-item-meta">' +
-                                escapeHtml(t.workspace || "—") +
-                                " &middot; " +
-                                escapeHtml(t.assigned_agent || "unassigned") +
-                            "</span>" +
-                        "</div>" +
-                        '<span class="task-status-pill ' + statusClass + '">' +
-                            escapeHtml((t.status || "unknown").toUpperCase()) +
-                        "</span>";
-
-                    listEl.appendChild(item);
-                });
+                if (liveTasks.length === 0) {
+                    liveEl.innerHTML =
+                        '<div class="task-list-empty" style="text-align:center;padding:32px 16px">' +
+                        '<div style="font-size:22px;margin-bottom:8px">✓</div>' +
+                        '<div style="color:var(--accent-green);font-weight:600;margin-bottom:4px">All quiet</div>' +
+                        '<div style="font-size:11px">No tasks running or queued</div>' +
+                        '</div>';
+                } else {
+                    liveEl.innerHTML = "";
+                    liveTasks.forEach(t => liveEl.appendChild(renderTaskItem(t)));
+                }
 
             } catch (e) {
-
-                listEl.innerHTML =
-                    '<div class="task-list-empty">Failed to load tasks.</div>';
-
+                boardEl.innerHTML = '<div class="task-list-empty">Failed to load tasks.</div>';
+                liveEl.innerHTML  = '<div class="task-list-empty">Failed to load tasks.</div>';
                 console.error("Tasks error:", e);
             }
         }
 
         function renderWorkspaceBadges(tasks) {
-
-            const container = document.getElementById("workspaceBadges");
+            const container = document.getElementById("workspaceBadges2");
+            if (!container) return;
             container.innerHTML = "";
-
             WORKSPACES.forEach(ws => {
-
                 const count = tasks.filter(
                     t => (t.workspace || "") === ws && (t.status || "") === "running"
                 ).length;
-
                 const badge = document.createElement("span");
                 badge.className = "ws-badge ws-badge-" + ws;
                 badge.innerText = ws + ": " + count;
-
                 container.appendChild(badge);
             });
         }

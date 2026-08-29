@@ -63,6 +63,7 @@ Capability  (capabilities/)
 | 24 | Kaizen Studios — Lead Research Engine (Scout agent, prospects workspace) | ✅ Done |
 | 25 | Kaizen Studios — Outreach Drafting Engine (Pitch agent, outreach workspace) | ✅ Done |
 | 26 | Kaizen Studios — Savings Baseline Logger (Atlas agent, client workspace) | ✅ Done |
+| 27 | Kaizen Studios — Automation Activity Logger (Atlas agent, client workspace) | ✅ Done |
 
 ---
 
@@ -267,3 +268,10 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
 - `core/agents.py`: Atlas granted `log_savings_baseline` + `list_savings_baselines` — PolicyEngine denies unpermitted agents regardless of correct workspace routing, so this step is required, not optional
 - `.gitignore`: `savings_baselines.json` + `automation_runs.json` (Phase 27, added ahead of building it)
 - Verified live end-to-end: `workspace="client"` Task resolves to Atlas, PolicyEngine ALLOWs, a real baseline computed correctly (45 min/run × 20 runs/mo @ £18.50/hr = £277.50/mo) and listed back
+
+### Phase 27 — Automation Activity Logger (`d4a2995`)
+- `capabilities/automation_log/__init__.py` + `capabilities/automation_log/service.py`: new AutomationRun dataclass (id, client_id, process_name, baseline_id, ran_at, duration_seconds, minutes_saved, notes); JSON-backed store at `automation_runs.json`; `log_run` cross-references the SavingsBaseline via `baseline_id` to compute `minutes_saved = baseline.minutes_per_run - (duration_seconds / 60)`; `list_runs(client_id, since_date=None)`; `monthly_summary(client_id, year, month)` tallies total runs / total minutes saved / total £ saved — £ computed per-run against that run's own baseline hourly rate, not a single client-wide rate
+- `core/tools.py`: `log_automation_run` (CONTROLLED) + `get_monthly_automation_summary` (SAFE), workspace="client", phase=27
+- `core/harness.py`: `execute_log_automation_run` / `execute_get_monthly_automation_summary` — same Task-lifecycle pattern as the savings baseline tools
+- `core/agents.py`: Atlas granted both new tool permissions
+- Verified live end-to-end: baseline (45 min/run @ £18.50/hr) → automation run taking 300s → minutes_saved computed correctly (40.0) → monthly summary correctly totals 1 run / 40.0 min / £12.33 saved

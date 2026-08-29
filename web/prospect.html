@@ -659,7 +659,8 @@ function doAudit() {
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function init() {
     const params     = new URLSearchParams(location.search);
-    const prospectId = params.get('id');
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const prospectId = pathParts[pathParts.length - 1] || params.get("id");
 
     if (!prospectId) {
         document.getElementById('pageContent').innerHTML =

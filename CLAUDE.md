@@ -256,3 +256,11 @@ dda09f3  arch: Task read path, periodic cleanup job, fix stale runtime test
   - `execute_draft_outreach`'s `self.chat()` call omitted `model=`, so once workspace routing was live it silently inherited Forge's `qwen2.5-coder:7b` (a coding model) via `self.chat()`'s hardcoded internal `workspace="development"` Task — pinned to `model=DEFAULT_MODEL` (`75e1348`)
   - `core/policy.py`'s default workspace policies never included `"prospects"` or `"outreach"` — `PolicyEngine.evaluate()` DENYs any workspace with no registered policy, so every Phase 24/25 tool call (`research_prospect`, `list_prospects`, `get_prospect`, `draft_outreach`) was being denied in practice. Registered both, matching the `agency`/`development` policy shape (`668b181`)
 - Also fixed `python -m core.tools` — its self-test's expected registry-name set was never updated for Phase 24/25's four tools, so it had been failing since those phases shipped (`79eea8b`)
+
+### Phase 26 — Savings Baseline Logger (`3a1fb40`)
+- `capabilities/savings/__init__.py` + `capabilities/savings/service.py`: new SavingsBaseline dataclass (id, client_id, process_name, minutes_per_run, runs_per_month, staff_hourly_rate, baseline_monthly_cost, logged_at, notes); JSON-backed store at `savings_baselines.json`; `log_baseline` computes `baseline_monthly_cost = (minutes_per_run * runs_per_month / 60) * staff_hourly_rate`; `list_baselines`, `get_baseline`
+- `core/tools.py`: `log_savings_baseline` (CONTROLLED, mutates_state=True) + `list_savings_baselines` (SAFE), both deterministic/direct-mode, workspace="client", phase=26
+- `core/harness.py`: `execute_log_savings_baseline` / `execute_list_savings_baselines` — same Task-lifecycle pattern as `execute_add_client`/`execute_list_clients`
+- `core/agents.py`: Atlas granted `log_savings_baseline` + `list_savings_baselines` — PolicyEngine denies unpermitted agents regardless of correct workspace routing, so this step is required, not optional
+- `.gitignore`: `savings_baselines.json` + `automation_runs.json` (Phase 27, added ahead of building it)
+- Verified live end-to-end: `workspace="client"` Task resolves to Atlas, PolicyEngine ALLOWs, a real baseline computed correctly (45 min/run × 20 runs/mo @ £18.50/hr = £277.50/mo) and listed back

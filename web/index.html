@@ -1340,10 +1340,10 @@
                         <span class="agent-badge standby" id="agentBadge_scout">IDLE</span>
                     </div>
                     <div class="agent-card-meta">
-                        <span class="agent-role-tag">Coordinator</span>
-                        <span class="agent-ws-tag">Personal</span>
+                        <span class="agent-role-tag">Biz Dev</span>
+                        <span class="agent-ws-tag">Agency</span>
                     </div>
-                    <div class="agent-card-desc">Multi-agent task routing, swarm coordination, and CRM oversight.</div>
+                    <div class="agent-card-desc">Research, prospect discovery, market analysis, and intelligence gathering.</div>
                 </div>
 
                 <div class="agent-card" id="agentRow_pitch" onclick="openAgentDetail('pitch')">
@@ -1353,10 +1353,10 @@
                         <span class="agent-badge standby" id="agentBadge_pitch">IDLE</span>
                     </div>
                     <div class="agent-card-meta">
-                        <span class="agent-role-tag">Researcher</span>
+                        <span class="agent-role-tag">Biz Dev</span>
                         <span class="agent-ws-tag">Agency</span>
                     </div>
-                    <div class="agent-card-desc">Web research, prospect discovery, competitor analysis, and sourcing.</div>
+                    <div class="agent-card-desc">CRM management, outreach drafting, client communications, and pipeline.</div>
                 </div>
 
                 <div class="agent-card" id="agentRow_atlas" onclick="openAgentDetail('atlas')">
@@ -1369,7 +1369,7 @@
                         <span class="agent-role-tag">Coder</span>
                         <span class="agent-ws-tag">Development</span>
                     </div>
-                    <div class="agent-card-desc">Code generation, debugging, technical builds, and development tasks.</div>
+                    <div class="agent-card-desc">Code generation, debugging, architecture, and development tasks.</div>
                 </div>
 
                 <div class="agent-card" id="agentRow_forge" onclick="openAgentDetail('forge')">
@@ -1379,10 +1379,10 @@
                         <span class="agent-badge standby" id="agentBadge_forge">IDLE</span>
                     </div>
                     <div class="agent-card-meta">
-                        <span class="agent-role-tag">Reviewer</span>
+                        <span class="agent-role-tag">Deployment</span>
                         <span class="agent-ws-tag">Development</span>
                     </div>
-                    <div class="agent-card-desc">Code review, quality assurance, and testing before deployment.</div>
+                    <div class="agent-card-desc">Deployment, release management, QA, and production readiness.</div>
                 </div>
 
 
@@ -2961,31 +2961,31 @@
             },
             scout: {
                 name: "Scout",
-                role: "Coordinator",
-                workspace: "Personal",
-                description: "Manages multi-agent workflows and swarm coordination. Routes tool calls across the agent network, handles CRM oversight, and orchestrates parallel workstreams.",
-                tools: ["list_prospects", "get_prospect", "list_clients", "add_client", "draft_outreach", "research_prospect", "launch_swarm", "run_parallel_agency", "generate_image"]
+                role: "Researcher",
+                workspace: "Agency",
+                description: "Research, prospect discovery, market intelligence, and competitive analysis. Identifies targets and builds the pipeline foundation.",
+                tools: ["run_agency_research", "research_prospect", "web_search", "web_fetch", "list_prospects", "get_prospect"]
             },
             pitch: {
                 name: "Pitch",
-                role: "Researcher",
+                role: "Biz Dev",
                 workspace: "Agency",
-                description: "Deep prospect discovery and market intelligence. Researches companies, identifies pain signals, builds target lists, and sources competitive information.",
-                tools: ["run_agency_research", "research_prospect", "web_search", "web_fetch", "list_prospects", "get_prospect"]
+                description: "CRM management, outreach drafting, client communications, and pipeline management. Turns research into revenue.",
+                tools: ["draft_outreach", "list_prospects", "get_prospect", "list_clients", "add_client", "update_client_status", "get_client_dashboard", "launch_swarm", "run_parallel_agency"]
             },
             atlas: {
                 name: "Atlas",
                 role: "Coder",
                 workspace: "Development",
-                description: "Technical build agent. Handles code generation, debugging, architecture decisions, and all development tasks.",
+                description: "Code generation, debugging, architecture decisions, and all development tasks. The primary technical build agent.",
                 tools: ["create_file", "edit_file", "run_command", "web_search", "create_task"]
             },
             forge: {
                 name: "Forge",
-                role: "Reviewer",
+                role: "Deployment",
                 workspace: "Development",
-                description: "Code review, quality assurance, and testing. Validates output before deployment and ensures standards are met.",
-                tools: ["read_file", "web_search", "create_task", "run_command"]
+                description: "Deployment, release management, quality assurance, and production readiness. Gets code from done to live.",
+                tools: ["run_command", "read_file", "web_search", "create_task"]
             }
         };
 

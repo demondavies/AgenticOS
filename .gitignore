@@ -68,6 +68,11 @@ savings_baselines.json
 # Phase 27: automation activity log data lives at the project root.
 automation_runs.json
 
+# Kaizen OS SQLite database — prospects + discovery queue.
+kaizen.db
+kaizen.db-wal
+kaizen.db-shm
+
 # ------------------------------------------------------------
 # Generated / temporary files
 # ------------------------------------------------------------
@@ -164,3 +169,9 @@ AGENTS.md
 audit_sessions.json
 reports/
 reports/*.html
+
+kaido.db
+*.db
+prospects.json.bak
+.fuse_hidden*
+nul

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospect Pool — Kaido OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root {
+    --bg:       #0D1421;
+    --surface:  #131C2E;
+    --surface2: #1A2540;
+    --border:   #1E2D45;
+    --border2:  #263755;
+    --gold:     #C8A96E;
+    --gold-dim: #8A6E42;
+    --text:     #E8EAF0;
+    --muted:    #7A8BAA;
+    --green:    #4CAF8A;
+    --amber:    #E8A838;
+    --red:      #E05A6A;
+    --blue:     #4A8FD4;
+    --cyan:     #A8C4E8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.logo:hover { color: #fff; }
+.sep { color: var(--border2); font-size: 16px; }
+.page-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.spacer { flex: 1; }
+.refresh-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    transition: all .15s;
+}
+.refresh-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── KPI ROW ── */
+.kpi-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+}
+.kpi-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 24px;
+    border-right: 1px solid var(--border);
+    min-width: 110px;
+    flex-shrink: 0;
+}
+.kpi-chip:last-child { border-right: none; }
+.kpi-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+.kpi-val.green { color: var(--green); }
+.kpi-val.gold  { color: var(--gold); }
+.kpi-val.amber { color: var(--amber); }
+.kpi-val.cyan  { color: var(--cyan); }
+.kpi-val.muted { color: var(--muted); }
+.kpi-label {
+    font-size: 9px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+/* ── FILTER / SEARCH BAR ── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+    position: sticky;
+    top: 45px;
+    z-index: 90;
+}
+.ftabs { display: flex; gap: 4px; }
+.ftab {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.ftab:hover { border-color: var(--gold); color: var(--gold); }
+.ftab.active { border-color: var(--gold); color: var(--gold); background: rgba(200,169,110,0.1); }
+.ftab.hunt  { border-color: rgba(76,175,138,0.4); color: var(--green); }
+.ftab.hunt.active { background: rgba(76,175,138,0.12); }
+.ftab.watch { border-color: rgba(200,169,110,0.4); color: var(--gold); }
+.ftab.watch.active { background: rgba(200,169,110,0.10); }
+.filter-sep { width: 1px; height: 22px; background: var(--border2); flex-shrink: 0; }
+.sort-select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    outline: none;
+}
+.sort-select:focus { border-color: var(--gold); }
+.search-wrap {
+    display: flex; align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 0 10px;
+    gap: 6px;
+    margin-left: auto;
+}
+.search-wrap:focus-within { border-color: var(--gold); }
+.search-wrap input {
+    background: none; border: none; outline: none;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    width: 200px;
+    padding: 5px 0;
+}
+.search-wrap input::placeholder { color: var(--muted); }
+.search-ic { color: var(--muted); font-size: 12px; }
+
+/* ── MAIN GRID ── */
+.pool-wrap {
+    padding: 20px 24px;
+}
+.pool-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 14px;
+}
+.pool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 12px;
+}
+.empty-state {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+}
+
+/* ── PROSPECT CARD ── */
+.pcard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+    position: relative;
+}
+.pcard:hover { border-color: var(--border2); transform: translateY(-1px); }
+.pcard.grade-a { border-left: 3px solid var(--green); }
+.pcard.grade-b { border-left: 3px solid var(--gold); }
+.pcard.grade-c { border-left: 3px solid #444; }
+
+.card-top {
+    display: flex; align-items: flex-start; gap: 10px;
+}
+.verdict-block {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--surface2);
+    border-radius: 7px;
+    padding: 8px 12px;
+    flex-shrink: 0;
+    min-width: 56px;
+    border: 1px solid var(--border);
+}
+.verdict-letter {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+}
+.grade-a .verdict-letter { color: var(--green); }
+.grade-b .verdict-letter { color: var(--gold); }
+.grade-c .verdict-letter { color: var(--muted); }
+.verdict-sub {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.grade-a .verdict-sub { color: var(--green); }
+.grade-b .verdict-sub { color: var(--gold); }
+.grade-c .verdict-sub { color: var(--muted); }
+
+.card-info { flex: 1; min-width: 0; }
+.card-firm {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.card-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.status-pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; border: 1px solid;
+}
+.sp-researched { color: var(--muted);  border-color: var(--border2);             background: rgba(122,139,170,0.08); }
+.sp-pitched    { color: var(--amber);  border-color: rgba(232,168,56,0.3);       background: rgba(232,168,56,0.08); }
+.sp-contacted  { color: var(--blue);   border-color: rgba(74,143,212,0.3);       background: rgba(74,143,212,0.08); }
+.sp-audited    { color: var(--green);  border-color: rgba(76,175,138,0.3);       background: rgba(76,175,138,0.08); }
+.sp-client     { color: var(--gold);   border-color: rgba(200,169,110,0.3);      background: rgba(200,169,110,0.08); }
+.confidence-pill {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 8px;
+}
+
+/* Score bar */
+.score-row {
+    display: flex; align-items: center; gap: 8px;
+}
+.score-bar-wrap {
+    flex: 1;
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .4s;
+}
+.grade-a .score-bar-fill { background: var(--green); }
+.grade-b .score-bar-fill { background: var(--gold); }
+.grade-c .score-bar-fill { background: #444; }
+.score-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Pain signals */
+.pain-list { display: flex; flex-direction: column; gap: 3px; }
+.pain-item {
+    display: flex; align-items: flex-start; gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+.pain-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    margin-top: 5px; flex-shrink: 0;
+}
+.pain-dot.observed   { background: var(--amber); }
+.pain-dot.hypothesised { background: var(--muted); }
+
+/* Stack chips */
+.stack-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.stack-chip {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--cyan);
+    background: rgba(168,196,232,0.08);
+    border: 1px solid rgba(168,196,232,0.2);
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+.stack-unknown { color: var(--muted); font-size: 10px; font-family: 'DM Mono', monospace; }
+
+/* Value row */
+.value-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+.value-main { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+.value-range { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.value-basis { font-size: 10px; color: var(--muted); max-width: 160px; text-align: right; line-height: 1.3; }
+.value-unknown { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+/* Sub score chips */
+.subscore-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.subscore {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+}
+.subscore b { color: var(--text); }
+
+/* Card actions */
+.card-actions {
+    display: flex; gap: 6px;
+    padding-top: 2px;
+    border-top: 1px solid var(--border);
+}
+.cact-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    text-align: center;
+}
+.cact-btn:hover { border-color: var(--border2); color: var(--text); background: var(--border); }
+.cact-btn.primary { background: rgba(200,169,110,0.12); border-color: rgba(200,169,110,0.35); color: var(--gold); }
+.cact-btn.primary:hover { background: rgba(200,169,110,0.2); }
+.cact-btn.green { background: rgba(76,175,138,0.12); border-color: rgba(76,175,138,0.35); color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <a href="/" class="logo">◆ KAIDO OS</a>
+    <span class="sep">/</span>
+    <span class="page-title">Prospect Pool</span>
+    <div class="spacer"></div>
+    <button class="refresh-btn" onclick="loadProspects()">↻ Refresh</button>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+    <div class="kpi-chip">
+        <span class="kpi-val cyan" id="kTotal">—</span>
+        <span class="kpi-label">Total</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val green" id="kHunt">—</span>
+        <span class="kpi-label">A · Hunt</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val gold" id="kWatch">—</span>
+        <span class="kpi-label">B · Watch</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val muted" id="kPass">—</span>
+        <span class="kpi-label">C · Pass</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val amber" id="kPitched">—</span>
+        <span class="kpi-label">Pitched</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val green" id="kClients">—</span>
+        <span class="kpi-label">Clients</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val gold" id="kPipeVal">—</span>
+        <span class="kpi-label">Pipeline Value</span>
+    </div>
+    <div class="kpi-chip">
+        <span class="kpi-val cyan" id="kAvgScore">—</span>
+        <span class="kpi-label">Avg Score</span>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+    <div class="ftabs" id="filterTabs">
+        <button class="ftab active" data-filter="all"       onclick="setFilter('all',this)">All</button>
+        <button class="ftab hunt"   data-filter="A"         onclick="setFilter('A',this)">◆ Hunt</button>
+        <button class="ftab watch"  data-filter="B"         onclick="setFilter('B',this)">◇ Watch</button>
+        <button class="ftab"        data-filter="C"         onclick="setFilter('C',this)">✕ Pass</button>
+        <button class="ftab"        data-filter="researched" onclick="setFilter('researched',this)">Researched</button>
+        <button class="ftab"        data-filter="pitched"   onclick="setFilter('pitched',this)">Pitched</button>
+        <button class="ftab"        data-filter="audited"   onclick="setFilter('audited',this)">Audited</button>
+        <button class="ftab"        data-filter="client"    onclick="setFilter('client',this)">Client</button>
+    </div>
+    <div class="filter-sep"></div>
+    <select class="sort-select" id="sortSelect" onchange="renderCards()">
+        <option value="score">Sort: Score ↓</option>
+        <option value="value">Sort: Value ↓</option>
+        <option value="name">Sort: Name ↑</option>
+        <option value="date">Sort: Date ↓</option>
+    </select>
+    <div class="search-wrap">
+        <span class="search-ic">⌕</span>
+        <input type="text" id="searchInput" placeholder="Search firm, stack, location…" oninput="renderCards()">
+    </div>
+</div>
+
+<!-- POOL -->
+<div class="pool-wrap">
+    <div class="pool-count" id="poolCount">Loading…</div>
+    <div class="pool-grid" id="poolGrid">
+        <div class="empty-state">Loading prospects…</div>
+    </div>
+</div>
+
+<script>
+let ALL_PROSPECTS = [];
+let activeFilter  = 'all';
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+}
+
+function fmtGBP(n) {
+    if (!n) return null;
+    return n >= 1000 ? '£' + Math.round(n / 1000) + 'k' : '£' + n.toLocaleString();
+}
+
+function setFilter(f, el) {
+    activeFilter = f;
+    document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderCards();
+}
+
+function gradeClass(v) {
+    return v === 'A' ? 'grade-a' : v === 'B' ? 'grade-b' : 'grade-c';
+}
+function gradeLabel(v) {
+    return v === 'A' ? 'Hunt' : v === 'B' ? 'Watch' : 'Pass';
+}
+function statusPillClass(s) {
+    return { researched:'sp-researched', pitched:'sp-pitched', contacted:'sp-contacted', audited:'sp-audited', client:'sp-client' }[s] || 'sp-researched';
+}
+
+function renderCards() {
+    const grid   = document.getElementById('poolGrid');
+    const query  = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    const sort   = document.getElementById('sortSelect').value;
+
+    let data = ALL_PROSPECTS.slice();
+
+    // Filter
+    if (activeFilter === 'A' || activeFilter === 'B' || activeFilter === 'C') {
+        data = data.filter(p => (p.verdict || 'B') === activeFilter);
+    } else if (activeFilter !== 'all') {
+        data = data.filter(p => (p.status || 'researched') === activeFilter);
+    }
+
+    // Search
+    if (query) {
+        data = data.filter(p => {
+            const blob = [
+                p.firm_name, p.software_stack, p.tech_stack,
+                p.primary_thesis, p.niche, p.website, p.location
+            ].join(' ').toLowerCase();
+            return blob.includes(query);
+        });
+    }
+
+    // Sort
+    if (sort === 'score')  data.sort((a,b) => (b.total_score||0) - (a.total_score||0));
+    if (sort === 'value')  data.sort((a,b) => {
+        const av = (a.financial_value||{}).amount_gbp || 0;
+        const bv = (b.financial_value||{}).amount_gbp || 0;
+        return bv - av;
+    });
+    if (sort === 'name')   data.sort((a,b) => (a.firm_name||'').localeCompare(b.firm_name||''));
+    if (sort === 'date')   data.sort((a,b) => (b.researched_at||b.added_at||'').localeCompare(a.researched_at||a.added_at||''));
+
+    document.getElementById('poolCount').textContent = `${data.length} prospect${data.length === 1 ? '' : 's'} shown`;
+
+    if (!data.length) {
+        grid.innerHTML = '<div class="empty-state">No prospects match this filter.</div>';
+        return;
+    }
+
+    grid.innerHTML = '';
+    data.forEach(p => {
+        const verdict  = p.verdict || 'B';
+        const status   = p.status  || 'researched';
+        const gclass   = gradeClass(verdict);
+        const score    = p.total_score || 0;
+        const scorePct = Math.round((score / 20) * 100);
+        const conf     = p.confidence || p.evidence_confidence || 0;
+
+        // Pain signals
+        let painHTML = '<span class="stack-unknown">No pain signals recorded</span>';
+        if (Array.isArray(p.pain_signals) && p.pain_signals.length) {
+            painHTML = '<div class="pain-list">' + p.pain_signals.slice(0, 3).map(sig => {
+                const type = (sig.evidence || '').toLowerCase().includes('observed') ? 'observed' : 'hypothesised';
+                return `<div class="pain-item"><div class="pain-dot ${type}"></div><span>${esc(sig.description || sig)}</span></div>`;
+            }).join('') + '</div>';
+        } else if (typeof p.pain_signals === 'string' && p.pain_signals.trim()) {
+            painHTML = `<div class="pain-list"><div class="pain-item"><div class="pain-dot hypothesised"></div><span>${esc(p.pain_signals.split('\n')[0])}</span></div></div>`;
+        }
+
+        // Stack
+        let stackHTML = '<span class="stack-unknown">Stack unknown</span>';
+        const rawStack = p.software_stack || p.tech_stack || '';
+        if (rawStack && rawStack !== 'unknown') {
+            const chips = rawStack.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+            stackHTML = chips.map(c => `<span class="stack-chip">${esc(c)}</span>`).join('');
+        }
+
+        // Value
+        const fv = p.financial_value || {};
+        const hasVal = fv.status === 'known' && fv.amount_gbp;
+        let valueHTML;
+        if (hasVal) {
+            const range = (fv.range_low && fv.range_high)
+                ? `<span class="value-range">(${fmtGBP(fv.range_low)}–${fmtGBP(fv.range_high)})</span>` : '';
+            const basis = fv.basis ? `<span class="value-basis">${esc(fv.basis)}</span>` : '';
+            valueHTML = `<div class="value-row">
+                <div>
+                    <div class="value-main">${fmtGBP(fv.amount_gbp)}/yr</div>
+                    ${range}
+                </div>
+                ${basis}
+            </div>`;
+        } else {
+            valueHTML = `<div class="value-row"><span class="value-unknown">💰 Value unknown</span></div>`;
+        }
+
+        // Sub-scores
+        const ps = p.pain_score || 0;
+        const vs = p.value_score || 0;
+        const us = p.urgency_score || 0;
+        const rs = p.repeatability_score || 0;
+        const subscoreHTML = `<div class="subscore-row">
+            <span class="subscore">Pain <b>${ps}</b>/5</span>
+            <span class="subscore">Value <b>${vs}</b>/5</span>
+            <span class="subscore">Urgency <b>${us}</b>/5</span>
+            <span class="subscore">Repeat <b>${rs}</b>/5</span>
+        </div>`;
+
+        // Actions
+        const auditBtn = status === 'audited'
+            ? `<button class="cact-btn green" onclick="event.stopPropagation();window.open('/prospect/${p.id}','_blank')">📄 Report</button>`
+            : `<button class="cact-btn" onclick="event.stopPropagation();auditProspect('${esc(p.firm_name)}','${p.id}')">⟐ Audit</button>`;
+        const pitchBtn = status === 'researched' || status === 'audited'
+            ? `<button class="cact-btn primary" onclick="event.stopPropagation();pitchProspect('${p.id}')">✉ Pitch</button>`
+            : '';
+
+        const card = document.createElement('div');
+        card.className = `pcard ${gclass}`;
+        card.onclick = () => window.open(`/prospect/${p.id}`, '_blank');
+        card.innerHTML = `
+            <div class="card-top">
+                <div class="verdict-block">
+                    <span class="verdict-letter">${esc(verdict)}</span>
+                    <span class="verdict-sub">${gradeLabel(verdict)}</span>
+                </div>
+                <div class="card-info">
+                    <div class="card-firm">${esc(p.firm_name)}</div>
+                    <div class="card-badges">
+                        <span class="status-pill ${statusPillClass(status)}">${status.toUpperCase()}</span>
+                        ${conf ? `<span class="confidence-pill">${conf}% conf</span>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <div class="score-row">
+                <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${scorePct}%"></div></div>
+                <span class="score-label">${score}/20</span>
+            </div>
+
+            ${subscoreHTML}
+
+            ${painHTML}
+
+            <div class="stack-row">${stackHTML}</div>
+
+            ${valueHTML}
+
+            <div class="card-actions">
+                <button class="cact-btn" onclick="event.stopPropagation();window.open('/prospect/${p.id}','_blank')">🔍 View</button>
+                ${auditBtn}
+                ${pitchBtn}
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function updateKPIs(prospects) {
+    const countA = prospects.filter(p => p.verdict === 'A').length;
+    const countB = prospects.filter(p => p.verdict === 'B').length;
+    const countC = prospects.filter(p => p.verdict === 'C').length;
+    const countPitched = prospects.filter(p => ['pitched','contacted'].includes(p.status)).length;
+    const countClients = prospects.filter(p => p.status === 'client').length;
+    const avgScore = prospects.length
+        ? (prospects.reduce((s,p) => s + (p.total_score||0), 0) / prospects.length).toFixed(1)
+        : '—';
+
+    // MRR-based pipeline: every prospect floors at 1 pkg × £750/mo
+    const activePros = prospects.filter(p => p.verdict !== 'C' && p.status !== 'client');
+    let mrrAnnual = 0;
+    activePros.forEach(p => {
+        const fv = p.financial_value || {};
+        const pkgCount = (fv.status === 'known' && fv.amount_gbp)
+            ? Math.max(1, Math.round(fv.amount_gbp / (750 * 12))) : 1;
+        mrrAnnual += pkgCount * 750 * 12;
+    });
+    const fc = Math.min(activePros.length, 4), rc = Math.max(activePros.length - 4, 0);
+    const upfront = (fc * 750) + (rc * 1500);
+    const totalPipeline = mrrAnnual + upfront;
+    const fmt = n => '£' + (n >= 1000 ? Math.round(n/1000) + 'k' : n.toLocaleString());
+
+    document.getElementById('kTotal').textContent    = prospects.length;
+    document.getElementById('kHunt').textContent     = countA;
+    document.getElementById('kWatch').textContent    = countB;
+    document.getElementById('kPass').textContent     = countC;
+    document.getElementById('kPitched').textContent  = countPitched;
+    document.getElementById('kClients').textContent  = countClients;
+    document.getElementById('kAvgScore').textContent = avgScore + '/20';
+    document.getElementById('kPipeVal').textContent  = activePros.length
+        ? fmt(totalPipeline)
+        : prospects.length + ' tracked';
+}
+
+async function loadProspects() {
+    document.getElementById('poolGrid').innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+        const res = await fetch('/api/prospects');
+        if (!res.ok) throw new Error(res.status);
+        const { prospects } = await res.json();
+
+        // Deduplicate by firm_name
+        const seen = {};
+        (prospects || []).forEach(p => { seen[p.firm_name || p.id] = p; });
+        ALL_PROSPECTS = Object.values(seen);
+
+        updateKPIs(ALL_PROSPECTS);
+        renderCards();
+    } catch(e) {
+        document.getElementById('poolGrid').innerHTML = `<div class="empty-state">Failed to load: ${e.message}</div>`;
+    }
+}
+
+function pitchProspect(id) {
+    const p = ALL_PROSPECTS.find(x => x.id === id);
+    const name = p ? p.firm_name : id;
+    if (confirm(`Open ARNIE to draft outreach for ${name}?`)) {
+        window.open(`/?pitch=${encodeURIComponent(id)}`, '_blank');
+    }
+}
+
+function auditProspect(firm, id) {
+    window.open(`/audit?firm=${encodeURIComponent(firm)}&prospect_id=${encodeURIComponent(id)}`, '_blank');
+}
+
+// Auto-refresh every 30s
+loadProspects();
+setInterval(loadProspects, 30000);
+</script>
+</body>
+</html>

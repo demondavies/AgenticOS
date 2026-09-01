@@ -1957,12 +1957,14 @@ class AgentHarness:
         from capabilities.prospects.service import list_prospects as _lp  # noqa: F401
 
         def _lib_task(step: str) -> Task:
-            return Task(
+            t = Task(
                 title=f"Scheduled Librarian Run — {step}",
                 description="Automated curation step.",
                 workspace="library",
                 metadata={"agent": "Librarian"},
             )
+            t.assign("librarian")
+            return t
 
         purge_text = "(skipped)"
         curate_text = "(skipped)"
@@ -2007,7 +2009,21 @@ class AgentHarness:
         except Exception as exc:
             return f"Librarian run done but vault write failed: {exc}"
 
-        return f"Librarian run complete — {now}"
+        # Build a compact summary for the dashboard task card
+        def _first_line(text: str) -> str:
+            return text.strip().splitlines()[0] if text.strip() else "(none)"
+        purge_summary  = _first_line(purge_text)
+        curate_summary = _first_line(curate_text)
+        # Extract PECR counts from curate output if present
+        pecr_match = re.search(r"PECR eligible:\s*(\d+).*?ineligible:\s*(\d+)", curate_text, re.DOTALL)
+        pecr_line = ""
+        if pecr_match:
+            pecr_line = f" · PECR: {pecr_match.group(1)} eligible, {pecr_match.group(2)} blocked"
+        return (
+            f"Librarian run complete — {now}\n"
+            f"Purge: {purge_summary}\n"
+            f"Curate: {curate_summary}{pecr_line}"
+        )
 
     async def execute_maya_backlog_run(self) -> str:
         """Scheduled Maya run: draft outreach for all Grade A prospects without copy."""
@@ -3055,7 +3071,7 @@ class AgentHarness:
         )
 
         task.queue()
-        task.assign(task.assigned_agent if task.assigned_agent else agent.id)
+        task.assign(task.assigned_agent if task.assigned_agent else agent.name.lower())
         task.start()
         self.task_store.save_task(task)
 
@@ -3096,7 +3112,7 @@ class AgentHarness:
         )
 
         task.queue()
-        task.assign(task.assigned_agent if task.assigned_agent else agent.id)
+        task.assign(task.assigned_agent if task.assigned_agent else agent.name.lower())
         task.start()
         self.task_store.save_task(task)
 
@@ -3398,7 +3414,7 @@ class AgentHarness:
             # Assign
             # ==========================================================
 
-            task.assign(task.assigned_agent if task.assigned_agent else agent.id)
+            task.assign(task.assigned_agent if task.assigned_agent else agent.name.lower())
 
             self.events.publish(
                 create_event(

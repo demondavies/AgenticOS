@@ -140,6 +140,8 @@ class ProspectIntelligence:
     added_at: str = ""
     unknowns: List[str] = field(default_factory=list)
     contradictions: List[str] = field(default_factory=list)
+    outreach_eligible: bool = True     # PECR gate: False = not safe to cold-email
+    entity_type: str = ""              # "ltd", "llp", "unincorporated", "unknown"
     notes: str = ""
 
     def __post_init__(self):
@@ -258,6 +260,10 @@ def _prospect_from_dict(raw: dict) -> ProspectIntelligence:
         priority=priority,
         researched_at=raw.get("researched_at", ""),
         added_at=raw.get("added_at", ""),
+        unknowns=raw.get("unknowns", []),
+        contradictions=raw.get("contradictions", []),
+        outreach_eligible=raw.get("outreach_eligible", True),
+        entity_type=raw.get("entity_type", ""),
         notes=raw.get("notes", ""),
     )
 
@@ -370,6 +376,8 @@ def add_prospect(
     priority: str = "",
     unknowns: Optional[List[str]] = None,
     contradictions: Optional[List[str]] = None,
+    outreach_eligible: bool = True,
+    entity_type: str = "",
 ) -> ProspectIntelligence:
     prospects = _load()
     prospect_id = f"prospect_{int(datetime.now(timezone.utc).timestamp())}_{uuid4().hex[:6]}"
@@ -477,6 +485,8 @@ def update_prospect_intel(
     companies_house_number: Optional[str] = None,
     unknowns: Optional[List[str]] = None,
     contradictions: Optional[List[str]] = None,
+    outreach_eligible: Optional[bool] = None,
+    entity_type: Optional[str] = None,
 ) -> Optional[ProspectIntelligence]:
     """Patch intelligence fields on an existing prospect."""
     prospects = _load()
@@ -503,6 +513,8 @@ def update_prospect_intel(
             if companies_house_number is not None: p.companies_house_number = companies_house_number
             if unknowns is not None:           p.unknowns = unknowns
             if contradictions is not None:     p.contradictions = contradictions
+            if outreach_eligible is not None:  p.outreach_eligible = outreach_eligible
+            if entity_type is not None:        p.entity_type = entity_type
             # Derive priority from updated verdict
             p.priority = {"A": "high", "B": "medium", "C": "low"}.get(p.verdict, "medium")
             _save(prospects)

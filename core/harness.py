@@ -1668,6 +1668,8 @@ class AgentHarness:
                     companies_house_number=companies_house_number,
                     unknowns=unknowns,
                     contradictions=contradictions,
+                    outreach_eligible=outreach_eligible,
+                    entity_type=entity_type,
                     notes=raw_notes,
                 )
             else:
@@ -1690,6 +1692,8 @@ class AgentHarness:
                     outreach_intel=oi,
                     unknowns=unknowns,
                     contradictions=contradictions,
+                    outreach_eligible=outreach_eligible,
+                    entity_type=entity_type,
                     notes=raw_notes,
                 )
 
@@ -1835,6 +1839,26 @@ class AgentHarness:
         fixed, unfixable, skipped = [], [], []
 
         for p in all_prospects:
+            # ── Companies House + PECR gate (runs for every prospect) ──────
+            try:
+                from capabilities.companies_house.service import lookup_company
+                _ch = await asyncio.to_thread(lookup_company, p.firm_name)
+            except Exception:
+                _ch = None
+            _ch_matched = bool(_ch and _ch.get("matched"))
+            if _ch is None:
+                _oe, _et = False, "unknown"
+            elif _ch_matched:
+                _oe = bool(_ch.get("is_corporate_subscriber"))
+                _et = _ch.get("company_type") or "unknown"
+            else:
+                _oe, _et = False, "unincorporated"
+            # Persist PECR eligibility even if we skip the name-fix below
+            if not dry_run and (_oe != p.outreach_eligible or _et != p.entity_type):
+                from capabilities.prospects.service import update_prospect_intel
+                update_prospect_intel(
+                    p.id, outreach_eligible=_oe, entity_type=_et
+                )
             if not _JUNK_PAT.match(p.firm_name.strip()):
                 skipped.append(p.firm_name)
                 continue

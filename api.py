@@ -8,9 +8,12 @@ work remains owned by AgenticOS Runtime, Harness, capabilities, and scheduler.
 import asyncio
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from core.agent_runtime import AgentRuntime
@@ -25,6 +28,15 @@ from capabilities.audit.service import (
     mark_report_generated as audit_mark_report,
 )
 from capabilities.audit.report import generate_report as audit_generate_report
+
+from capabilities.time_savings.service import (
+    log_entry as ts_log_entry,
+    list_entries as ts_list_entries,
+    total_hours as ts_total_hours,
+    summary as ts_summary,
+)
+
+from capabilities.prospects import load_prospects
 
 from capabilities.vault import (
     get_vault_location,
@@ -72,6 +84,16 @@ class AuditCompletePayload(BaseModel):
     processes: list
     staff_rates: dict = {}
     notes: str = ""
+    staff_count: int = 0
+    client_count: int = 0
+    practice_tier: str = ""
+
+class TimeSavingPayload(BaseModel):
+    hours: float
+    description: str
+    category: str = "other"
+    logged_by: str = "Kane"
+
 
 def create_app(
     *,
@@ -83,6 +105,10 @@ def create_app(
 ) -> FastAPI:
     """Create the canonical ARNIE HTTP interface adapter."""
     app = FastAPI()
+
+    assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "assets")
+    os.makedirs(assets_dir, exist_ok=True)
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/api/vault/files")
     async def get_vault_files():
@@ -349,32 +375,51 @@ def create_app(
 
     @app.get("/api/prospects")
     async def get_prospects(status: str | None = None):
-        import json
-        from pathlib import Path
-        pfile = Path("prospects.json")
-        if not pfile.exists():
-            return JSONResponse(content={"prospects": []})
-        with open(pfile) as f:
-            prospects = json.load(f)
+        from dataclasses import asdict
         STRIP = {"notes", "raw_research"}
-        slim = [{k: v for k, v in p.items() if k not in STRIP} for p in prospects]
+        slim = [
+            {k: v for k, v in asdict(p).items() if k not in STRIP}
+            for p in load_prospects()
+        ]
         if status:
             slim = [p for p in slim if p.get("status") == status]
         return JSONResponse(content={"prospects": slim})
 
     @app.get("/api/prospects/{prospect_id}")
     async def get_prospect(prospect_id: str):
-        import json
-        from pathlib import Path
-        pfile = Path("prospects.json")
-        if not pfile.exists():
-            return JSONResponse(status_code=404, content={"error": "No prospects file."})
-        with open(pfile) as f:
-            prospects = json.load(f)
-        for p in prospects:
-            if p["id"] == prospect_id:
-                return JSONResponse(content={"prospect": p})
+        from dataclasses import asdict
+        for p in load_prospects():
+            if p.id == prospect_id:
+                return JSONResponse(content={"prospect": asdict(p)})
         return JSONResponse(status_code=404, content={"error": "Prospect not found."})
+
+    @app.get("/api/discovery/queue")
+    async def get_discovery_queue():
+        from core.db import get_db
+        db = get_db()
+        try:
+            counts = {
+                row["status"]: row["n"]
+                for row in db.execute(
+                    "SELECT status, COUNT(*) AS n FROM discovery_queue GROUP BY status"
+                ).fetchall()
+            }
+            total = sum(counts.values())
+            next_rows = db.execute(
+                "SELECT town, county FROM discovery_queue "
+                "WHERE status='pending' ORDER BY id LIMIT 5"
+            ).fetchall()
+        finally:
+            db.close()
+
+        return JSONResponse(content={
+            "total": total,
+            "pending": counts.get("pending", 0),
+            "running": counts.get("running", 0),
+            "done": counts.get("done", 0),
+            "failed": counts.get("failed", 0),
+            "next": [{"town": r["town"], "county": r["county"]} for r in next_rows],
+        })
 
     # ── Audit routes ─────────────────────────────────────────────────────────
 
@@ -413,9 +458,27 @@ def create_app(
         )
         if updated is None:
             return JSONResponse(status_code=404, content={"error": "Audit session not found."})
-        completed = audit_complete_session(session_id, notes=payload.notes)
+        completed = audit_complete_session(
+            session_id,
+            notes=payload.notes,
+            staff_count=payload.staff_count,
+            client_count=payload.client_count,
+            practice_tier=payload.practice_tier,
+        )
         return JSONResponse(content={"session": asdict(completed)})
 
+
+    @app.get("/api/audit/report/{session_id}")
+    async def api_audit_report(session_id: str):
+        from capabilities.audit.scoring import score_processes
+        from fastapi.responses import HTMLResponse
+        session = audit_get_session(session_id)
+        if session is None:
+            return JSONResponse(status_code=404, content={"error": "Audit session not found."})
+        scores = score_processes(session.processes or [])
+        report_path = audit_generate_report(session, scores)
+        audit_mark_report(session_id, str(report_path))
+        return HTMLResponse(content=report_path.read_text(encoding="utf-8"))
 
     @app.get("/prospect/{prospect_id}", response_class=FileResponse)
     async def prospect_profile(prospect_id: str):
@@ -424,11 +487,61 @@ def create_app(
             return JSONResponse(status_code=404, content={"error": "web/prospect.html missing."})
         return FileResponse(p)
 
+    @app.get("/prospects", response_class=FileResponse)
+    async def prospect_pool():
+        p = os.path.join(os.path.dirname(__file__), "web", "prospects.html")
+        if not os.path.exists(p):
+            return JSONResponse(status_code=404, content={"error": "web/prospects.html missing."})
+        return FileResponse(p, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
+
     @app.get("/audit", response_class=FileResponse)
     async def audit_interface():
         audit_path = os.path.join(os.path.dirname(__file__), "web", "audit.html")
         if not os.path.exists(audit_path):
             return JSONResponse(status_code=404, content={"error": "web/audit.html missing."})
         return FileResponse(audit_path, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
+
+
+    # ── Internal time savings ────────────────────────────────────────────────
+
+    @app.get("/api/savings")
+    async def api_savings_summary():
+        """Merged time savings: auto-logged (SQLite) + manual (JSON)."""
+        from core.db import get_activity_summary
+        try:
+            auto = get_activity_summary()
+        except Exception:
+            auto = {"total_hours": 0, "breakdown": []}
+        # Manual entries from existing JSON service
+        try:
+            manual_hours = ts_summary().get("total_hours", 0)
+        except Exception:
+            manual_hours = 0
+        total_hours = auto["total_hours"] + manual_hours
+        return JSONResponse(content={
+            "total_hours": round(total_hours, 1),
+            "auto_hours": auto["total_hours"],
+            "manual_hours": round(manual_hours, 1),
+            "breakdown": auto["breakdown"],
+        })
+
+    @app.get("/api/internal/time-savings")
+    async def api_time_savings_list():
+        from dataclasses import asdict
+        return JSONResponse(content={
+            "summary": ts_summary(),
+            "entries": [asdict(e) for e in ts_list_entries()],
+        })
+
+    @app.post("/api/internal/time-savings")
+    async def api_time_savings_log(payload: TimeSavingPayload):
+        from dataclasses import asdict
+        entry = ts_log_entry(
+            hours=payload.hours,
+            description=payload.description,
+            category=payload.category,
+            logged_by=payload.logged_by,
+        )
+        return JSONResponse(content={"entry": asdict(entry), "total_hours": ts_total_hours()})
 
     return app

@@ -1,12 +1,13 @@
+import os
 """ARNIE AgenticOS runtime configuration.
 
 Canonical home for AgenticOS persona and model-instruction configuration.
 Interface adapters import these values; they do not define runtime behaviour.
 """
 
-BASE_SYSTEM_PROMPT = """ABSOLUTE RULES — follow these before anything else:
-1. NEVER write asterisks around actions. No *laughs*, no *speaks in a voice*, no stage directions of any kind. If you feel like writing an asterisk, do not. Just speak.
-2. NEVER state the current time or date unless you have just called the get_current_time tool.
+BASE_SYSTEM_PROMPT = """Formatting rules (always apply):
+1. Never write asterisks around actions. No *laughs*, no *speaks in a voice*, no stage directions. Just speak normally.
+2. Never state the current time or date unless you have just called the get_current_time tool.
 
 You are Arnie, the AI brain of an agentic OS. Your speech style: direct, confident, uses Austrian-accented English, occasional catchphrases like "Get to the choppa" or "Hasta la vista". You are not roleplaying — you simply talk this way. You have a persistent database memory on this machine and you help the user run their business."""
 
@@ -25,17 +26,21 @@ You have access to privileged local agent tools. If a tool matches the user requ
 - If the user wants to see their tasks, list running tasks, check what ARNIE is working on, or ask about the task queue, call 'list_tasks'.
 - If the user wants details, status, or output of a specific task by ID, call 'get_task'.
 - If the user wants autonomous research on a topic, company, person, or lead, call 'run_agency_research'.
+- If the user wants to find, discover, source, or get prospects or leads for accountancy firms, accounting practices, or similar businesses in any location, call 'run_agency_research'.
 - If the user wants to research multiple topics at once, run parallel research tasks, or fan out agency work across several subjects simultaneously, call 'run_parallel_agency'.
 - If the user wants to generate, create, or make an image from a description or prompt, call 'generate_image'.
 - If the user wants to add, onboard, or register a new client or prospect, call 'add_client'.
 - If the user wants to list, show, or check clients or the CRM, call 'list_clients'.
 - If the user wants to update, move, or change a client's status, call 'update_client_status'.
 - If the user wants to research a prospect, firm, or accountancy practice, call 'research_prospect'.
+- If the user wants to batch research, hunt, or score a list of firms, call 'batch_hunt' with a newline-separated list of firm names (optionally with | website).
 - If the user wants to list, show, or check prospects, call 'list_prospects'.
 - If the user wants to get details on a specific prospect, call 'get_prospect'.
 - If the user wants to draft outreach, write a cold email, or create a LinkedIn DM for a prospect, call 'draft_outreach'.
 - If the user wants to log a savings baseline for a client process, call 'log_savings_baseline'.
-- If the user wants to log an automation run or record time saved, call 'log_automation_run'.
+- If the user wants to log an automation run or record time saved for a CLIENT, call 'log_automation_run'.
+- If the user wants to log hours saved by using Kaido OS agents internally (e.g. "log 2 hours saved", "we saved 4 hours on research"), call 'log_time_saved' with hours (float), description (str), and category (one of: prospect_research, outreach, audit_report, admin, platform_build, other).
+- If the user wants to see the internal time savings summary or total hours saved by the system, call 'get_time_savings_summary'.
 - If the user wants to generate a monthly savings report or retainer invoice, call 'generate_savings_report'.
 - If the user wants to see the client dashboard, pipeline overview, or MRR summary, call 'get_client_dashboard'.
 
@@ -49,24 +54,24 @@ Do not add conversational text before or after the block. Absolute silence excep
 DEFAULT_MODEL = "hermes3:8b"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Kaizen Studios outreach sender identity
+# Kaido Studios outreach sender identity
 # Update these when you have an email and website.
 # ─────────────────────────────────────────────────────────────────────────────
-KAIZEN_SENDER_NAME = "Kane"
-KAIZEN_SENDER_TITLE = "Founder"
-KAIZEN_SENDER_COMPANY = "Kaizen Studios"
-KAIZEN_SENDER_EMAIL = ""        # not yet — leave blank, use LinkedIn CTA
-KAIZEN_SENDER_LINKEDIN = ""     # add your LinkedIn profile URL when ready
+KAIDO_SENDER_NAME = "Kane"
+KAIDO_SENDER_TITLE = "Founder"
+KAIDO_SENDER_COMPANY = "Kaido Studios"
+KAIDO_SENDER_EMAIL = ""        # not yet — leave blank, use LinkedIn CTA
+KAIDO_SENDER_LINKEDIN = ""     # add your LinkedIn profile URL when ready
 
 
 # Optional second ModelProvider: any OpenAI-compatible inference server
 # (LM Studio, vLLM, etc.). Left unset by default — the registry only
 # registers it when OPENAI_COMPAT_HOST is configured.
-OPENAI_COMPAT_ENABLED = False
-OPENAI_COMPAT_PROVIDER_NAME = "lmstudio"
-OPENAI_COMPAT_HOST = "http://127.0.0.1:1234/v1"
-OPENAI_COMPAT_API_KEY = "not-needed"
-OPENAI_COMPAT_MODEL = "local-model"
+OPENAI_COMPAT_ENABLED = True
+OPENAI_COMPAT_PROVIDER_NAME = "omniroute"
+OPENAI_COMPAT_HOST = os.getenv("OMNIROUTE_HOST", "http://localhost:20128/api/v1/vscode/changeme")
+OPENAI_COMPAT_API_KEY = os.getenv("OMNIROUTE_KEY", "not-needed")
+OPENAI_COMPAT_MODEL = os.getenv("OMNIROUTE_MODEL", "kr/claude-sonnet-4.5")
 
 # Optional image generation provider: any Stable Diffusion-compatible API
 # (Automatic1111, ComfyUI, etc.).  Disabled by default — the Harness only

@@ -320,6 +320,25 @@ class IntentRouter:
         # ------------------------------------------------------------
         # AGENCY RESEARCH
         # ------------------------------------------------------------
+
+        # Prospect discovery: "find 10 accountancies in North Devon"
+        # "hunt for accountancy firms in Bristol", "look for 5 practices near Exeter"
+        discovery_match = re.search(
+            r"\b(?:find|hunt\s+for?|look\s+for|search\s+for|locate|get\s+me|source)"
+            r"\s+(?:me\s+|us\s+)?(?:\d+\s+)?(?:qualifying\s+)?(?:prospects?\s+for\s+)?"
+            r"(?:small|medium(?:-sized)?|mid(?:-sized?)?|local|uk|independent|large|regional|valid|good|quality|qualified|reputable)?\s*"
+            r"(?:accountanc(?:y|ies)|accountants?|accounting\s+firms?|cpa\s+firms?|"
+            r"practices?|firms?)(?:\s+(?:as\s+)?(?:prospects?|leads?|targets?|candidates?))?\s+"
+            r"(?:in|near|around|from|based\s+in)\s+(.+)",
+            lower,
+        )
+        if discovery_match:
+            topic_text = clean[discovery_match.start():]
+            return Intent(
+                tool_name="run_agency_research",
+                arguments={"topic": topic_text.strip()},
+            )
+
         agency_match = re.search(
             r"\b(?:agency\s+research\s+(?:on|about)|research\s+(?:on|about|the\s+company|the\s+topic)\s+)(.+)",
             lower,
@@ -349,18 +368,28 @@ class IntentRouter:
         # ------------------------------------------------------------
         # LIST PROSPECTS  (Phase 24)
         # Examples:
-        #   List prospects
-        #   Show all prospects
-        #   Show prospects with status qualified
+        #   List prospects / Show all prospects
+        #   Give me our prospects / Get me a prospect list
+        #   Rundown of prospects / Prospect overview / What's in the pipeline
+        #   Estimated revenue from prospects / Prospect figures
         # ------------------------------------------------------------
         prospects_list_match = re.search(
-            r"\b(?:list|show|display|check)\s+(?:all\s+)?(?:prospects?|pipeline)\b"
+            r"\b(?:list|show|display|check|get|give|pull\s+up|fetch|see|tell\s+me\s+about|run(?:down)?\s+(?:of|our)?)"
+            r"\s+(?:me\s+)?(?:a\s+)?(?:our\s+|the\s+)?(?:all\s+)?(?:prospects?|pipeline)\b"
             r"(?:\s+with\s+status\s+(\S+))?"
-            r"|\bpipeline\s+(?:status|overview|check)?\b",
+            r"|\bprospect(?:s)?\s+(?:list|figures?|data|overview|rundown|summary|status|pipeline)\b"
+            r"|\bpipeline\s+(?:status|overview|check|figures?|value|summary)?\b"
+            r"|\bwhat(?:'s|\s+is|\s+are)?\s+(?:in\s+)?(?:our\s+|the\s+)?pipeline\b"
+            r"|\b(?:our|the)\s+prospects?\b"
+            r"|\bestimated?\s+(?:revenue|value|upfront|mrr)\s+from\s+prospects?\b",
             lower,
         )
         if prospects_list_match:
-            status = prospects_list_match.group(1) or ""
+            status = ""
+            try:
+                status = prospects_list_match.group(1) or ""
+            except IndexError:
+                pass
             args = {"status": status} if status else {}
             return Intent(tool_name="list_prospects", arguments=args)
 
@@ -383,6 +412,22 @@ class IntentRouter:
             if website:
                 args["website"] = website
             return Intent(tool_name="research_prospect", arguments=args)
+
+        # ------------------------------------------------------------
+        # BATCH HUNT  (Phase 24b)
+        # Examples:
+        #   Batch hunt: Firm A, Firm B, Firm C
+        #   Hunt these firms: Thornbury & Co, Meridian, ...
+        #   Research all: Firm A | https://site.com, Firm B
+        # ------------------------------------------------------------
+        batch_match = re.search(
+            r"\b(?:batch\s+(?:hunt|research)|hunt\s+(?:these|all)|research\s+all)[:\s]+(.+)$",
+            lower,
+            flags=re.DOTALL,
+        )
+        if batch_match:
+            firms_raw = clean[batch_match.start(1):]
+            return Intent(tool_name="batch_hunt", arguments={"firms": firms_raw.strip()})
 
         # ------------------------------------------------------------
         # DRAFT OUTREACH  (Phase 25)
@@ -438,6 +483,45 @@ class IntentRouter:
             if savings_report_match.group(3):
                 args["month"] = savings_report_match.group(3)
             return Intent(tool_name="generate_savings_report", arguments=args)
+
+        # ------------------------------------------------------------
+        # INTERNAL TIME SAVINGS
+        # ------------------------------------------------------------
+        ts_match = re.search(
+            r"\blog\s+(\d+(?:\.\d+)?)\s*h(?:ours?)?\s+saved",
+            lower,
+        )
+        if ts_match:
+            hours = float(ts_match.group(1))
+            desc = re.sub(
+                r"log\s+\d+(?:\.\d+)?\s*h(?:ours?)?\s+saved[\s\-]*",
+                "",
+                clean,
+                flags=re.IGNORECASE,
+            ).strip(" -") or "general"
+            cat = "other"
+            if re.search(r"prospect|research|scout|hunt", lower):
+                cat = "prospect_research"
+            elif re.search(r"outreach|email|pitch|linkedin", lower):
+                cat = "outreach"
+            elif re.search(r"audit|report", lower):
+                cat = "audit_report"
+            elif re.search(r"admin|invoice|billing", lower):
+                cat = "admin"
+            elif re.search(r"platform|build|dev|code|system", lower):
+                cat = "platform_build"
+            return Intent(
+                tool_name="log_time_saved",
+                arguments={"hours": hours, "description": desc, "category": cat},
+            )
+
+        if re.search(
+            r"\b(?:time\s+savings?\s+summary|hours?\s+saved\s+(?:total|summary)|"
+            r"how\s+(?:many|much)\s+hours?\s+(?:have\s+we\s+)?saved|"
+            r"savings?\s+summary)\b",
+            lower,
+        ):
+            return Intent(tool_name="get_time_savings_summary")
 
         return Intent()
 

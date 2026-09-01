@@ -42,6 +42,7 @@ from __future__ import annotations
 import asyncio
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from .config import DEFAULT_MODEL
@@ -96,6 +97,68 @@ from capabilities.tasks import TaskStore
 from capabilities.voice import VoiceService
 from capabilities.web.research import deep_research_web
 from .swarm import SwarmManager
+
+
+# ============================================================================
+# PROSPECT DISCOVERY — directory/aggregator domains to exclude
+# ============================================================================
+#
+# UK local-business searches (e.g. "accountant Barnstaple") are dominated by
+# directory and aggregator sites rather than the firms themselves. This list
+# is used both to build `-site:` exclusions on the DuckDuckGo query (so real
+# firm results aren't crowded out of the top N) and, as a fallback, to filter
+# any that slip through post-search.
+DISCOVERY_DIRECTORY_DOMAINS = [
+    "yell.com", "bark.com", "checkatrade.com", "freeindex.co.uk",
+    "thomsonlocal.com", "ratedpeople.com", "trustatrader.com",
+    "yelp.com", "unbiased.co.uk", "vouchedfor.co.uk",
+    "accountantsup.co.uk", "ukaccountingfirms.co.uk",
+    "icaew.com", "find.icaew.com", "countingup.com", "sage.com",
+    "cylex-uk.co.uk", "hotfrog.co.uk", "misterwhat.co.uk",
+    "192.com", "scoot.co.uk", "brownbook.net", "thebestof.co.uk",
+    "approvedaccountants.co.uk", "enrollbusiness.com",
+    "businessprofilepages.com", "yalwa.co.uk",
+    "finacbooks.co.uk", "mhc-accountant.co.uk",
+    "serviceprofessionals.co.uk", "holsworthy.cylex-uk.co.uk",
+    "my-towns.co.uk", "barronco.com", "accountingandmorect.com",
+    "accountantwarwickshire.co.uk", "charteredaccountantlondon.co.uk",
+    "taxrpo.com", "here4business.uk",
+    # Additional directory/aggregator sites found in prospect data
+    "chamberofcommerce.uk", "chamberofcommerce.com",
+    "simplyhired.co.uk", "simplyhired.com",
+    "surreyaccountantsdirectory.co.uk", "accountingfirms.co.uk",
+    "i24app.com", "aboutbridgnorth.com", "discoverhuntingdon.co.uk",
+    "adzuna.co.uk", "reed.co.uk", "totaljobs.com", "indeed.co.uk",
+    "glassdoor.co.uk", "cv-library.co.uk", "monster.co.uk",
+    "locallife.co.uk", "uksmallbusinessdirectory.com",
+    "bizify.co.uk", "approved.co.uk",
+]
+
+DISCOVERY_SOCIAL_GOV_DOMAINS = [
+    "linkedin.com", "uk.linkedin.com", "facebook.com", "twitter.com",
+    "instagram.com", "companieshouse.gov.uk", "gov.uk", "hmrc.gov.uk",
+]
+
+# Regional town breakdown used to fan discovery queries across a locality,
+# and to recognise town-keyed branch/listing URL paths (e.g.
+# "westcotts.uk/contact-us/holsworthy/") that are not firm homepages.
+DISCOVERY_REGION_TOWNS: Dict[str, List[str]] = {
+    "north devon": ["Barnstaple", "Bideford", "Ilfracombe", "South Molton",
+                     "Torrington", "Braunton", "Lynton", "Holsworthy",
+                     "Northam", "Combe Martin"],
+    "south devon": ["Totnes", "Dartmouth", "Kingsbridge", "Salcombe",
+                     "Ivybridge", "Newton Abbot", "Paignton", "Teignmouth",
+                     "Dawlish", "Ashburton"],
+    "east devon": ["Honiton", "Sidmouth", "Exmouth", "Seaton",
+                    "Axminster", "Ottery St Mary", "Budleigh Salterton",
+                    "Crediton", "Tiverton", "Cullompton"],
+}
+
+DISCOVERY_ALL_TOWNS = {
+    _town.lower()
+    for _towns in DISCOVERY_REGION_TOWNS.values()
+    for _town in _towns
+}
 
 
 # ============================================================================
@@ -286,6 +349,23 @@ class AgentHarness:
             self.execute_get_prospect,
         )
 
+        # batch_hunt — research a list of firms in sequence
+        self.tools.bind_handler(
+            "batch_hunt",
+            self.execute_batch_hunt,
+        )
+
+        # curate_prospects — post-discovery name quality pass
+        self.tools.bind_handler(
+            "purge_directory_prospects",
+            self.execute_purge_directory_prospects,
+        )
+
+        self.tools.bind_handler(
+            "curate_prospects",
+            self.execute_curate_prospects,
+        )
+
         # draft_outreach is Phase 25 — Outreach Drafting Engine.
         # Bound here so the Harness can call self.chat() for LLM generation.
         self.tools.bind_handler(
@@ -397,10 +477,22 @@ class AgentHarness:
         provider = self.select_model_provider(agent)
         model = agent.preferred_model() or DEFAULT_MODEL
 
-        return await get_daily_vault_summary(
+        summary = await get_daily_vault_summary(
             model_provider=provider,
             model=model,
         )
+
+        # Write summary to vault so the dashboard Vault panel reflects it.
+        try:
+            from datetime import datetime, timezone
+            from capabilities.vault.service import write_obsidian_note
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            note = f"# Daily Vault Summary — {now}\n\n{summary}"
+            write_obsidian_note("Daily Summary", note)
+        except Exception:
+            pass  # best-effort write; never block the return value
+
+        return summary
 
     async def execute_list_tasks(
         self,
@@ -510,12 +602,76 @@ class AgentHarness:
         task.queue()
         self.task_store.save_task(task)
 
-        task.assign("researcher")
+        task.assign("iris")
         task.start()
         self.task_store.save_task(task)
 
         try:
-            report = await deep_research_web(topic)
+            # ── Build search queries for discovery requests ───────────────
+            import re as _sq
+            _disc_kws = ("find", "search for", "locate", "hunt for", "get me", "source", "look for")
+            _firm_kws = ("accountan", "practice", "firm", "cpa")
+            _tl2 = topic.lower()
+            _is_disc2 = any(k in _tl2 for k in _disc_kws) and any(k in _tl2 for k in _firm_kws)
+            if _is_disc2:
+                _loc_m = _sq.search(
+                    r"\b(?:in|near|around|from|based\s+in)\s+([\w\s]+?)(?:\s*$|,|\.|\?)",
+                    topic, _sq.I,
+                )
+                _location = _loc_m.group(1).strip() if _loc_m else ""
+                _size_m = _sq.search(
+                    r"\b(small|medium|mid(?:-sized?)?|large|regional|independent)\b", _tl2
+                )
+                _size = (_size_m.group(1) + " ") if _size_m else ""
+                _count_m = _sq.search(r"\b(\d+)\b", topic)
+                _N = min(int(_count_m.group(1)), 10) if _count_m else 5
+                if _location:
+                    # Build town-specific queries so each slot hits a different firm
+                    _loc_key = _location.lower().strip()
+                    _towns = DISCOVERY_REGION_TOWNS.get(_loc_key, [])
+                    # Exclude the worst directory offenders directly from the
+                    # DuckDuckGo query so real firm sites aren't crowded out
+                    # of the (small) result window. Capped to keep the query
+                    # from becoming so restrictive it returns nothing.
+                    _exclude_str = " ".join(
+                        f"-site:{d}" for d in DISCOVERY_DIRECTORY_DOMAINS[:12]
+                    )
+                    if _towns:
+                        # One search per town for diversity
+                        _slot_queries = [
+                            f"accountant {t} {_exclude_str}" for t in _towns
+                        ]
+                    else:
+                        # Generic fallback: vary query types
+                        _slot_queries = [
+                            f"{_size}accountancy firm {_location} {_exclude_str}",
+                            f"chartered accountants {_location} {_exclude_str}",
+                            f"tax accountant {_location} {_exclude_str}",
+                            f"bookkeeper {_location} {_exclude_str}",
+                            f"accounting practice {_location} {_exclude_str}",
+                            f"small business accountant {_location} {_exclude_str}",
+                            f"payroll accountant {_location} {_exclude_str}",
+                            f"management accountant {_location} {_exclude_str}",
+                            f"independent accountant {_location} {_exclude_str}",
+                            f"local accountant {_location} {_exclude_str}",
+                        ]
+                    _reports = []
+                    for _si in range(_N):
+                        _sq2 = _slot_queries[_si % len(_slot_queries)]
+                        # crawl_top_n=0: discovery only needs title/URL pairs
+                        # from the result list, not scraped page content —
+                        # skipping the scrape makes room for more results
+                        # per slot instead.
+                        _reports.append(
+                            await deep_research_web(
+                                _sq2, crawl_top_n=0, max_results=8
+                            )
+                        )
+                    report = "\n\n".join(_reports)
+                else:
+                    report = await deep_research_web(topic)
+            else:
+                report = await deep_research_web(topic)
         except Exception as err:
             task.fail(str(err))
             self.task_store.save_task(task)
@@ -532,10 +688,278 @@ class AgentHarness:
         )
         self.task_store.save_task(task)
 
+        # ── Auto-batch-hunt on firm discovery requests ──────────────────
+        _disc_kw = ("find", "search for", "locate", "hunt for", "get me", "source", "look for")
+        _firm_kw = ("accountan", "practice", "firm", "cpa")
+        _tl = topic.lower()
+        _is_discovery = any(k in _tl for k in _disc_kw) and any(k in _tl for k in _firm_kw)
+
+        batch_summary = ""
+        if _is_discovery and report:
+            # ── LLM-based firm name extraction via OmniRoute ───────────
+            import json as _json2, asyncio as _aio, requests as _req2
+            from core.config import OPENAI_COMPAT_HOST as _OAH, OPENAI_COMPAT_API_KEY as _OAK
+
+            _extr_prompt = (
+                "You are extracting UK accountancy firm names from a web research report.\n"
+                "Return ONLY a JSON array of objects with keys \'name\' and \'url\'.\n"
+                "Include only real accountancy firms — not directories, aggregators, or "
+                "generic listing sites.\n"
+                "Exclude sites like: yell.com, bark.com, checkatrade.com, freeindex.co.uk, "
+                "unbiased.co.uk, vouchedfor.co.uk, accountantsup.co.uk, "
+                "ukaccountingfirms.co.uk, yelp.com, ratedpeople.com.\n"
+                "Skip any title that is keyword-stuffed (multiple profession terms "
+                "separated by commas or dashes).\n"
+                "Return up to 15 firms. If none found, return [].\n\n"
+                f"REPORT:\n{report[:10000]}"
+            )
+
+            def _llm_extract():
+                try:
+                    _resp = _req2.post(
+                        f"{_OAH}/chat/completions",
+                        headers={"Authorization": f"Bearer {_OAK}"},
+                        json={
+                            "model": "agent-test",
+                            "messages": [{"role": "user", "content": _extr_prompt}],
+                            "temperature": 0.1,
+                            "max_tokens": 800,
+                        },
+                        timeout=120,
+                    )
+                    _resp.raise_for_status()
+                    # OmniRoute may stream even when stream=False; handle both
+                    try:
+                        return _resp.json()["choices"][0]["message"]["content"]
+                    except Exception:
+                        # SSE fallback
+                        _parts = []
+                        for _ln in _resp.text.splitlines():
+                            if not _ln.startswith("data:"):
+                                continue
+                            _ds = _ln[5:].strip()
+                            if _ds == "[DONE]":
+                                break
+                            try:
+                                import json as _jsse
+                                _parts.append(
+                                    _jsse.loads(_ds)["choices"][0]["delta"].get("content", "")
+                                )
+                            except Exception:
+                                pass
+                        return "".join(_parts)
+                except Exception as _ex:
+                    return f"__LLM_ERR__{_ex}"
+
+            # ── Per-slot extraction: one firm per search result (fast regex) ──
+            import re as _psr, logging as _lg3
+            from urllib.parse import urlparse as _psu
+
+            _BLOCK_DOMS = set(DISCOVERY_DIRECTORY_DOMAINS) | set(
+                DISCOVERY_SOCIAL_GOV_DOMAINS
+            )
+            # UK-only: reject the non-UK TLDs most likely to slip through
+            # (.com.au etc.), only allow UK/generic ones.
+            _ALLOWED_TLD_SUFFIXES = (".co.uk", ".uk", ".com", ".org", ".net")
+            _BLOCKED_TLD_SUFFIXES = (
+                ".com.au", ".au", ".ca", ".us", ".ie", ".nz", ".co.nz", ".co.za",
+            )
+            _DIR_PAT = _psr.compile(
+                r"^(?:best|top|leading|recommended|local|uk)\s+\d+\s+"
+                r"|^(?:\d+\s+)?(?:best|top|leading|recommended)\s+(?:\d+\s+)?"
+                r"(?:accountants?|accountanc(?:y|ies)|accounting\s+firms?|firms?)"
+                r"(?:\s+in\s+|\s+for\s+|\s+near\s+|$)"
+                r"|for\s+20\d\d$",
+                _psr.IGNORECASE,
+            )
+            # "<profession> [for/in/near] <location>" page titles carrying no
+            # actual firm brand (e.g. "Accountants For Small Business Combe
+            # Martin", "Accountants in Ilfracombe, Devon").
+            _NO_FIRM_PAT = _psr.compile(
+                r"^(?:local\s+)?(?:chartered\s+)?(?:accountants?|accountancy|accountanc(?:y|ies)|"
+                r"bookkeepers?|bookkeeping|tax\s+(?:advisors?|services?|specialists?|"
+                r"accountants?))(?:\s+(?:for|in|near|\w+)\b|\s+firm\b|\s+practice\b|$)",
+                _psr.IGNORECASE,
+            )
+            # Boilerplate page-title prefixes that hide the real firm name.
+            _TITLE_PREFIX_PAT = _psr.compile(
+                r"^(?:welcome\s+to|find|best|top)\s+", _psr.IGNORECASE,
+            )
+            _SEP_PAT = _psr.compile(r"\s*(?:\s[-\u2013\u2014]\s|\|).*$")
+            _GENERIC_TITLES = _psr.compile(
+                r"^(?:chartered\s+)?(?:accountanc(?:y|ies)|accountants?|"
+                r"accounting\s+firm|bookkeeping|tax\s+services?)\s*$",
+                _psr.IGNORECASE,
+            )
+            # Path segments marking a branch/contact/listing page rather than
+            # a firm's real homepage (e.g. ".../accountants/ilfracombe/" or
+            # "westcotts.uk/contact-us/holsworthy/").
+            _BRANCH_PATH_MARKERS = {"accountants", "contact-us", "contact", "offices", "locations"}
+            # Single-word junk page titles (homepage fallbacks, nav items etc.)
+            _JUNK_WORDS = {
+                "home", "contact", "about", "welcome", "services", "news",
+                "blog", "sitemap", "menu", "login", "register", "search",
+                "results", "directory", "index",
+            }
+            # "[Location/word] [profession keyword]" e.g. "Bideford Accountant"
+            # catches profession-suffix patterns that _NO_FIRM_PAT misses
+            _LOC_PROF_PAT = _psr.compile(
+                r"^[\w][\w\s]{1,30}\s+(?:chartered\s+)?(?:accountants?|accountancy|"
+                r"accountanc(?:y|ies)|bookkeepers?|bookkeeping|"
+                r"tax\s+(?:advisors?|services?|specialists?|accountants?))s?$",
+                _psr.IGNORECASE,
+            )
+
+            _CANDIDATE_PAT = _psr.compile(
+                r"^#{0,3}\s*\d+\.\s+(.+?)\n\*{0,2}URL:\*{0,2}\s*(https?://\S+)",
+                _psr.MULTILINE,
+            )
+
+            def _iter_candidates(_report_text):
+                for _m in _CANDIDATE_PAT.finditer(_report_text):
+                    yield _m.group(1).strip(), _m.group(2).strip()
+
+            def _domain_brand_name(_dom):
+                _base = _dom.split(".")[0]
+                return _base.replace("-", " ").replace("_", " ").strip().title()
+
+            _firm_entries: list[str] = []
+            _seen_names: set[str] = set()
+            _seen_domains: set[str] = set()  # domain-level dedup
+            # Seed from existing prospects to avoid re-researching
+            try:
+                from capabilities.prospects.service import list_prospects as _lp
+                for _ep in _lp():
+                    _seen_names.add((_ep.firm_name or "").lower().strip())
+            except Exception:
+                pass
+
+            def _try_extract(_raw_title, _url):
+                # Skip Bing ad redirects
+                if "bing.com/aclick" in _url or "bing.com/ck/a" in _url:
+                    return None
+                _parsed = _psu(_url)
+                _dom = _parsed.netloc.lower()
+                if _dom.startswith("www."):
+                    _dom = _dom[4:]
+                if not _dom or _dom in _BLOCK_DOMS or any(_dom.endswith("." + _bd) for _bd in _BLOCK_DOMS):
+                    return None
+                if any(_dom.endswith(_sfx) for _sfx in _BLOCKED_TLD_SUFFIXES):
+                    return None
+                if not any(_dom.endswith(_sfx) for _sfx in _ALLOWED_TLD_SUFFIXES):
+                    return None
+
+                _path_segs = [s for s in _parsed.path.lower().split("/") if s]
+                _is_branch_path = False
+                if _path_segs:
+                    _last_seg = _path_segs[-1].replace("-", " ")
+                    _is_branch_path = (
+                        _last_seg in DISCOVERY_ALL_TOWNS
+                        or (len(_path_segs) >= 2 and _path_segs[-2] in _BRANCH_PATH_MARKERS)
+                    )
+
+                if _is_branch_path:
+                    # Title on a branch/listing page is unreliable \u2014 use the
+                    # domain's own brand name instead (e.g. "Westcotts" from
+                    # westcotts.uk/contact-us/holsworthy/).
+                    _name = _domain_brand_name(_dom)
+                    if not _name or len(_name) < 3 or _name.lower() in DISCOVERY_ALL_TOWNS:
+                        return None
+                else:
+                    if _DIR_PAT.search(_raw_title):
+                        return None
+                    _title = _TITLE_PREFIX_PAT.sub("", _raw_title).strip()
+                    _name = _SEP_PAT.sub("", _title).strip()
+                    if not _name or len(_name) < 4:
+                        return None
+                    # Skip generic profession-keyword-only titles
+                    if _GENERIC_TITLES.match(_name):
+                        return None
+                    # Skip "<profession> for/in/near <location>" non-firm titles
+                    if _NO_FIRM_PAT.search(_name):
+                        return None
+                    # Skip "[Location] [profession]" reverse patterns
+                    if _LOC_PROF_PAT.match(_name):
+                        return None
+                    # Skip single junk words (e.g. "Home", "Contact")
+                    if _name.lower().strip() in _JUNK_WORDS:
+                        return None
+                    if _name.lower() in DISCOVERY_ALL_TOWNS:
+                        return None
+
+                _nk = _name.lower()
+                if _nk in _seen_names or _dom in _seen_domains:
+                    return None  # try next result in this slot
+                _seen_names.add(_nk)
+                _seen_domains.add(_dom)
+                return f"{_name} | {_url}"
+
+            _slot_reports = [s.strip() for s in report.split("# SEARCH RESULTS FOR:") if s.strip()]
+            if not _slot_reports:
+                _slot_reports = [report]
+
+            for _sr in _slot_reports:
+                # Walk all (title, url) pairs in this slot; take first valid one
+                for _raw_title, _url in _iter_candidates(_sr):
+                    _entry = _try_extract(_raw_title, _url)
+                    if _entry:
+                        _firm_entries.append(_entry)
+                        break  # one firm per slot
+
+            # \u2500\u2500 Fallback: broaden the query for slots that produced nothing \u2500\u2500
+            # (small towns like Lynton/Combe Martin may have no indexed firm
+            # site) instead of wasting the slot entirely.
+            _fb_location = locals().get("_location", "")
+            _fb_exclude_str = locals().get("_exclude_str", "")
+            _fb_target = locals().get("_N", 0)
+            if _fb_target and len(_firm_entries) < _fb_target:
+                _region_words = _fb_location.split() if _fb_location else []
+                _broad_region = (
+                    _region_words[-1] if len(_region_words) > 1 else (_fb_location or "Devon")
+                )
+                _fallback_queries = []
+                if _fb_location:
+                    _fallback_queries.append(f"accountant {_fb_location} {_fb_exclude_str}".strip())
+                _fallback_queries.append(f"chartered accountant {_broad_region} {_fb_exclude_str}".strip())
+
+                _fb_idx = 0
+                _fb_attempts = 0
+                while len(_firm_entries) < _fb_target and _fb_attempts < 4:
+                    _fbq = _fallback_queries[_fb_idx % len(_fallback_queries)]
+                    _fb_idx += 1
+                    _fb_attempts += 1
+                    try:
+                        _fb_report = await deep_research_web(_fbq, crawl_top_n=0, max_results=8)
+                    except Exception:
+                        continue
+                    for _raw_title, _url in _iter_candidates(_fb_report):
+                        if len(_firm_entries) >= _fb_target:
+                            break
+                        _entry = _try_extract(_raw_title, _url)
+                        if _entry:
+                            _firm_entries.append(_entry)
+
+            firm_names = _firm_entries
+            if firm_names:
+                try:
+                    batch_summary = await self.execute_batch_hunt(firms="\n".join(firm_names))
+                except Exception as _be:
+                    batch_summary = f"[Batch hunt failed: {_be}]"
+
+        # Build a short outcome line rather than dumping the full report to chat
+        if batch_summary and not batch_summary.startswith("[Batch hunt failed"):
+            import re as _rs
+            _hunted = len(_rs.findall(r"Prospect researched:", batch_summary))
+            _outcome = f"Iris queued {len(firm_names)} firm{'s' if len(firm_names)!=1 else ''} — {_hunted} researched. View results at /prospects"
+        elif batch_summary.startswith("[Batch hunt failed"):
+            _outcome = batch_summary
+        else:
+            _outcome = "Research complete — no firm names extracted for batch hunt."
+
         return (
-            "AGENCY RESEARCH COMPLETE\n"
+            f"AGENCY RESEARCH COMPLETE\n"
             f"Task ID: {task.id}\n\n"
-            f"{report}"
+            f"{_outcome}"
         )
 
     async def execute_run_parallel_agency(
@@ -771,17 +1195,41 @@ class AgentHarness:
     ) -> str:
         """Research a UK accountancy practice and build a structured lead profile.
 
-        Phase 24: Lead Research Engine.
-        Runs three targeted web searches — general firm info, software stack
-        signals, and pain signals from reviews/job listings — then synthesises
-        a Prospect record stored in prospects.json.
+        Phase 24+: Lead Research Engine (structured intelligence).
+        Runs three targeted web searches, then synthesises a ProspectIntelligence
+        record with graded PainSignals, scoring, verdict and outreach intel.
         """
         from capabilities.web.research import deep_research_web
         from capabilities.web.search import web_search
-        from capabilities.prospects.service import add_prospect
+        from capabilities.prospects.service import (
+            add_prospect, get_prospect_by_name, update_prospect_intel,
+            PainSignal, OutreachIntel, MoneyValue
+        )
 
         if not firm_name:
             return "Error: firm_name is required."
+
+        # ── Reject directory/aggregator sites before spending tokens ──────
+        import re as _re2
+        _SKIP_DOMAINS = {
+            "accountantsup.co.uk", "ukaccountingfirms.co.uk", "checkatrade.com",
+            "yell.com", "bark.com", "freeindex.co.uk", "thomsonlocal.com",
+            "ratedpeople.com", "trustatrader.com", "yelp.com",
+        }
+        _DIR_NAME_RE = _re2.compile(
+            r"^(?:best|top|leading|recommended)\s+\d+\s+"
+            r"|^(?:\d+\s+)?(?:best|top|leading|recommended)\s+(?:\d+\s+)?"
+            r"(?:accountants?|accountanc(?:y|ies)|accounting\s+firms?|firms?|practices?)"
+            r"(?:\s+in\s+|\s+for\s+|\s+near\s+|$)|for\s+20\d\d$",
+            _re2.IGNORECASE,
+        )
+        _skip = _DIR_NAME_RE.search(firm_name)
+        if not _skip and website:
+            from urllib.parse import urlparse
+            _dom = urlparse(website).netloc.lstrip("www.")
+            _skip = _dom in _SKIP_DOMAINS
+        if _skip:
+            return f"[Skipped] '{firm_name}' identified as a directory/aggregator page — not a prospect."
 
         task = Task(
             title=f"Research prospect: {firm_name[:50]}",
@@ -790,11 +1238,104 @@ class AgentHarness:
         )
         task.queue()
         self.task_store.save_task(task)
-        task.assign("arnie")
+        task.assign("iris")
         task.start()
         self.task_store.save_task(task)
 
+        # Generic homepage titles ("Home", "404", ...) carry no business
+        # identity — when the cleaned title lands here, fall back to a name
+        # derived from the domain instead of using the title verbatim.
+        _GENERIC_TITLES = {
+            "home", "welcome", "index", "untitled", "coming soon",
+            "under construction", "page not found", "404", "403", "error",
+        }
+
+        def _derive_name_from_domain(domain: str) -> str:
+            import re as _dom_re
+            d = domain.strip()
+            if d.lower().startswith("www."):
+                d = d[4:]
+            leftmost = d.split(".")[0]
+            parts = [p for p in _dom_re.split(r"[-_]+", leftmost) if p]
+            if not parts:
+                return leftmost.title()
+            return " ".join(p.title() for p in parts)
+
         try:
+            # ── Name resolution: if firm_name looks like a domain, resolve it ──
+            import re as _nm_re
+            if _nm_re.match(r'^[\w.-]+\.(co\.uk|com|org\.uk|org|net)$', firm_name, _nm_re.I):
+                # firm_name IS a domain — resolve real business name from the site
+                _original_domain = firm_name
+                _resolve = await deep_research_web(f"site:{_original_domain}", crawl_top_n=1)
+                _title_m = _nm_re.search(r'###\s*\d+\.\s+([^\n]{4,80})', _resolve)
+                if _title_m:
+                    _resolved = _title_m.group(1).strip()
+                    # Strip SEO suffixes
+                    _resolved = _nm_re.sub(r'\s*(?:\s[-–]\s|\|).*$', '', _resolved).strip()
+                    _is_generic = (
+                        _resolved.lower() in _GENERIC_TITLES
+                        or _nm_re.match(r'(?:chartered\s+)?accountants?\s+', _resolved, _nm_re.I)
+                        or _nm_re.match(r'\w[\w\s]{0,25}\s+accountant$', _resolved, _nm_re.I)
+                    )
+                    if _resolved and _is_generic:
+                        firm_name = _derive_name_from_domain(_original_domain)
+                    elif _resolved and not _nm_re.search(
+                        r'accountants?\s+in\b|\bfind\b|\bbest\b', _resolved, _nm_re.I
+                    ):
+                        firm_name = _resolved
+                if not website:
+                    website = f"https://{_original_domain}"
+
+            # ── Direct site scrape: first-party evidence, most reliable ────
+            # DDG snippets frequently echo query keywords back from unrelated
+            # ad/directory pages (e.g. a job-board ad matches "hiring" for
+            # every query that asks about hiring), which was producing an
+            # identical false-positive signal set for every prospect. Actual
+            # page content from the firm's own site is trustworthy; search
+            # results are only trusted once filtered for relevance below.
+            site_content = ""
+            if website:
+                from capabilities.web.research import scrape_web_page_stealth
+                _scraped = await scrape_web_page_stealth(website)
+                if not _scraped.startswith("Web scrape failure"):
+                    site_content = _scraped
+                    # ── Extract real brand name from SITE_TITLE ──────────────
+                    import re as _nt_re
+                    _title_m = _nt_re.match(r"SITE_TITLE:\s*(.+)", site_content)
+                    if _title_m:
+                        _raw_title = _title_m.group(1).strip()
+                        # Strip SEP suffixes (| Accountants in Devon, - Home etc.)
+                        _clean_title = _nt_re.sub(
+                            r"\s*(?:\s[-–—]\s|\|).*$", "", _raw_title
+                        ).strip()
+                        # Only override firm_name if the site title looks like a
+                        # real brand (not itself a generic keyword title)
+                        _is_kw = _nt_re.match(
+                            r"^(?:home|contact|about|welcome|services|news|menu|"
+                            r"(?:local\s+)?(?:chartered\s+)?accountants?|accountancy|"
+                            r"bookkeeping|tax\s+(?:services?|advisors?))\s*$",
+                            _clean_title, _nt_re.I
+                        )
+                        _looks_brand = (
+                            _clean_title
+                            and not _is_kw
+                            and len(_clean_title) >= 3
+                            and len(_clean_title) <= 80
+                        )
+                        # Override firm_name when current name is generic/junk
+                        _cur_is_junk = _nt_re.match(
+                            r"^(?:home|contact|about|welcome|services|news|menu)$",
+                            firm_name, _nt_re.I
+                        ) or _nt_re.match(
+                            r"^(?:[\w\s]+\s+)?(?:chartered\s+)?(?:accountants?|accountancy|"
+                            r"bookkeepers?|bookkeeping|tax\s+(?:advisors?|services?|specialists?))"
+                            r"(?:\s+[\w\s]*)?$",
+                            firm_name, _nt_re.I
+                        )
+                        if _looks_brand and _cur_is_junk:
+                            firm_name = _clean_title
+
             # Search 1: General firm info + page extract
             general_query = f'"{firm_name}" accountant UK'
             if website:
@@ -811,39 +1352,346 @@ class AgentHarness:
                 f'"{firm_name}" accountant UK reviews hiring jobs vacancy'
             )
 
-            # Heuristic extraction — software stack
-            combined = (general_research + stack_results).lower()
+            # Search 4: Staff size signals (moved earlier — feeds value_score)
+            size_results = web_search(
+                f'"{firm_name}" accountant UK partners staff employees team'
+            )
+
+            # ── Relevance filtering: discard generic ad/directory noise ────
+            # A search-result block is only trusted as evidence if it
+            # actually names the firm or its own domain — this is what
+            # stops every prospect inheriting the same generic "hiring" /
+            # "reviews" ad copy that happens to contain the query's words.
+            from urllib.parse import urlparse as _urlparse
+            _domain = _urlparse(website).netloc.lower() if website else ""
+            if _domain.startswith("www."):
+                _domain = _domain[4:]
+            _STOP_TOKENS = {
+                "accountants", "accountant", "accountancy", "accounting",
+                "chartered", "the", "and", "of", "uk", "ltd", "llp", "co",
+            }
+            _name_tokens = [
+                t for t in _re2.findall(r"[a-z]+", firm_name.lower())
+                if len(t) > 2 and t not in _STOP_TOKENS
+            ] or [t for t in _re2.findall(r"[a-z]+", firm_name.lower()) if len(t) > 2]
+
+            def _is_relevant_block(block: str) -> bool:
+                b = block.lower()
+                if _domain and _domain in b:
+                    return True
+                return any(t in b for t in _name_tokens)
+
+            def _filter_relevant(text: str) -> str:
+                blocks = _re2.split(r"\n\n+", text)
+                return "\n\n".join(b for b in blocks if _is_relevant_block(b))
+
+            general_relevant = _filter_relevant(general_research)
+            stack_relevant   = _filter_relevant(stack_results)
+            pain_relevant    = _filter_relevant(pain_results)
+            size_relevant    = _filter_relevant(size_results)
+
+            combined      = (site_content + " " + general_relevant + " " + stack_relevant).lower()
+            pain_lower    = (site_content + " " + pain_relevant).lower()
+            general_lower = (site_content + " " + general_relevant).lower()
+            size_lower    = (size_relevant + " " + general_lower)
+
+            # ── Software stack detection ──────────────────────────────────
             software_stack = "unknown"
-            for sw in ["xero", "quickbooks", "sage", "freeagent", "kashflow"]:
+            for sw in ["xero", "quickbooks", "sage", "freeagent", "kashflow", "iris"]:
                 if sw in combined:
                     software_stack = sw.title()
                     break
 
-            # Heuristic extraction — pain signals
-            pain_lower = pain_results.lower()
-            pain_parts = []
-            if any(w in pain_lower for w in ["hiring", "vacancy", "job", "recruit"]):
-                pain_parts.append("Hiring activity detected (capacity pressure)")
-            if any(w in pain_lower for w in ["review", "trustpilot", "google review"]):
-                pain_parts.append("Public reviews found")
-            if any(w in pain_lower for w in ["manual", "spreadsheet", "excel"]):
-                pain_parts.append("Manual process signals in content")
-            pain_signals = ". ".join(pain_parts) if pain_parts else "No clear signals found."
+            # ── Structured pain signal extraction ─────────────────────────
+            # Every signal below is grounded in filtered/first-party text —
+            # generic query-keyword echoes from irrelevant pages never reach
+            # here, so signals (and therefore scores) now vary per firm.
+            signals = []
 
-            # Truncated raw notes for storage
+            if any(w in pain_lower for w in ["hiring", "vacancy", "job opening", "recruit", "join our team"]):
+                signals.append(PainSignal(
+                    description="Hiring activity detected — likely capacity pressure",
+                    evidence=(pain_relevant or site_content)[:200],
+                    strength="OBSERVED",
+                ))
+
+            if any(w in pain_lower for w in ["manual", "spreadsheet", "excel"]):
+                signals.append(PainSignal(
+                    description="Manual / spreadsheet process signals in public content",
+                    evidence=(pain_relevant or site_content)[:200],
+                    strength="INDICATED",
+                ))
+
+            if any(w in general_lower for w in ["growing", "expansion", "new office", "new partner"]):
+                signals.append(PainSignal(
+                    description="Growth indicators — scaling pains probable",
+                    evidence=(general_relevant or site_content)[:200],
+                    strength="INDICATED",
+                ))
+
+            # Confirmed software is a business-snapshot fact (captured in
+            # software_stack / the primary thesis below), not a pain signal —
+            # nearly every UK accountancy site mentions Xero somewhere, so
+            # treating "has Xero" as an OBSERVED pain point would just
+            # converge every prospect onto the same score again. Only the
+            # *absence* of a confirmed stack is a real signal.
+            if software_stack == "unknown":
+                if site_content or general_relevant or stack_relevant:
+                    signals.append(PainSignal(
+                        description="No dominant accounting software mentioned in available content — possible legacy or fragmented stack",
+                        evidence=(site_content or general_relevant or stack_relevant)[:200],
+                        strength="INDICATED",
+                    ))
+                else:
+                    # Only fall back to the generic "no info" hypothesis when
+                    # we genuinely found nothing usable about this firm.
+                    signals.append(PainSignal(
+                        description="No dominant accounting software identified — potential legacy or fragmented stack",
+                        evidence="No firm-specific content found in search results",
+                        strength="HYPOTHESISED",
+                    ))
+
+            # ── Staff size estimate (feeds both urgency and value scoring) ──
+            staff_estimate = None
+            if any(w in size_lower for w in ["sole trader", "sole practitioner", "one-man", "1 partner"]):
+                staff_estimate = ("tiny", 1, 3)
+            elif any(w in size_lower for w in ["boutique", "small practice", "2 partner", "3 partner"]):
+                staff_estimate = ("small", 3, 8)
+            elif any(w in size_lower for w in ["10 staff", "12 staff", "15 staff", "20 staff", "regional", "growing team"]):
+                staff_estimate = ("medium", 10, 25)
+            elif any(w in size_lower for w in ["50 staff", "100 staff", "national", "multiple offices"]):
+                staff_estimate = ("large", 40, 100)
+            hiring_signal = any(s.strength == "OBSERVED" and "hiring" in s.description.lower() for s in signals)
+            if hiring_signal and staff_estimate is None:
+                staff_estimate = ("small", 4, 12)
+
+            # ── Companies House: real filing/incorporation facts ───────────
+            # Replaces inferred signals with hard facts where a confident
+            # match exists; falls back to the website-based heuristics above
+            # when it doesn't (no API key configured, no confident match, or
+            # the API was unavailable — lookup_company() never raises).
+            ch_facts = None
+            try:
+                from capabilities.companies_house.service import lookup_company
+                ch_facts = await asyncio.to_thread(lookup_company, firm_name)
+            except Exception:
+                ch_facts = None
+            companies_house_number = ch_facts.get("company_number", "") if ch_facts else ""
+            if ch_facts and ch_facts.get("late_filing_detected"):
+                signals.append(PainSignal(
+                    description="Filed accounts late — operational stress indicator",
+                    evidence=f"CH filing date: {ch_facts.get('late_filing_date')}",
+                    strength="OBSERVED",
+                ))
+
+            # ── Scoring heuristics (0–5) — derived from grounded evidence ───
+            observed_count   = sum(1 for s in signals if s.strength == "OBSERVED")
+            indicated_count  = sum(1 for s in signals if s.strength == "INDICATED")
+            pain_score          = min(5, observed_count * 2 + indicated_count)
+            urgency_score       = 2 if observed_count else (1 if indicated_count else 0)
+            if ch_facts and ch_facts.get("late_filing_detected"):
+                urgency_score   = min(5, urgency_score + 2)
+
+            # value_score: prefer a real CH employee count over the website
+            # inference when we have one; otherwise keep existing behaviour.
+            ch_employee_count = ch_facts.get("employee_count") if ch_facts else None
+            if isinstance(ch_employee_count, (int, float)) and ch_employee_count > 0:
+                n = int(ch_employee_count)
+                if n <= 4:
+                    value_score = 2
+                elif n <= 9:
+                    value_score = 3
+                elif n <= 19:
+                    value_score = 4
+                else:
+                    value_score = 5
+            else:
+                _size_to_value  = {"tiny": 1, "small": 2, "medium": 3, "large": 5}
+                value_score     = _size_to_value.get(staff_estimate[0], 1) if staff_estimate else 1
+            repeatability_score = 3   # accountancy = recurring by nature (business-model constant)
+
+            # ── Verdict ───────────────────────────────────────────────────
+            # High value/urgency alone doesn't earn a Hunt/Watch verdict — a
+            # firm with no real pain signal is not worth chasing regardless
+            # of total score, so each tier floors on pain_score too.
+            total = pain_score + urgency_score + value_score + repeatability_score
+            if total >= 10 and pain_score >= 2:
+                verdict = "A"
+            elif total >= 6 and pain_score >= 1:
+                verdict = "B"
+            else:
+                verdict = "C"
+
+            # Evidence-driven confidence — varies per prospect
+            evidence_confidence = 30 if signals else 15
+            if any(s.strength == "OBSERVED" for s in signals):
+                evidence_confidence = min(60, evidence_confidence + 20)
+            if len(signals) >= 3:
+                evidence_confidence = min(70, evidence_confidence + 10)
+            _tier_bonus = {"A": 20, "B": 10, "C": 0}
+            confidence = min(85, evidence_confidence + _tier_bonus[verdict])
+
+            # ── Primary thesis ────────────────────────────────────────────
+            signal_summary = "; ".join(s.description for s in signals) if signals else "No strong signals yet"
+            stack_str = f" using {software_stack}" if software_stack != "unknown" else " with unconfirmed software stack"
+            verdict_label = "Hunt" if verdict == "A" else "Watch" if verdict == "B" else "Pass"
+            primary_thesis = (
+                f"{firm_name} is a UK accountancy practice{stack_str}. "
+                f"Commercial signals: {signal_summary}. "
+                f"Verdict {verdict} ({verdict_label}) based on initial research — confidence {confidence}%."
+            )
+
+            # ── Outreach intel ────────────────────────────────────────────
+            why_now = ""
+            if any(s.strength == "OBSERVED" and "hiring" in s.description.lower() for s in signals):
+                why_now = "Actively hiring — signals capacity strain and openness to outsourced support"
+            elif any(s.strength == "INDICATED" for s in signals):
+                why_now = "Multiple indirect signals of operational friction"
+
+            has_manual = any("manual" in s.description.lower() for s in signals)
+            outreach_angle = (
+                f"We help accountancy practices like {firm_name} "
+                + ("move off manual processes " if has_manual else "streamline client delivery ")
+                + "without hiring headcount."
+            )
+
+            oi = OutreachIntel(
+                why_now=why_now,
+                outreach_angle=outreach_angle,
+                objections=["We're not looking to change right now", "We already have a system"],
+            )
+
+            # ── Staff size → MoneyValue (package-based pricing) ──
+            # Packages: The Chaser / The Reconciler / The Filer — each £750/mo
+            BANDS = {
+                #           pkgs_lo  pkgs_hi  conf  bslo bshi
+                "tiny":   (1,       1,       30,   1,   4),
+                "small":  (1,       2,       40,   5,   9),
+                "medium": (2,       2,       45,   10,  19),
+                "large":  (2,       3,       40,   20,  49),
+            }
+            PKG_MONTHLY = 750
+            if staff_estimate:
+                band_name, slo, shi = staff_estimate
+                pkgs_lo, pkgs_hi, conf, bslo, bshi = BANDS[band_name]
+                pkgs_mid = (pkgs_lo + pkgs_hi) / 2
+                lo  = int(pkgs_lo  * PKG_MONTHLY * 12)
+                hi  = int(pkgs_hi  * PKG_MONTHLY * 12)
+                mid = int(pkgs_mid * PKG_MONTHLY * 12)
+                fv = MoneyValue(
+                    status="known",
+                    amount_gbp=mid,
+                    range_low=lo,
+                    range_high=hi,
+                    basis=f"~{bslo}\u2013{bshi} staff → est. {pkgs_lo}\u2013{pkgs_hi} package(s) @ £{PKG_MONTHLY}/mo",
+                    confidence=conf,
+                )
+            else:
+                fv = MoneyValue(
+                    status="unknown",
+                    basis="Insufficient size signals in public data",
+                    confidence=0,
+                )
+
+            # ── Niche detection ────────────────────────────────────────
+            niche_results = web_search(
+                f'"{firm_name}" accountant specialist clients sector industry' 
+            )
+            niche_lower = _filter_relevant(niche_results).lower()
+            NICHE_MAP = [
+                ("construction", ["construction", "builders", "subcontractors", "cis", "contractors"]),
+                ("hospitality", ["hospitality", "restaurants", "hotels", "pubs", "catering"]),
+                ("property & landlords", ["landlords", "property", "letting agents", "real estate"]),
+                ("legal & professional", ["solicitors", "legal", "law firms", "barristers"]),
+                ("medical & dental", ["medical", "dental", "gp", "healthcare", "nhs", "clinics"]),
+                ("creative & media", ["creative", "media", "agencies", "design", "production"]),
+                ("freelancers & contractors", ["freelancers", "contractors", "ir35", "limited companies"]),
+                ("ecommerce & retail", ["ecommerce", "retail", "amazon", "shopify", "online"]),
+                ("charities & not-for-profit", ["charity", "charities", "not-for-profit", "nfp"]),
+            ]
+            niche = ""
+            for niche_name, keywords in NICHE_MAP:
+                if any(kw in niche_lower or kw in general_lower for kw in keywords):
+                    niche = niche_name
+                    break
+
+            # ── Unknowns & contradictions ──────────────────────────────
+            unknowns = []
+            contradictions = []
+            if software_stack == "unknown":
+                unknowns.append("Software stack — no Xero/QBO/Sage/Iris mention found")
+            if not staff_estimate:
+                unknowns.append("Staff size — no headcount signals in public data")
+            if not niche:
+                unknowns.append("Client niche — sector specialisation not identifiable from search")
+            if not signals:
+                unknowns.append("Pain signals — no strong operational friction signals found")
+            # Contradictions: hiring but also described as boutique/small
+            hiring_obs = any("hiring" in s.description.lower() and s.strength == "OBSERVED" for s in signals)
+            boutique_sig = any(w in (niche_lower + general_lower) for w in ["boutique", "sole practitioner", "one-man"])
+            if hiring_obs and boutique_sig:
+                contradictions.append("Hiring signals contradict boutique/sole-practitioner positioning — actual size unclear")
+
+            # ── Raw notes ─────────────────────────────────────────────────
+            ch_note = (
+                f"#{companies_house_number}, incorporated {ch_facts.get('date_of_creation', 'unknown')}, "
+                f"accounts next due {ch_facts.get('accounts_next_due', 'unknown')}"
+                if ch_facts else "no match"
+            )
             raw_notes = (
+                f"Site: {site_content[:300] if site_content else '(scrape unavailable)'}\n"
                 f"General: {general_research[:300]}\n"
                 f"Stack: {stack_results[:200]}\n"
-                f"Pain: {pain_results[:200]}"
+                f"Pain: {pain_results[:200]}\n"
+                f"Companies House: {ch_note}"
             )
 
-            prospect = add_prospect(
-                firm_name=firm_name,
-                website=website,
-                software_stack=software_stack,
-                pain_signals=pain_signals,
-                notes=raw_notes,
-            )
+            # ── Upsert: patch existing record if firm already known ────
+            existing = get_prospect_by_name(firm_name)
+            if existing is not None:
+                prospect = update_prospect_intel(
+                    existing.id,
+                    firm_name=firm_name,
+                    verdict=verdict,
+                    confidence=confidence,
+                    evidence_confidence=evidence_confidence,
+                    primary_thesis=primary_thesis,
+                    pain_signals=signals,
+                    pain_score=pain_score,
+                    value_score=value_score,
+                    urgency_score=urgency_score,
+                    repeatability_score=repeatability_score,
+                    financial_value=fv,
+                    outreach_intel=oi,
+                    niche=niche,
+                    software_stack=software_stack,
+                    companies_house_number=companies_house_number,
+                    unknowns=unknowns,
+                    contradictions=contradictions,
+                    notes=raw_notes,
+                )
+            else:
+                prospect = add_prospect(
+                    firm_name=firm_name,
+                    website=website,
+                    software_stack=software_stack,
+                    companies_house_number=companies_house_number,
+                    niche=niche,
+                    verdict=verdict,
+                    confidence=confidence,
+                    evidence_confidence=evidence_confidence,
+                    primary_thesis=primary_thesis,
+                    pain_signals=signals,
+                    pain_score=pain_score,
+                    value_score=value_score,
+                    urgency_score=urgency_score,
+                    repeatability_score=repeatability_score,
+                    financial_value=fv,
+                    outreach_intel=oi,
+                    unknowns=unknowns,
+                    contradictions=contradictions,
+                    notes=raw_notes,
+                )
 
         except Exception as err:
             task.fail(str(err))
@@ -855,13 +1703,323 @@ class AgentHarness:
         task.complete(TaskResult(success=True, output=prospect.id))
         self.task_store.save_task(task)
 
+        # Auto-log time saved (45 min manual research equivalent)
+        try:
+            from core.db import log_activity
+            log_activity("prospect_research", prospect.firm_name, minutes_saved=45)
+        except Exception:
+            pass
+
+        # Auto-queue Maya outreach task for grade-A prospects
+        if verdict == "A":
+            try:
+                outreach_task = Task(
+                    title=f"Draft outreach: {prospect.firm_name[:45]}",
+                    description=(
+                        f"Grade A prospect — ready for personalised outreach.\n"
+                        f"Call draft_outreach with prospect_id={prospect.id}"
+                    ),
+                    workspace="outreach",
+                    metadata={"prospect_id": prospect.id, "auto_queued": True},
+                )
+                outreach_task.queue()
+                self.task_store.save_task(outreach_task)
+            except Exception:
+                pass
+
+
+        signal_lines = "\n".join(
+            f"  [{s.strength}] {s.description}" for s in prospect.pain_signals
+        ) or "  None detected"
+
         return (
             f"Prospect researched: {prospect.firm_name}\n"
             f"ID: {prospect.id}\n"
+            f"Verdict: {prospect.verdict} ({prospect.verdict_label()}) — confidence {prospect.confidence}%\n"
             f"Software stack: {prospect.software_stack}\n"
-            f"Pain signals: {prospect.pain_signals}\n"
-            f"Priority: {prospect.priority} | Status: {prospect.status}"
+            f"Financial value: {prospect.financial_value.display()}\n"
+            f"Pain signals:\n{signal_lines}\n"
+            f"Score: {prospect.total_score}/20 "
+            f"(pain={prospect.pain_score} value={prospect.value_score} "
+            f"urgency={prospect.urgency_score} repeat={prospect.repeatability_score})\n"
+            f"Status: {prospect.status} | Priority: {prospect.priority}"
         )
+
+    async def execute_batch_hunt(
+        self,
+        firms: str = "",
+    ) -> str:
+        """Research a list of firms in sequence and return ranked results.
+
+        firms: newline- or comma-separated list of entries, each either
+               "Firm Name" or "Firm Name | https://website.com"
+        """
+        if not firms.strip():
+            return "Error: provide a newline- or comma-separated list of firm names."
+
+        # Parse entries
+        sep = "\n" if "\n" in firms else ","
+        raw_entries = [e.strip() for e in firms.split(sep) if e.strip()]
+        parsed = []
+        for entry in raw_entries:
+            if "|" in entry:
+                name, _, site = entry.partition("|")
+                parsed.append((name.strip(), site.strip()))
+            else:
+                parsed.append((entry, ""))
+
+        results = []
+        for firm_name, website in parsed:
+            try:
+                outcome = await self.execute_research_prospect(
+                    firm_name=firm_name,
+                    website=website,
+                )
+                results.append(outcome)
+            except Exception as err:
+                results.append(f"FAILED — {firm_name}: {err}")
+
+        # Re-load and sort all batch prospects by score descending
+        from capabilities.prospects.service import list_prospects
+        all_p = list_prospects()
+        batch_names = {name for name, _ in parsed}
+        batch = [p for p in all_p if p.firm_name in batch_names]
+        batch.sort(key=lambda p: (0 if p.verdict == "A" else 1 if p.verdict == "B" else 2, -p.total_score))
+
+        summary_lines = ["\n═══ BATCH HUNT RESULTS (ranked by score) ═══"]
+        for p in batch:
+            fv = p.financial_value.display() if p.financial_value else "unknown"
+            summary_lines.append(
+                f"  {p.verdict} ({p.total_score}/20) {p.firm_name} — {fv}"
+            )
+        if not batch:
+            summary_lines.append("  No batch prospects found in store.")
+
+        return "\n".join(results) + "\n" + "\n".join(summary_lines)
+
+    async def execute_curate_prospects(
+        self,
+        dry_run: bool = False,
+    ) -> str:
+        """Scan all prospects for junk/generic firm names and fix them from the
+        website's SITE_TITLE. Removes unfixable single-word / keyword-only names
+        so the prospect pool stays clean.
+
+        Args:
+            dry_run: If True, report what would change without saving.
+        """
+        import re as _cr
+        from capabilities.prospects.service import list_prospects, save_prospect
+        from capabilities.web.research import scrape_web_page_stealth
+
+        _JUNK_PAT = _cr.compile(
+            r"^(?:home|contact|about|welcome|services|news|blog|menu|login|"
+            r"search|results|directory|index)$"
+            r"|^(?:local\s+)?(?:chartered\s+)?(?:accountants?|accountancy|"
+            r"accountanc(?:y|ies)|bookkeepers?|bookkeeping|"
+            r"tax\s+(?:advisors?|services?|specialists?|accountants?))"
+            r"(?:\s+[\w\s]*)?$"
+            r"|^[\w][\w\s]{1,30}\s+(?:chartered\s+)?(?:accountants?|"
+            r"accountancy|bookkeepers?|bookkeeping|"
+            r"tax\s+(?:advisors?|services?|specialists?))s?$",
+            _cr.IGNORECASE,
+        )
+        _SEP = _cr.compile(r"\s*(?:\s[-\u2013\u2014]\s|\|).*$")
+
+        def _domain_brand(website: str) -> str:
+            _d = _cr.sub(r"https?://(www\.)?", "", website).split("/")[0]
+            _base = _d.split(".")[0]
+            return _base.replace("-", " ").replace("_", " ").strip().title()
+
+        all_prospects = list_prospects()
+        fixed, unfixable, skipped = [], [], []
+
+        for p in all_prospects:
+            if not _JUNK_PAT.match(p.firm_name.strip()):
+                skipped.append(p.firm_name)
+                continue
+
+            new_name = None
+            # Try SITE_TITLE from website scrape
+            if p.website:
+                try:
+                    scraped = await scrape_web_page_stealth(p.website)
+                    m = _cr.match(r"SITE_TITLE:\s*(.+)", scraped)
+                    if m:
+                        candidate = _SEP.sub("", m.group(1)).strip()
+                        if (
+                            candidate
+                            and len(candidate) >= 3
+                            and not _JUNK_PAT.match(candidate)
+                        ):
+                            new_name = candidate
+                except Exception:
+                    pass
+                # Fall back to domain-derived name
+                if not new_name:
+                    derived = _domain_brand(p.website)
+                    if derived and len(derived) >= 3 and not _JUNK_PAT.match(derived):
+                        new_name = derived
+
+            if new_name:
+                fixed.append(f"{p.firm_name!r} → {new_name!r}")
+                if not dry_run:
+                    p.firm_name = new_name
+                    save_prospect(p)
+            else:
+                unfixable.append(p.firm_name)
+
+        mode = "[DRY RUN] " if dry_run else ""
+        lines = [f"{mode}Prospect curation complete."]
+        if fixed:
+            lines.append(f"\nFixed ({len(fixed)}):")
+            lines.extend(f"  • {f}" for f in fixed)
+        if unfixable:
+            lines.append(f"\nCould not fix ({len(unfixable)}) — no reliable name source:")
+            lines.extend(f"  • {u!r}" for u in unfixable)
+        lines.append(f"\nClean prospects skipped: {len(skipped)}")
+        return "\n".join(lines)
+
+    async def execute_purge_directory_prospects(
+        self,
+        dry_run: bool = False,
+    ) -> str:
+        """Scan all prospects and delete any whose website is a directory,
+        aggregator, job board, or listing site rather than a real firm website.
+
+        Args:
+            dry_run: If True, report what would be deleted without deleting.
+        """
+        # RULE: prospect deletion NEVER touches time savings.
+        # Hours saved are immutable unless Kane explicitly calls remove_time_saved.
+        from capabilities.prospects.service import list_prospects, delete_prospect
+
+        all_prospects = list_prospects()
+        to_delete = []
+
+        dir_url_fragments = [
+            "/business-directory/", "/find-an-accountant", "/directory/",
+            "/search?", "/results?", "/listings/", "/find/",
+            "/accountants-near", "/accountants-in", "/category/",
+        ]
+
+        for p in all_prospects:
+            site = (p.website or "").lower().rstrip("/")
+            domain = site.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+            if (
+                domain in [d.lower() for d in DISCOVERY_DIRECTORY_DOMAINS]
+                or any(frag in site for frag in dir_url_fragments)
+            ):
+                to_delete.append(p)
+
+        if not to_delete:
+            return "No directory/aggregator prospects found — prospect pool is clean."
+
+        mode = "[DRY RUN] " if dry_run else ""
+        lines = [f"{mode}Purging {len(to_delete)} directory/aggregator prospects:"]
+        for p in to_delete:
+            lines.append(f"  • {p.firm_name} ({p.website}) — verdict {p.verdict}")
+            if not dry_run:
+                try:
+                    delete_prospect(p.id)
+                except Exception as exc:
+                    lines.append(f"    ⚠ Could not delete: {exc}")
+
+        return "\n".join(lines)
+
+    async def execute_librarian_run(self) -> str:
+        """Scheduled Librarian run: purge directories, curate names, write vault note."""
+        from datetime import datetime, timezone
+        from capabilities.prospects.service import list_prospects as _lp  # noqa: F401
+
+        def _lib_task(step: str) -> Task:
+            return Task(
+                title=f"Scheduled Librarian Run — {step}",
+                description="Automated curation step.",
+                workspace="library",
+                metadata={"agent": "Librarian"},
+            )
+
+        purge_text = "(skipped)"
+        curate_text = "(skipped)"
+
+        try:
+            purge_text = str(
+                await self.execute_tool_for_task_async(
+                    _lib_task("purge"), "purge_directory_prospects", {"dry_run": False}, source="scheduler"
+                )
+            )
+            print(f"[Librarian] purge: {purge_text[:200]}")
+        except Exception as exc:
+            purge_text = f"Purge error: {exc}"
+            print(f"[Librarian] purge FAILED: {exc}")
+
+        try:
+            curate_text = str(
+                await self.execute_tool_for_task_async(
+                    _lib_task("curate"), "curate_prospects", source="scheduler"
+                )
+            )
+            print(f"[Librarian] curate: {curate_text[:200]}")
+        except Exception as exc:
+            curate_text = f"Curate error: {exc}"
+            print(f"[Librarian] curate FAILED: {exc}")
+
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        note = (
+            f"# Curation Run — {now}\n\n"
+            f"## Purged Directories\n{purge_text}\n\n"
+            f"## Curation\n{curate_text}\n\n"
+            f"*Auto-generated by Librarian every 2 hours.*"
+        )
+
+        try:
+            await self.execute_tool_for_task_async(
+                _lib_task("vault-write"),
+                "write_obsidian_note",
+                {"filename": "Curation Log", "content": note},
+                source="scheduler",
+            )
+        except Exception as exc:
+            return f"Librarian run done but vault write failed: {exc}"
+
+        return f"Librarian run complete — {now}"
+
+    async def execute_maya_backlog_run(self) -> str:
+        """Scheduled Maya run: draft outreach for all Grade A prospects without copy."""
+        from capabilities.prospects.service import list_prospects
+
+        all_prospects = list_prospects()
+        targets = [p for p in all_prospects if p.verdict == "A" and not p.outreach_email]
+
+        if not targets:
+            return "Maya backlog run: no Grade A prospects without outreach copy — nothing to do."
+
+        task = Task(
+            title="Maya Backlog Run",
+            description=f"Draft outreach for {len(targets)} Grade A prospect(s) without copy.",
+            workspace="outreach",
+            metadata={"agent": "Maya"},
+        )
+
+        drafted: list[str] = []
+        failed: list[str] = []
+
+        for p in targets:
+            try:
+                await self.execute_tool_for_task_async(
+                    task, "draft_outreach", {"prospect_id": p.id}, source="scheduler"
+                )
+                drafted.append(p.firm_name)
+            except Exception as exc:
+                failed.append(f"{p.firm_name}: {exc}")
+
+        lines = [f"Maya backlog run: drafted {len(drafted)}, failed {len(failed)}."]
+        if drafted:
+            lines.append("Drafted: " + ", ".join(drafted))
+        if failed:
+            lines.append("Failed: " + "; ".join(failed))
+        return "\n".join(lines)
 
     async def execute_list_prospects(
         self,
@@ -874,11 +2032,16 @@ class AgentHarness:
         if not prospects:
             return "No prospects found."
 
-        lines = [
-            f"- {p.firm_name} [{p.status}] — stack: {p.software_stack} "
-            f"| priority: {p.priority} (ID: {p.id})"
-            for p in prospects
-        ]
+        lines = []
+        for p in prospects:
+            score_str = f"{p.total_score}/20" if p.total_score else "unscored"
+            sig_count = len(p.pain_signals)
+            lines.append(
+                f"[{p.verdict}] {p.firm_name} — {p.verdict_label()} | "
+                f"score {score_str} | {sig_count} signal(s) | "
+                f"stack: {p.software_stack or 'unknown'} | "
+                f"status: {p.status} (ID: {p.id})"
+            )
         return "\n".join(lines)
 
     async def execute_get_prospect(
@@ -915,7 +2078,7 @@ class AgentHarness:
 
         Phase 25: Outreach Drafting Engine.
         Loads the prospect profile, uses the LLM (via self.chat) to generate
-        a personalised cold email and LinkedIn DM anchored in the Kaizen Studios
+        a personalised cold email and LinkedIn DM anchored in the Kaido Studios
         offer, then stores the drafts back in the prospect record.
         """
         from capabilities.prospects.service import get_prospect, get_prospect_by_name, save_outreach
@@ -942,32 +2105,32 @@ class AgentHarness:
         self.task_store.save_task(task)
 
         from core.config import (
-            KAIZEN_SENDER_NAME,
-            KAIZEN_SENDER_TITLE,
-            KAIZEN_SENDER_COMPANY,
-            KAIZEN_SENDER_EMAIL,
-            KAIZEN_SENDER_LINKEDIN,
+            KAIDO_SENDER_NAME,
+            KAIDO_SENDER_TITLE,
+            KAIDO_SENDER_COMPANY,
+            KAIDO_SENDER_EMAIL,
+            KAIDO_SENDER_LINKEDIN,
         )
 
         contact_line = (
-            KAIZEN_SENDER_EMAIL
-            if KAIZEN_SENDER_EMAIL
+            KAIDO_SENDER_EMAIL
+            if KAIDO_SENDER_EMAIL
             else (
-                f"LinkedIn: {KAIZEN_SENDER_LINKEDIN}"
-                if KAIZEN_SENDER_LINKEDIN
+                f"LinkedIn: {KAIDO_SENDER_LINKEDIN}"
+                if KAIDO_SENDER_LINKEDIN
                 else "Reply to this message to arrange a time."
             )
         )
 
         sig = (
-            f"{KAIZEN_SENDER_NAME}\n"
-            f"{KAIZEN_SENDER_TITLE}, {KAIZEN_SENDER_COMPANY}"
+            f"{KAIDO_SENDER_NAME}\n"
+            f"{KAIDO_SENDER_TITLE}, {KAIDO_SENDER_COMPANY}"
         )
 
         system_prompt = (
-            "You are a cold outreach copywriter for Kaizen Studios.\n\n"
+            "You are a cold outreach copywriter for Kaido Studios.\n\n"
 
-            "# WHAT KAIZEN STUDIOS DOES\n"
+            "# WHAT KAIDO STUDIOS DOES\n"
             "We help UK independent accountancy practices (1-10 staff) replace "
             "manual processes with AI automation — freeing 10+ hours a week "
             "without changing their software stack.\n\n"
@@ -1001,14 +2164,35 @@ class AgentHarness:
             "<linkedin dm — one hook, one ask, no sign-off needed>"
         )
 
+        # Format pain signals as clean text
+        oi = prospect.outreach_intel
+        pain_lines = "\n".join(
+            f"  [{s.strength}] {s.description}"
+            for s in (prospect.pain_signals or [])
+        ) or "  None detected"
+        objections_str = (
+            "\n".join(f"  - {o}" for o in (oi.objections or []))
+            if oi.objections else "  None noted"
+        )
+
         user_message = (
             f"Draft outreach for this prospect:\n\n"
             f"Firm: {prospect.firm_name}\n"
             f"Website: {prospect.website or 'not listed'}\n"
-            f"Software stack: {prospect.software_stack}\n"
-            f"Pain signals: {prospect.pain_signals}\n"
-            f"Services: {prospect.services}\n"
-            f"Priority: {prospect.priority}\n\n"
+            f"Niche / sector: {prospect.niche or 'general practice'}\n"
+            f"Software stack: {prospect.software_stack or 'unknown'}\n"
+            f"Services: {prospect.services or 'not listed'}\n"
+            f"\n"
+            f"PAIN SIGNALS (use one of these as your hook):\n{pain_lines}\n"
+            f"\n"
+            f"OUTREACH INTELLIGENCE:\n"
+            f"Why now: {oi.why_now or 'not specified'}\n"
+            f"Suggested angle: {oi.outreach_angle or 'not specified'}\n"
+            f"Likely objections to pre-empt:\n{objections_str}\n"
+            f"\n"
+            f"Use the strongest OBSERVED or INDICATED pain signal as your opening hook. "
+            f"Follow the suggested angle where it fits. "
+            f"Do NOT directly name the objections — neutralise them by framing the offer correctly.\n\n"
             f"Generate the email subject, email body, and LinkedIn DM."
         )
 
@@ -1102,7 +2286,7 @@ class AgentHarness:
         task.queue()
         self.task_store.save_task(task)
 
-        task.assign("atlas")
+        task.assign("nero")
         task.start()
         self.task_store.save_task(task)
 
@@ -1186,7 +2370,7 @@ class AgentHarness:
         task.queue()
         self.task_store.save_task(task)
 
-        task.assign("atlas")
+        task.assign("nero")
         task.start()
         self.task_store.save_task(task)
 
@@ -1271,7 +2455,7 @@ class AgentHarness:
         month: int,
         documented_savings: float,
     ) -> tuple[str, float]:
-        """Shared Kaizen Studios retainer billing logic.
+        """Shared Kaido Studios retainer billing logic.
 
         Months 1-3 of the client relationship (counted from client.created_at)
         bill a fixed £750/mo retainer. From month 4 onward, billing switches
@@ -1309,7 +2493,7 @@ class AgentHarness:
         baseline; determines billing mode (fixed £750/mo retainer for the
         first 3 months of the client relationship, 20% of that month's
         documented £ savings — minimum £750 — from month 4 onward); uses
-        self.chat() with an Atlas-authored prompt to write a professional
+        self.chat() with a Nero-authored prompt to write a professional
         HTML report plus a plain-text retainer invoice; saves the HTML
         report to data/reports/{client_id}_{year}_{month}.html.
         """
@@ -1341,7 +2525,7 @@ class AgentHarness:
         )
         task.queue()
         self.task_store.save_task(task)
-        task.assign("atlas")
+        task.assign("nero")
         task.start()
         self.task_store.save_task(task)
 
@@ -1353,7 +2537,7 @@ class AgentHarness:
         ) or "No baselines logged yet."
 
         system_prompt = (
-            "You are Atlas, the client success agent for Kaizen Studios. "
+            "You are Nero, the client success agent for Kaido Studios. "
             "Write a professional, client-facing monthly savings report as a "
             "complete, standalone HTML document (including <html>, <head> with "
             "inline <style>, and <body>), and a separate plain-text retainer "
@@ -1412,7 +2596,7 @@ class AgentHarness:
             invoice_match.group(1).strip()
             if invoice_match
             else (
-                f"Kaizen Studios — Retainer Invoice\n"
+                f"Kaido Studios — Retainer Invoice\n"
                 f"Client: {client.name}\n"
                 f"Period: {year}-{month:02d}\n"
                 f"Billing mode: {billing_mode}\n"
@@ -1641,8 +2825,12 @@ class AgentHarness:
         """
         Select a ModelProvider for an Agent.
 
-        Currently returns the first registered provider.
-        Future versions will route by agent capability profile.
+        Routing strategy:
+        - Prefer OmniRoute when registered and healthy — it proxies the
+          user\'s Claude subscription and handles complex reasoning, tool
+          synthesis, and conversation far better than the local 8b model.
+        - Fall back to Ollama (hermes3:8b) if OmniRoute is unavailable,
+          keeping cost at near-zero when offline.
         """
 
         providers = self.models.list_providers()
@@ -1652,6 +2840,16 @@ class AgentHarness:
                 "No Model Providers are registered."
             )
 
+        # Prefer OmniRoute when available and healthy
+        if "omniroute" in providers:
+            try:
+                omniroute = self.models.get("omniroute")
+                if omniroute.health_check():
+                    return omniroute
+            except Exception:
+                pass
+
+        # Fallback: first registered provider (Ollama / hermes3:8b)
         return self.models.get(providers[0])
 
     # ---------------------------------------------------------------------
@@ -1718,7 +2916,20 @@ class AgentHarness:
             metadata=request_metadata,
         )
 
-        response = await asyncio.to_thread(provider.chat, request)
+        try:
+            response = await asyncio.to_thread(provider.chat, request)
+        except Exception as _exc:
+            _fallback = "ollama"
+            if provider.name != _fallback and _fallback in self.models.list_providers():
+                import logging as _log
+                _log.getLogger(__name__).warning(
+                    "Provider '%s' failed (%s) — falling back to '%s'",
+                    provider.name, _exc, _fallback,
+                )
+                _fb_provider = self.models.get(_fallback)
+                response = await asyncio.to_thread(_fb_provider.chat, request)
+            else:
+                raise
         return response.content
 
     def stream(
@@ -1820,7 +3031,7 @@ class AgentHarness:
         )
 
         task.queue()
-        task.assign(agent.id)
+        task.assign(task.assigned_agent if task.assigned_agent else agent.id)
         task.start()
         self.task_store.save_task(task)
 
@@ -1861,7 +3072,7 @@ class AgentHarness:
         )
 
         task.queue()
-        task.assign(agent.id)
+        task.assign(task.assigned_agent if task.assigned_agent else agent.id)
         task.start()
         self.task_store.save_task(task)
 
@@ -1997,6 +3208,55 @@ class AgentHarness:
         """Delete terminal Tasks older than `days` through the Task capability."""
         return self.task_store.delete_terminal_tasks_older_than(days)
 
+    def clear_stale_queued_tasks(self, older_than_minutes: int = 10) -> int:
+        """Cancel QUEUED Tasks whose Agent has gone idle without picking them up.
+
+        A Task is normally QUEUED for only a few milliseconds before its
+        creator immediately assigns and starts it. A Task still QUEUED after
+        `older_than_minutes` means whatever was going to run it never did —
+        the process was interrupted, the assigned Agent errored out before
+        starting it, or it was never picked up at all. Once that Agent is
+        idle (not mid-execution on something else), there is nothing left
+        that will ever advance the Task, so it is cancelled rather than left
+        cluttering the Queued list forever.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=older_than_minutes)
+        cleared = 0
+
+        for row in self.task_store.list_tasks(status=TaskStatus.QUEUED.value, limit=500):
+            created_at = row.get("created_at")
+            if not created_at:
+                continue
+            try:
+                created = datetime.fromisoformat(created_at)
+            except ValueError:
+                continue
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if created > cutoff:
+                continue  # still fresh — may just be mid-dispatch
+
+            assigned_agent = row.get("assigned_agent")
+            if assigned_agent:
+                agent = self._find_agent_loosely(assigned_agent)
+                if agent is not None and agent.status != AgentStatus.IDLE:
+                    continue  # still legitimately being worked
+
+            if self.task_store.cancel_task(
+                row["id"],
+                reason=f"Cleared: queued longer than {older_than_minutes}m with no active Agent picking it up.",
+            ):
+                cleared += 1
+
+        return cleared
+
+    def _find_agent_loosely(self, assigned_agent: str) -> Optional[Agent]:
+        """Resolve an assigned_agent value that may be an Agent id or a plain name."""
+        try:
+            return self.agents.get(assigned_agent)
+        except KeyError:
+            return self.agents.find_by_name(assigned_agent)
+
     def get_memory(
         self,
         channel_id: str,
@@ -2114,7 +3374,7 @@ class AgentHarness:
             # Assign
             # ==========================================================
 
-            task.assign(agent.id)
+            task.assign(task.assigned_agent if task.assigned_agent else agent.id)
 
             self.events.publish(
                 create_event(
@@ -2249,7 +3509,23 @@ class AgentHarness:
             # Execute Model
             # ==========================================================
 
-            response = provider.chat(request)
+            try:
+                response = provider.chat(request)
+            except Exception as _primary_exc:
+                # Primary provider failed (e.g. OmniRoute 400/timeout).
+                # Fall back to Ollama so ARNIE stays responsive.
+                _fallback_name = "ollama"
+                if provider.name != _fallback_name and _fallback_name in self.models.list_providers():
+                    import logging as _log
+                    _log.getLogger(__name__).warning(
+                        "Provider '%s' failed (%s) — falling back to '%s'",
+                        provider.name, _primary_exc, _fallback_name,
+                    )
+                    provider = self.models.get(_fallback_name)
+                    execution.provider = provider.name
+                    response = provider.chat(request)
+                else:
+                    raise
 
             # ==========================================================
             # Model Completed

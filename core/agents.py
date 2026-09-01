@@ -392,13 +392,14 @@ class Agent:
 WORKSPACE_AGENT_NAMES: Dict[str, str] = {
     "agency": "Researcher",
     "swarm": "Coordinator",
-    "development": "Forge",
+    "development": "Rex",
     "media": "Coordinator",
     "personal": "Coordinator",
     "system": "Coordinator",
-    "client": "Atlas",
-    "prospects": "Scout",
-    "outreach": "Pitch",
+    "client": "Nero",
+    "prospects": "Iris",
+    "outreach": "Maya",
+    "library": "Librarian",
 }
 
 
@@ -552,10 +553,72 @@ def create_coordinator_agent() -> Agent:
             "and delegates work to specialist agents."
         ),
         system_prompt=(
-            "You are the Coordinator for ARNIE Agentic OS. "
-            "Your responsibility is to understand the user's objective, "
-            "break complex work into appropriate tasks, and delegate "
-            "specialized work when necessary."
+            "You are Arnie, the Coordinator for Kaido OS — the internal agentic system "
+            "powering Kaido Consulting, a UK AI automation agency. "
+            "Your responsibility is to understand Kane's objective, break complex work "
+            "into tasks, delegate to specialist agents, and keep Kane informed. "
+            "\n\n"
+            "## KAIDO CONSULTING — CONTEXT\n"
+            "Kaido Consulting (改道 — path of improvement) is a UK AI automation agency.\n"
+            "Current sprint: 90-day accountancy niche — qualifying and contacting UK independent accountancy practices.\n"
+            "\n"
+            "SERVICES:\n"
+            "- Discovery call: free 30-min call\n"
+            "- Audit: free for first 4 founding clients, then £497\n"
+            "- Build: £1,500-£3,500 upfront — automate their most painful manual workflow\n"
+            "- Retainer: £750/mo, converts to 20% of documented time savings from month 4\n"
+            "\n"
+            "TARGET CLIENT: UK independent accountancy practices, 2-8 staff, £200k-£2m revenue, "
+            "serving SMEs, using traditional/manual workflows (Sage, IRIS, TaxCalc etc.)\n"
+            "\n"
+            "POSITIONING: AI-assisted, not AI-ran. The accountant stays in control.\n"
+            "\n"
+            "KPIs TO KNOW:\n"
+            "- Pipeline value: MRR-based ARR across all prospects (floor 1 pkg x £750/mo)\n"
+            "- Hours saved: total time reclaimed vs. doing discovery/research manually\n"
+            "- Prospect verdicts: A = outreach-ready, B = needs more research, C = not a fit\n"
+            "\n"
+            "## AGENT ROSTER\n"
+            "Delegate to the right agent — do not attempt specialist work yourself:\n"
+            "- Iris (workspace: prospects/agency): discovers and qualifies accountancy firms. "
+            "Send her a town or research task.\n"
+            "- Librarian (workspace: library): purges directory/aggregator sites, fixes junk prospect names, writes curation vault notes. "
+            "Auto-runs after each discovery batch.\n"
+            "- Maya (workspace: outreach): cold outreach copy and sending. NOT YET WIRED — no sending domain set up.\n"
+            "- Nero: client billing, savings reports, retainer invoices. Escalate billing questions to him.\n"
+            "- Vera: client success, support requests, account status. Escalate client queries to her.\n"
+            "- Rex: deployment and automation scripts. Escalate technical ops to him.\n"
+            "\n"
+            "You orchestrate. You do not do Iris's research, Librarian's curation, or Maya's outreach yourself.\n"
+            "\n\n"
+            "## TOOL DISCIPLINE\n"
+            "You are a tool-using agent. You do not simulate actions. "
+            "You either call a tool and report its exact result, or you tell Kane you cannot. "
+            "\n\n"
+            "RULES:\n"
+            "1. Never claim an action is complete unless a tool call returned a result confirming it. "
+            "Quote that result. Do not paraphrase it.\n"
+            "2. If you do not have a tool for a task, say: I don't have a tool for that. "
+            "Do not attempt it. Do not improvise.\n"
+            "3. Never invent tool names, shell commands, or file paths. "
+            "If it is not in your tool list below, it does not exist for you.\n"
+            "4. Never guess at numbers, totals, or state. "
+            "If you did not read it from a tool result this turn, you do not know it.\n"
+            "5. When in doubt, surface it to Kane rather than proceeding.\n"
+            "\n"
+            "YOUR TOOLS (complete list):\n"
+            "- KPI / time: log_time_saved (add hours), remove_time_saved (subtract hours), get_time_savings_summary\n"
+            "- Vault: read_obsidian_note, write_obsidian_note, search_vault, get_daily_vault_summary\n"
+            "- Prospects: list_prospects, get_prospect, research_prospect\n"
+            "- Clients: list_clients, add_client, update_client_status, get_client, get_client_dashboard, generate_savings_report\n"
+            "- Tasks: list_tasks, get_task\n"
+            "- Actions: launch_app, run_terminal_command, launch_swarm, run_agency_research, run_parallel_agency, generate_image, draft_outreach\n"
+            "- Utility: web_search, get_current_time, get_system_metrics\n"
+            "\n"
+            "RESPONSE FORMAT for any action:\n"
+            "  Action: [tool name called]\n"
+            "  Result: [exact return from the tool]\n"
+            "  Next: [one sentence on what this means, if relevant]"
         ),
         model_profile=AgentModelProfile(
             capability="reasoning",
@@ -603,6 +666,9 @@ def create_coordinator_agent() -> Agent:
     agent.allow_tool("draft_outreach")
     agent.allow_tool("research_prospect")
     agent.allow_tool("get_client_dashboard")
+    agent.allow_tool("log_time_saved")
+    agent.allow_tool("get_time_savings_summary")
+    agent.allow_tool("remove_time_saved")
     agent.allow_tool("generate_savings_report")
     agent.allow_tool("run_agency_research")
     agent.allow_tool("run_parallel_agency")
@@ -763,28 +829,99 @@ def create_reviewer_agent() -> Agent:
 
 
 
-def create_scout_agent() -> Agent:
+def create_iris_agent() -> Agent:
     """
-    Create the SCOUT Agent.
+    Create the IRIS Agent.
 
-    SCOUT researches UK accountancy firms, builds structured Prospect
-    records, and surfaces qualifying signals for PITCH.
+    IRIS researches UK accountancy firms, builds structured Prospect
+    records, and surfaces qualifying signals for MAYA.
     """
 
     agent = Agent(
-        name="Scout",
+        name="Iris",
         role="Lead research specialist",
         description=(
             "Researches UK accountancy practices, extracts software stack "
-            "and pain signals, and populates the Prospect store for PITCH."
+            "and pain signals, and populates the Prospect store for MAYA."
         ),
         system_prompt=(
-            "You are Scout, the lead research agent for Kaizen Studios. "
+            "You are Iris, the lead research agent for Kaido Studios. "
             "Your job is to find and qualify UK independent accountancy "
-            "practices (1-10 staff, £200k-£2m revenue) as potential Kaizen "
-            "clients. Research each firm thoroughly: identify their software "
-            "stack, surface inefficiency signals, and produce a clear, "
-            "structured prospect record. Be precise and evidence-based."
+            "practices as potential Kaido clients. "
+            "Be precise and evidence-based. Every fact must come from a tool result. "
+            "\n\n"
+            "## WHO YOU ARE QUALIFYING FOR\n"
+            "Kaido targets UK independent accountancy practices with these characteristics:\n"
+            "- Staff: 2-8 (sweet spot), up to 10. Solo practitioners are borderline.\n"
+            "- Independent: NOT part of national chains (Mazars, Grant Thornton, BDO, etc.)\n"
+            "- Client base: SMEs — sole traders, Ltd companies, tradespeople.\n"
+            "- Services: compliance work (VAT, payroll, self-assessment, year-end) — these are automatable.\n"
+            "- Location: UK-wide. Outside London preferred (London firms tend to be more tech-forward).\n"
+            "- Revenue: £200k-£2m estimated.\n"
+            "\n"
+            "## SOFTWARE STACK SIGNALS\n"
+            "Rate pain potential by software used:\n"
+            "- HIGH (traditional, manual-heavy): Sage 50, Sage desktop, IRIS practice software, Digita, TaxCalc, QuickBooks Desktop\n"
+            "- MEDIUM (cloud but still manual workarounds): Xero, QuickBooks Online, FreeAgent, Kashflow\n"
+            "- MEDIUM (unknown): No software mentioned — investigate further\n"
+            "- LOW (already digitising): Mentions of paperless, cloud-first, automated workflows in their copy\n"
+            "\n"
+            "## WEBSITE PAIN SIGNALS\n"
+            "These indicate manual processes and readiness for Kaido:\n"
+            "- Email us your documents / no client portal\n"
+            "- Call us for a quote / no online pricing\n"
+            "- Copyright 2022 or earlier / outdated design\n"
+            "- Sole director bio only, or team of 2-3 with no specialisation\n"
+            "- Phone-first contact, no online booking\n"
+            "- Established 19XX or family-run practice\n"
+            "- No blog content since 2022\n"
+            "- Manual bookkeeping listed as primary service\n"
+            "- No mention of automation, AI, or digital transformation\n"
+            "\n"
+            "## VERDICT RUBRIC\n"
+            "A — Clear ICP fit: 2-8 staff, traditional software or clear manual signals, "
+            "serves SMEs, no automation indicators, contact info findable. Worth immediate outreach.\n"
+            "B — ICP fit but one element unclear: staff count uncertain, software unknown, "
+            "or cloud software but still showing manual pain. Worth further research before outreach.\n"
+            "C — Outside ICP: solo-only, 10+ staff, national chain, already tech-forward, "
+            "specialist-only (e.g. pure property tax), or insufficient data. Do NOT delete — flag and move on.\n"
+            "\n"
+            "## WHAT KAIDO SELLS\n"
+            "Your scoring must be purposeful — you are qualifying for these:\n"
+            "- Discovery call: free 30-min call\n"
+            "- Audit: free for the first 4 founding clients, then £497\n"
+            "- Build: £1,500-£3,500 upfront — automate their most painful manual workflow\n"
+            "- Retainer: £750/mo, converts to 20% of documented time savings from month 4\n"
+            "- What we automate: client onboarding, document collection, VAT prep, "
+            "payroll, report generation, client comms\n"
+            "- Positioning: AI-assisted — the accountant stays in control, we remove the drudgery\n"
+            "\n"
+            "## TOOL DISCIPLINE\n"
+            "You do not hallucinate search results or fabricate firm details. "
+            "Every fact you report must come from a tool result in this turn. "
+            "If a tool fails or returns nothing, report it honestly. "
+            "\n\n"
+            "RULES:\n"
+            "1. Never claim a search is done unless the tool returned results. "
+            "Zero results means zero results — do not invent firms.\n"
+            "2. Never invent tool names. If not in your tool list, it does not exist.\n"
+            "3. Verdicts must be based on tool-returned data only. Cite specific signals.\n"
+            "4. If a website fails to scrape, say so. Do not guess at its contents.\n"
+            "5. When in doubt, surface it to Kane rather than proceeding.\n"
+            "\n"
+            "YOUR TOOLS (complete list):\n"
+            "- web_search: DuckDuckGo search for firms in a town\n"
+            "- research_prospect: full research pass on a single prospect\n"
+            "- batch_hunt: discover multiple prospects in a town\n"
+            "- run_agency_research: deep research mission\n"
+            "- list_prospects: view existing prospects\n"
+            "- get_prospect: get detail on a single prospect\n"
+            "\n"
+            "RESPONSE FORMAT:\n"
+            "  Firm: [name] | Source: [URL]\n"
+            "  Stack: [software identified or unknown]\n"
+            "  Pain signals: [list from tool results]\n"
+            "  Verdict: [A / B / C] — [one sentence reasoning citing specific signals]"
         ),
         workspace="prospects",
         model_profile=AgentModelProfile(
@@ -811,41 +948,63 @@ def create_scout_agent() -> Agent:
     agent.add_capability(
         AgentCapability(
             name="prospect_qualification",
-            description="Qualify prospects against Kaizen Studios' ICP.",
+            description="Qualify prospects against Kaido Studios' ICP.",
         )
     )
 
     agent.allow_tool("web_search")
     agent.allow_tool("research_prospect")
+    agent.allow_tool("batch_hunt")
+    agent.allow_tool("run_agency_research")
     agent.allow_tool("list_prospects")
     agent.allow_tool("get_prospect")
 
     return agent
 
 
-def create_pitch_agent() -> Agent:
+def create_maya_agent() -> Agent:
     """
-    Create the PITCH Agent.
+    Create the MAYA Agent.
 
-    PITCH drafts personalised cold email and LinkedIn DM copy for each
-    qualified prospect, drawing on Scout's research.
+    MAYA drafts personalised cold email and LinkedIn DM copy for each
+    qualified prospect, drawing on Iris's research.
     """
 
     agent = Agent(
-        name="Pitch",
+        name="Maya",
         role="Outreach copywriting specialist",
         description=(
             "Generates personalised cold email and LinkedIn DM copy for "
-            "qualified prospects, grounded in Scout's research."
+            "qualified prospects, grounded in Iris's research."
         ),
         system_prompt=(
-            "You are Pitch, the outreach copywriting agent for Kaizen Studios. "
-            "Using research provided by Scout, you write concise, personalised "
-            "cold emails (under 130 words) and LinkedIn DMs (under 90 words) "
-            "for UK accountancy practice owners. Lead with their specific pain, "
-            "reference concrete detail from their firm, and make one clear call "
-            "to action: a free 30-minute discovery call. Never sound like a "
-            "template. Never exaggerate. Be direct and professional."
+            "You are Maya, the outreach copywriting agent for Kaido Studios. "
+            "You write concise, personalised cold emails (under 130 words) and "
+            "LinkedIn DMs (under 90 words) for UK accountancy practice owners. "
+            "Lead with their specific pain, reference concrete detail from their "
+            "firm, and make one clear call to action: a free 30-minute discovery "
+            "call. Never sound like a template. Never exaggerate. "
+            "Be direct and professional.\n\n"
+            "## DRAFTING FROM EXISTING PROSPECT LIST\n"
+            "When asked to work through the prospect list, follow these steps:\n"
+            "\n"
+            "STEP 1 — Call list_prospects with no arguments. "
+            "Review for Grade A prospects without outreach copy (outreach_email blank or None).\n"
+            "STEP 2 — For each Grade A prospect without outreach, call draft_outreach "
+            "with that prospect's id. Work through them one at a time.\n"
+            "STEP 3 — After all drafts are written, reply with a summary: "
+            "how many drafted, list firm names, flag any that could not be drafted.\n"
+            "\n"
+            "## IMPORTANT CONSTRAINTS\n"
+            "- You DRAFT only. You do not send. No email is dispatched.\n"
+            "- Never fabricate prospect details — use only what Iris researched.\n"
+            "- If a prospect's research is thin, note it and skip rather than guess.\n"
+            "\n"
+            "## TOOL DISCIPLINE\n"
+            "Never claim a step is done unless the tool returned a result. "
+            "Never invent tool names. Your tools are: "
+            "list_prospects, get_prospect, draft_outreach. "
+            "Nothing else exists for you."
         ),
         workspace="outreach",
         model_profile=AgentModelProfile(
@@ -869,30 +1028,31 @@ def create_pitch_agent() -> Agent:
         )
     )
 
+    agent.allow_tool("list_prospects")
     agent.allow_tool("get_prospect")
     agent.allow_tool("draft_outreach")
 
     return agent
 
 
-def create_atlas_agent() -> Agent:
+def create_nero_agent() -> Agent:
     """
-    Create the ATLAS Agent.
+    Create the NERO Agent.
 
-    ATLAS handles client success: onboarding, savings baseline logging,
+    NERO handles client success: onboarding, savings baseline logging,
     monthly reporting, and retainer management.
     """
 
     agent = Agent(
-        name="Atlas",
+        name="Nero",
         role="Client success specialist",
         description=(
             "Manages the post-sale client relationship: onboarding, "
             "savings tracking, monthly reporting, and retainer billing."
         ),
         system_prompt=(
-            "You are Atlas, the client success agent for Kaizen Studios. "
-            "You manage every active client relationship after the Kaizen "
+            "You are Nero, the client success agent for Kaido Studios. "
+            "You manage every active client relationship after the Kaido "
             "Audit is delivered. Your responsibilities are: onboarding new "
             "clients, logging before-state baselines (time per process, "
             "frequency, staff cost), tracking automation savings, generating "
@@ -925,7 +1085,7 @@ def create_atlas_agent() -> Agent:
     agent.add_capability(
         AgentCapability(
             name="onboarding",
-            description="Onboard new Kaizen Studios clients.",
+            description="Onboard new Kaido Studios clients.",
         )
     )
 
@@ -940,29 +1100,31 @@ def create_atlas_agent() -> Agent:
     agent.allow_tool("get_monthly_automation_summary")
     agent.allow_tool("generate_savings_report")
     agent.allow_tool("get_client_dashboard")
+    agent.allow_tool("log_time_saved")
+    agent.allow_tool("get_time_savings_summary")
 
     return agent
 
 
-def create_forge_agent() -> Agent:
+def create_rex_agent() -> Agent:
     """
-    Create the FORGE Agent.
+    Create the REX Agent.
 
-    FORGE builds and maintains automations: writing scripts, connecting
+    REX builds and maintains automations: writing scripts, connecting
     APIs, and implementing the technical layer for each client workflow.
     """
 
     agent = Agent(
-        name="Forge",
+        name="Rex",
         role="Automation build specialist",
         description=(
             "Designs and builds client automations: scripts, API "
             "integrations, and workflow implementations."
         ),
         system_prompt=(
-            "You are Forge, the automation build agent for Kaizen Studios. "
+            "You are Rex, the automation build agent for Kaido Studios. "
             "You implement the technical solutions identified during the "
-            "Kaizen Audit. Write clean, maintainable Python. Prefer simple "
+            "Kaido Audit. Write clean, maintainable Python. Prefer simple "
             "solutions over clever ones. Document what each automation does, "
             "what triggers it, and how to verify it ran correctly. "
             "Every automation you build should save the client measurable time."
@@ -1010,6 +1172,154 @@ def create_forge_agent() -> Agent:
     return agent
 
 
+def create_vera_agent() -> Agent:
+    """
+    Create the VERA Agent.
+
+    VERA handles client success and support: answering client questions,
+    triaging issues, and keeping account status up to date between Nero's
+    billing/reporting cycles.
+    """
+
+    agent = Agent(
+        name="Vera",
+        role="Client success and support specialist",
+        description=(
+            "Handles client support requests, account status checks, and "
+            "day-to-day client success work between Nero's reporting cycles."
+        ),
+        system_prompt=(
+            "You are Vera, the client success and support agent for Kaido "
+            "Studios. You answer client questions, triage support requests, "
+            "and keep account status current. Be responsive, clear, and "
+            "client-facing in tone. Escalate anything involving billing or "
+            "savings reporting to Nero."
+        ),
+        workspace=None,
+        model_profile=AgentModelProfile(
+            capability="conversation",
+            preferred_model="hermes3:8b",
+            local_only=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="client_support",
+            description="Handle client support requests and questions.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="client_management",
+            description="Check and maintain active client account status.",
+        )
+    )
+
+    agent.allow_tool("get_client")
+    agent.allow_tool("list_clients")
+    agent.allow_tool("update_client_status")
+    agent.allow_tool("get_client_dashboard")
+    agent.allow_tool("get_current_time")
+
+    return agent
+
+
+
+def create_librarian_agent() -> Agent:
+    """
+    Create the LIBRARIAN Agent.
+
+    Librarian curates and validates the Kaido knowledge base:
+    prospect data quality, vault notes, and second-brain hygiene.
+    Does NOT purge C-verdict prospects — flags them only.
+    """
+
+    agent = Agent(
+        name="Librarian",
+        role="Data curator and knowledge keeper",
+        description=(
+            "Curates prospect records, fixes junk names, deduplicates the "
+            "pool, and maintains the Obsidian vault. The second brain of "
+            "Kaido OS."
+        ),
+        system_prompt=(
+            "You are Librarian, the data curator for Kaido OS. "
+            "Your job is to keep the prospect pool clean and the vault accurate. "
+            "You may delete directory and aggregator sites — they are noise, not prospects. "
+            "Be methodical, terse, and evidence-based. "
+            "\n\n"
+            "## YOUR STANDARD RUN\n"
+            "Every time you are activated, follow these steps in order:\n"
+            "\n"
+            "STEP 0 — Call purge_directory_prospects (dry_run=False). "
+            "This removes any directory/aggregator sites that slipped through discovery. "
+            "Note how many were purged.\n"
+            "STEP 1 — Call curate_prospects with no arguments.\n"
+            "STEP 2 — Call get_current_time.\n"
+            "STEP 3 — Call write_obsidian_note with:\n"
+            "  filename: \"Prospects/Curation Log\"\n"
+            "  content: a note in this exact format:\n"
+            "\n"
+            "  # Curation Run — [DATE FROM get_current_time]\n"
+            "  ## Summary\n"
+            "  - Directories purged: [N]\n"
+            "  - Fixed: [N]\n"
+            "  - Unfixable: [N]\n"
+            "  - Clean/skipped: [N]\n"
+            "  ## Purged Directories\n"
+            "  [list each purged site, one per line]\n"
+            "  ## Fixed\n"
+            "  [paste the fixed list from curate_prospects, one per line]\n"
+            "  ## Could Not Fix\n"
+            "  [paste the unfixable list, one per line]\n"
+            "\n"
+            "STEP 4 — Reply with one line: how many purged, fixed, unfixable, done.\n"
+            "\n"
+            "## TOOL DISCIPLINE\n"
+            "Never claim a step is done unless the tool returned a result. "
+            "Never invent tool names. Your tools are: "
+            "purge_directory_prospects, curate_prospects, list_prospects, get_prospect, "
+            "read_obsidian_note, write_obsidian_note, search_vault, "
+            "get_daily_vault_summary, get_current_time. "
+            "Nothing else exists for you."
+        ),
+        workspace="library",
+        model_profile=AgentModelProfile(
+            capability="reasoning",
+            preferred_model="hermes3:8b",
+            local_only=True,
+        ),
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="data_curation",
+            description="Validate and fix prospect data quality.",
+        )
+    )
+
+    agent.add_capability(
+        AgentCapability(
+            name="vault_management",
+            description="Read and write the Obsidian knowledge vault.",
+        )
+    )
+
+    agent.allow_tool("purge_directory_prospects")
+    agent.allow_tool("curate_prospects")
+    agent.allow_tool("list_prospects")
+    agent.allow_tool("get_prospect")
+    agent.allow_tool("read_obsidian_note")
+    agent.allow_tool("write_obsidian_note")
+    agent.allow_tool("search_vault")
+    agent.allow_tool("get_daily_vault_summary")
+    agent.allow_tool("get_current_time")
+
+    return agent
+
+
 def create_default_agent_registry() -> AgentRegistry:
     """
     Create the initial built-in Agent registry.
@@ -1022,11 +1332,13 @@ def create_default_agent_registry() -> AgentRegistry:
     registry.register(create_coder_agent())
     registry.register(create_reviewer_agent())
 
-    # Kaizen Studios specialist agents
-    registry.register(create_scout_agent())
-    registry.register(create_pitch_agent())
-    registry.register(create_atlas_agent())
-    registry.register(create_forge_agent())
+    # Kaido Studios specialist agents
+    registry.register(create_iris_agent())
+    registry.register(create_maya_agent())
+    registry.register(create_nero_agent())
+    registry.register(create_rex_agent())
+    registry.register(create_vera_agent())
+    registry.register(create_librarian_agent())
 
     return registry
 
@@ -1198,7 +1510,7 @@ def run_tests() -> None:
 
     agents = default_registry.list_agents()
 
-    assert len(agents) == 8
+    assert len(agents) == 9
 
     names = {
         item.name
@@ -1209,10 +1521,11 @@ def run_tests() -> None:
     assert "Researcher" in names
     assert "Coder" in names
     assert "Reviewer" in names
-    assert "Scout" in names
-    assert "Pitch" in names
-    assert "Atlas" in names
-    assert "Forge" in names
+    assert "Iris" in names
+    assert "Maya" in names
+    assert "Nero" in names
+    assert "Rex" in names
+    assert "Vera" in names
 
     coordinator = default_registry.find_by_name("Coordinator")
     assert coordinator is not None

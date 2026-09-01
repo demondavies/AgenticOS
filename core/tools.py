@@ -60,6 +60,8 @@ Prospect workspace (Phase 24):
     research_prospect
     list_prospects
     get_prospect
+    batch_hunt
+    curate_prospects
 
 Outreach workspace (Phase 25):
     draft_outreach
@@ -765,6 +767,21 @@ async def _get_prospect(
 
 
 # ============================================================================
+# BATCH HUNT HANDLER
+# ============================================================================
+
+
+async def _batch_hunt(
+    firms: str = "",
+) -> str:
+    """Fail clearly until the Harness binds the batch_hunt handler."""
+    raise RuntimeError(
+        "The batch_hunt Tool has not been bound to the "
+        "AgenticOS Harness."
+    )
+
+
+# ============================================================================
 # OUTREACH WORKSPACE HANDLERS
 # ============================================================================
 
@@ -881,6 +898,52 @@ async def _get_client_dashboard() -> str:
 # ============================================================================
 # DEFAULT REGISTRY
 # ============================================================================
+
+
+
+# ============================================================================
+# INTERNAL TIME SAVINGS HANDLERS
+# ============================================================================
+
+async def _log_time_saved(
+    hours: float = 0.0,
+    description: str = "",
+    category: str = "other",
+) -> str:
+    from capabilities.time_savings.service import log_entry, total_hours
+    if hours <= 0:
+        return "Please provide a positive hours value."
+    entry = log_entry(hours=hours, description=description, category=category)
+    total = total_hours()
+    return (
+        f"Logged {hours}h saved — {description} [{entry.category}]. "
+        f"Total hours saved to date: {total}h"
+    )
+
+
+async def _get_time_savings_summary() -> str:
+    from capabilities.time_savings.service import summary
+    s = summary()
+    lines = [f"Total hours saved: {s['total_hours']}h across {s['entry_count']} entries"]
+    for cat, hrs in sorted(s["by_category"].items(), key=lambda x: -x[1]):
+        lines.append(f"  {cat}: {hrs}h")
+    return "\n".join(lines)
+
+
+async def _remove_time_saved(
+    hours: float = 0.0,
+    description: str = "",
+    category: str = "other",
+) -> str:
+    from capabilities.time_savings.service import remove_entry, total_hours
+    if hours <= 0:
+        return "Please provide a positive hours value to remove."
+    entry = remove_entry(hours=hours, description=description, category=category)
+    total = total_hours()
+    return (
+        f"Removed {hours}h from tracker — {description} [{entry.category}]. "
+        f"Total hours saved to date: {total}h"
+    )
 
 
 def create_default_registry() -> ToolRegistry:
@@ -1460,6 +1523,116 @@ def create_default_registry() -> ToolRegistry:
     )
 
     # ========================================================================
+    # BATCH HUNT (Phase 24 extension)
+    # ========================================================================
+
+    registry.register(
+        Tool(
+            name="batch_hunt",
+            description=(
+                "Research multiple accounting firms in one call and return a "
+                "ranked leaderboard. Accepts comma- or newline-separated firm "
+                "names, optionally with a pipe-delimited website URL "
+                "(e.g. 'Firm Name | https://website.com'). Researches each "
+                "firm sequentially using the same Iris logic as "
+                "research_prospect, then ranks by fit score."
+            ),
+            handler=_batch_hunt,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=True,
+            metadata={
+                "phase": 24,
+                "workspace": "prospects",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_batch_hunt"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    # purge_directory_prospects — remove directory/aggregator sites from pool
+    async def _purge_directory_prospects(dry_run: bool = False) -> str:
+        raise RuntimeError(
+            "The purge_directory_prospects Tool has not been bound to the "
+            "AgentHarness. Call AgentHarness.bind_tools() first."
+        )
+
+    registry.register(
+        Tool(
+            name="purge_directory_prospects",
+            description=(
+                "Scan all prospects and permanently delete any whose website "
+                "is a directory, aggregator, job board or listing site "
+                "rather than a real accountancy firm. "
+                "Pass dry_run=True to preview without deleting. "
+                "Run this alongside curate_prospects to keep the pool clean."
+            ),
+            handler=_purge_directory_prospects,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={
+                "phase": 24,
+                "workspace": "library",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_purge_directory_prospects"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    # curate_prospects — post-discovery name quality curation
+    async def _curate_prospects(dry_run: bool = False) -> str:
+        raise RuntimeError(
+            "The curate_prospects Tool has not been bound to the "
+            "AgentHarness. Call AgentHarness.bind_tools() first."
+        )
+
+    registry.register(
+        Tool(
+            name="curate_prospects",
+            description=(
+                "Scan all prospects for junk or keyword-only firm names "
+                "(e.g. 'Home', 'Bideford Accountant') and fix them by "
+                "scraping each firm's website for the real brand name. "
+                "Pass dry_run=True to preview changes without saving. "
+                "Run this after any discovery batch to keep the prospect "
+                "pool clean."
+            ),
+            handler=_curate_prospects,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={
+                "phase": 24,
+                "workspace": "prospects",
+                "capability_handler": (
+                    "core.harness.AgentHarness.execute_curate_prospects"
+                ),
+                "async": True,
+                "authoritative": True,
+                "handler_bound_by": "AgentHarness",
+            },
+        )
+    )
+
+    # ========================================================================
     # OUTREACH WORKSPACE
     # ========================================================================
 
@@ -1469,7 +1642,7 @@ def create_default_registry() -> ToolRegistry:
             description=(
                 "Draft a personalised cold email and LinkedIn DM for a prospect. "
                 "Argument: prospect_id (str). Loads the prospect profile from the "
-                "store, generates outreach using the Kaizen Studios offer, and saves "
+                "store, generates outreach using the Kaido Studios offer, and saves "
                 "the drafts back to the prospect record for review before sending."
             ),
             handler=_draft_outreach,
@@ -1708,6 +1881,66 @@ def create_default_registry() -> ToolRegistry:
         )
     )
 
+    # ── Internal time savings ────────────────────────────────────────────────
+    registry.register(
+        Tool(
+            name="log_time_saved",
+            description=(
+                "Log hours saved by using Kaido OS agents instead of doing "
+                "the work manually. Args: hours (float), description (str), "
+                "category (one of: prospect_research, outreach, audit_report, "
+                "admin, platform_build, other)."
+            ),
+            handler=_log_time_saved,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=False,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={"capability_handler": "capabilities.time_savings.service.log_entry"},
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_time_savings_summary",
+            description=(
+                "Return a summary of all internal time saved by using Kaido OS "
+                "agents: total hours, entry count, and breakdown by category. No arguments."
+            ),
+            handler=_get_time_savings_summary,
+            risk=ToolRisk.SAFE,
+            local_access=True,
+            mutates_state=False,
+            requires_approval=False,
+            deterministic=True,
+            synthesis_required=False,
+            metadata={"capability_handler": "capabilities.time_savings.service.summary"},
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="remove_time_saved",
+            description=(
+                "Remove (subtract) hours from the internal time savings tracker. "
+                "Logs a negative adjustment entry — the audit trail is preserved. "
+                "Args: hours (float, positive), description (str), "
+                "category (one of: prospect_research, outreach, audit_report, "
+                "admin, platform_build, other)."
+            ),
+            handler=_remove_time_saved,
+            risk=ToolRisk.CONTROLLED,
+            local_access=True,
+            mutates_state=True,
+            requires_approval=True,
+            deterministic=False,
+            synthesis_required=False,
+            metadata={"capability_handler": "capabilities.time_savings.service.remove_entry"},
+        )
+    )
+
     return registry
 
 
@@ -1747,6 +1980,8 @@ def run_tests() -> None:
         "research_prospect",
         "list_prospects",
         "get_prospect",
+        "batch_hunt",
+        "curate_prospects",
         "draft_outreach",
         "log_savings_baseline",
         "list_savings_baselines",
@@ -1755,6 +1990,9 @@ def run_tests() -> None:
         "get_client",
         "generate_savings_report",
         "get_client_dashboard",
+        "log_time_saved",
+        "get_time_savings_summary",
+        "remove_time_saved",
     }
 
     actual = set(
@@ -1787,6 +2025,9 @@ def run_tests() -> None:
         "get_monthly_automation_summary",
         "get_client",
         "get_client_dashboard",
+        "log_time_saved",
+        "get_time_savings_summary",
+        "remove_time_saved",
     }
 
     for name in safe_tools:
@@ -1886,6 +2127,9 @@ def run_tests() -> None:
         "get_monthly_automation_summary",
         "get_client",
         "get_client_dashboard",
+        "log_time_saved",
+        "get_time_savings_summary",
+        "remove_time_saved",
     }
 
     for name in deterministic_tools:

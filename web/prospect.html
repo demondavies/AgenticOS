@@ -1,31 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prospect Profile — Kaizen OS</title>
+<title>Prospect — AgenticOS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap">
 <style>
 :root {
-    --bg:          #0D1421;
-    --surface:     #131C2E;
-    --surface2:    #1A2540;
-    --border:      #1E2D45;
-    --border2:     #263755;
-    --gold:        #C8A96E;
-    --gold-dim:    #8A6E42;
-    --text:        #E8EAF0;
-    --muted:       #7A8BAA;
-    --green:       #4CAF8A;
-    --amber:       #E8A838;
-    --red:         #E05A6A;
-    --blue:        #4A8FD4;
-    --cyan:        #A8C4E8;
+    --bg:        #0D1421;
+    --surface:   #131C2E;
+    --surface2:  #1A2540;
+    --border:    #1E2D45;
+    --border2:   #263755;
+    --gold:      #C8A96E;
+    --gold-dim:  #8A6E42;
+    --text:      #E8EAF0;
+    --muted:     #7A8BAA;
+    --green:     #4CAF8A;
+    --amber:     #E8A838;
+    --red:       #E05A6A;
+    --blue:      #4A8FD4;
+    --cyan:      #A8C4E8;
 }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
     font-family: 'DM Sans', system-ui, sans-serif;
     background: var(--bg);
@@ -39,8 +37,8 @@ body {
 .topbar {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 24px;
+    gap: 12px;
+    padding: 12px 24px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     position: sticky;
@@ -53,56 +51,74 @@ body {
     gap: 6px;
     color: var(--muted);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 12px;
     font-family: 'DM Mono', monospace;
     transition: color 0.15s;
+    flex-shrink: 0;
 }
 .back-btn:hover { color: var(--gold); }
-.back-sep { color: var(--border2); font-size: 18px; }
+.sep { color: var(--border2); }
 .firm-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    color: var(--text);
     flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.status-pill {
-    display: inline-flex;
+.verdict-hero {
+    display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.verdict-letter {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
     font-family: 'DM Mono', monospace;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border: 1px solid;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
 }
-.status-pill.researched { color: var(--muted);  border-color: var(--border2); background: rgba(122,139,170,0.08); }
-.status-pill.pitched    { color: var(--amber);  border-color: rgba(232,168,56,0.3); background: rgba(232,168,56,0.08); }
-.status-pill.audited    { color: var(--green);  border-color: rgba(76,175,138,0.3); background: rgba(76,175,138,0.08); }
-.status-pill.client     { color: var(--gold);   border-color: rgba(200,169,110,0.3); background: rgba(200,169,110,0.08); }
+.verdict-letter.a { background: rgba(76,175,138,0.2); color: #4CAF8A; border: 1px solid rgba(76,175,138,0.4); }
+.verdict-letter.b { background: rgba(200,169,110,0.2); color: #C8A96E; border: 1px solid rgba(200,169,110,0.4); }
+.verdict-letter.c { background: rgba(120,120,140,0.15); color: #888; border: 1px solid rgba(120,120,140,0.3); }
+.verdict-name { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.status-pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    font-weight: 500; letter-spacing: 0.04em;
+    text-transform: uppercase; border: 1px solid;
+    flex-shrink: 0;
+}
+.status-pill.researched { color: var(--muted);  border-color: var(--border2);              background: rgba(122,139,170,0.08); }
+.status-pill.pitched    { color: var(--amber);  border-color: rgba(232,168,56,0.3);        background: rgba(232,168,56,0.08); }
+.status-pill.audited    { color: var(--green);  border-color: rgba(76,175,138,0.3);        background: rgba(76,175,138,0.08); }
+.status-pill.client     { color: var(--gold);   border-color: rgba(200,169,110,0.3);       background: rgba(200,169,110,0.08); }
 
-/* ── MAIN LAYOUT ── */
+/* ── PAGE LAYOUT ── */
 .page {
-    max-width: 1100px;
+    max-width: 1160px;
     margin: 0 auto;
-    padding: 28px 24px 60px;
+    padding: 24px 24px 60px;
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 320px 1fr;
     gap: 20px;
+    align-items: start;
 }
-@media (max-width: 760px) {
-    .page { grid-template-columns: 1fr; }
-}
+@media (max-width: 780px) { .page { grid-template-columns: 1fr; } }
 
 /* ── CARDS ── */
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 20px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
 }
+.card:last-child { margin-bottom: 0; }
 .card-label {
     font-size: 10px;
     font-family: 'DM Mono', monospace;
@@ -116,261 +132,326 @@ body {
 }
 .card-label::after {
     content: '';
-    flex: 1;
-    height: 1px;
+    flex: 1; height: 1px;
     background: var(--border);
 }
 
-/* ── LEFT COLUMN ── */
-.left-col { display: flex; flex-direction: column; gap: 16px; }
+/* ── LEFT COL ── */
+.left-col { display: flex; flex-direction: column; }
 
-.detail-row {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
+/* Verdict card */
+.verdict-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
 }
-.detail-row:last-child { border-bottom: none; padding-bottom: 0; }
-.detail-key {
-    font-size: 10px;
+.verdict-big {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.verdict-letter-big {
+    width: 54px; height: 54px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.verdict-letter-big.a { background: rgba(76,175,138,0.15); color: #4CAF8A; border: 1px solid rgba(76,175,138,0.35); }
+.verdict-letter-big.b { background: rgba(200,169,110,0.15); color: #C8A96E; border: 1px solid rgba(200,169,110,0.35); }
+.verdict-letter-big.c { background: rgba(120,120,140,0.12); color: #888;   border: 1px solid rgba(120,120,140,0.25); }
+.verdict-meta { display: flex; flex-direction: column; gap: 2px; }
+.verdict-label-big { font-size: 18px; font-weight: 700; }
+.verdict-desc { font-size: 11px; color: var(--muted); }
+.conf-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.conf-tile {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 12px;
+}
+.conf-label {
+    font-size: 9px;
     font-family: 'DM Mono', monospace;
     color: var(--muted);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
+    margin-bottom: 4px;
 }
-.detail-val {
-    font-size: 13px;
-    color: var(--text);
-    line-height: 1.5;
+.conf-val {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--cyan);
+    line-height: 1;
 }
-.detail-val a {
-    color: var(--gold);
-    text-decoration: none;
+.conf-bar {
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
 }
-.detail-val a:hover { text-decoration: underline; }
+.conf-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--cyan);
+    transition: width 0.5s ease;
+}
 
-.pain-tag {
-    display: inline-block;
-    background: rgba(200,169,110,0.1);
-    border: 1px solid rgba(200,169,110,0.2);
-    color: var(--gold);
-    border-radius: 4px;
-    padding: 2px 8px;
+/* Financial value card */
+.fv-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+.fv-amount {
+    font-size: 26px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--green);
+    line-height: 1.1;
+}
+.fv-amount.unknown { color: var(--muted); font-size: 18px; font-style: italic; }
+.fv-range {
     font-size: 12px;
-    margin: 2px 2px 2px 0;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
 }
-
-/* ── ACTION BUTTONS ── */
-.actions-card { display: flex; flex-direction: column; gap: 8px; }
-.act-btn {
-    width: 100%;
-    padding: 10px 16px;
-    border-radius: 7px;
-    border: 1px solid;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
+.fv-basis {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    line-height: 1.4;
+}
+.fv-conf-row {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
+    margin-top: 8px;
+}
+.fv-conf-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.fv-conf-fill { height: 100%; border-radius: 2px; background: var(--green); }
+.fv-conf-label { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; }
+
+/* Firm details */
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+}
+.detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.detail-row:first-child { padding-top: 0; }
+.detail-key {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+.detail-val { font-size: 13px; color: var(--text); line-height: 1.4; }
+.detail-val a { color: var(--gold); text-decoration: none; }
+.detail-val a:hover { text-decoration: underline; }
+
+/* Actions */
+.act-btn {
+    width: 100%; padding: 10px 16px;
+    border-radius: 7px; border: 1px solid;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    display: flex; align-items: center;
+    justify-content: center; gap: 8px;
     transition: all 0.15s;
     text-decoration: none;
+    margin-bottom: 8px;
 }
-.act-btn.primary {
+.act-btn:last-child { margin-bottom: 0; }
+.act-btn.gold {
     background: rgba(200,169,110,0.12);
     border-color: rgba(200,169,110,0.35);
     color: var(--gold);
 }
-.act-btn.primary:hover { background: rgba(200,169,110,0.2); }
-.act-btn.secondary {
+.act-btn.gold:hover { background: rgba(200,169,110,0.22); }
+.act-btn.blue {
     background: rgba(74,143,212,0.08);
     border-color: rgba(74,143,212,0.3);
     color: var(--blue);
 }
-.act-btn.secondary:hover { background: rgba(74,143,212,0.15); }
+.act-btn.blue:hover { background: rgba(74,143,212,0.16); }
 .act-btn.ghost {
     background: transparent;
     border-color: var(--border2);
     color: var(--muted);
 }
-.act-btn.ghost:hover { border-color: var(--border2); color: var(--text); }
+.act-btn.ghost:hover { color: var(--text); border-color: var(--border2); }
 
-/* ── RIGHT COLUMN ── */
-.right-col { display: flex; flex-direction: column; gap: 16px; }
+/* ── RIGHT COL ── */
+.right-col { display: flex; flex-direction: column; }
 
-/* Stat tiles */
-.stat-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-}
-@media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
-
-.stat-tile {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-}
-.stat-label {
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 6px;
-}
-.stat-val {
-    font-size: 22px;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-    color: var(--gold);
-    line-height: 1;
-}
-.stat-sub {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 4px;
-}
-
-/* Process table */
-.proc-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12.5px;
-}
-.proc-table th {
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-    padding: 6px 10px;
-    text-align: left;
+/* Score bars */
+.score-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0;
     border-bottom: 1px solid var(--border);
 }
-.proc-table td {
-    padding: 9px 10px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-    color: var(--text);
-}
-.proc-table tr:last-child td { border-bottom: none; }
-.proc-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-.flag-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 7px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    border: 1px solid;
-}
-.flag-pill.quick_win { color: var(--green); border-color: rgba(76,175,138,0.4); background: rgba(76,175,138,0.1); }
-.flag-pill.automate  { color: var(--blue);  border-color: rgba(74,143,212,0.4); background: rgba(74,143,212,0.1); }
-.flag-pill.review    { color: var(--amber); border-color: rgba(232,168,56,0.4); background: rgba(232,168,56,0.1); }
-.flag-pill.keep      { color: var(--muted); border-color: var(--border2); background: transparent; }
-
-.score-bar-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.score-row:last-child { border-bottom: none; }
+.score-key {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.06em;
+    width: 110px; flex-shrink: 0;
 }
 .score-bar {
-    flex: 1;
-    height: 4px;
+    flex: 1; height: 5px;
     background: var(--border2);
-    border-radius: 2px;
-    overflow: hidden;
+    border-radius: 3px; overflow: hidden;
 }
 .score-bar-fill {
-    height: 100%;
-    border-radius: 2px;
+    height: 100%; border-radius: 3px;
     background: var(--gold);
-    transition: width 0.4s ease;
+    transition: width 0.5s ease;
 }
+.score-bar-fill.total { background: var(--green); }
 .score-num {
     font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    min-width: 28px;
-    text-align: right;
+    font-size: 12px; color: var(--text);
+    min-width: 36px; text-align: right;
+}
+.total-score-row .score-key { color: var(--text); font-weight: 500; }
+.total-score-row .score-num { color: var(--green); font-weight: 700; font-size: 13px; }
+
+/* Primary thesis */
+.thesis-text {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    font-style: italic;
+    border-left: 3px solid var(--gold-dim);
+    padding-left: 14px;
 }
 
-/* Report link banner */
-.report-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    background: rgba(76,175,138,0.07);
-    border: 1px solid rgba(76,175,138,0.25);
-    border-radius: 8px;
-    padding: 14px 18px;
+/* Pain signals */
+.signal-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
 }
-.report-banner-text { font-size: 13px; color: var(--text); }
-.report-banner-text span { color: var(--green); font-weight: 600; }
-.report-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: rgba(76,175,138,0.15);
-    border: 1px solid rgba(76,175,138,0.35);
+.signal-item:last-child { border-bottom: none; padding-bottom: 0; }
+.signal-item:first-child { padding-top: 0; }
+.signal-top {
+    display: flex; align-items: flex-start;
+    gap: 8px; margin-bottom: 5px;
+}
+.strength-badge {
+    font-size: 8px; font-family: 'DM Mono', monospace;
+    font-weight: 700; padding: 2px 6px; border-radius: 3px;
+    letter-spacing: 0.07em; white-space: nowrap;
+    flex-shrink: 0; margin-top: 1px;
+}
+.strength-badge.OBSERVED    { background: rgba(76,175,138,0.15); color:#4CAF8A; border:1px solid rgba(76,175,138,0.3); }
+.strength-badge.INDICATED   { background: rgba(232,168,56,0.12); color:#E8A838; border:1px solid rgba(232,168,56,0.3); }
+.strength-badge.HYPOTHESISED{ background: rgba(120,120,140,0.1); color:#888;    border:1px solid rgba(120,120,140,0.2); }
+.signal-desc { font-size: 13px; color: var(--text); line-height: 1.4; }
+.signal-evidence {
+    font-size: 11px; color: var(--muted);
+    font-style: italic; line-height: 1.4;
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 4px;
+    border-left: 2px solid var(--border2);
+    margin-top: 2px;
+}
+
+/* Outreach intel */
+.oi-section { margin-bottom: 14px; }
+.oi-section:last-child { margin-bottom: 0; }
+.oi-label {
+    font-size: 9px; font-family: 'DM Mono', monospace;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 5px;
+}
+.oi-text {
+    font-size: 13px; color: var(--text); line-height: 1.5;
+}
+.oi-angle {
+    background: rgba(200,169,110,0.07);
+    border: 1px solid rgba(200,169,110,0.2);
     border-radius: 6px;
-    color: var(--green);
+    padding: 10px 14px;
     font-size: 13px;
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background 0.15s;
+    color: var(--gold);
+    line-height: 1.5;
 }
-.report-link:hover { background: rgba(76,175,138,0.25); }
+.objection-chip {
+    display: inline-block;
+    background: rgba(224,90,106,0.08);
+    border: 1px solid rgba(224,90,106,0.2);
+    color: var(--red);
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-size: 11px;
+    margin: 3px 3px 0 0;
+}
 
 /* Audit history */
 .history-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 10px 0;
+    display: flex; align-items: flex-start;
+    gap: 12px; padding: 10px 0;
     border-bottom: 1px solid var(--border);
 }
 .history-row:last-child { border-bottom: none; }
 .history-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--gold-dim);
-    margin-top: 5px;
-    flex-shrink: 0;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--gold-dim); margin-top: 5px; flex-shrink: 0;
 }
 .history-dot.complete { background: var(--green); }
 .history-info { flex: 1; }
 .history-title { font-size: 13px; font-weight: 500; }
 .history-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
-
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--muted);
-    font-size: 13px;
+.report-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    background: rgba(76,175,138,0.1);
+    border: 1px solid rgba(76,175,138,0.3);
+    border-radius: 6px;
+    color: var(--green); font-size: 12px; font-weight: 500;
+    text-decoration: none; transition: background 0.15s; white-space: nowrap;
 }
-.empty-state .ico { font-size: 28px; margin-bottom: 10px; opacity: 0.5; }
+.report-link:hover { background: rgba(76,175,138,0.2); }
 
-/* Loading */
-.loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-    color: var(--muted);
+/* Misc */
+.empty-msg {
+    font-size: 12px; color: var(--muted);
+    text-align: center; padding: 24px 0;
+    font-style: italic;
+}
+.loading-msg {
+    font-size: 12px; color: var(--muted);
     font-family: 'DM Mono', monospace;
-    font-size: 12px;
+    padding: 60px 0; text-align: center;
+    grid-column: 1 / -1;
     letter-spacing: 0.05em;
 }
 </style>
@@ -378,296 +459,340 @@ body {
 <body>
 
 <div class="topbar">
-    <a href="/" class="back-btn">← KAIZEN OS</a>
-    <span class="back-sep">/</span>
+    <a href="/" class="back-btn">← AgenticOS</a>
+    <span class="sep">/</span>
     <div class="firm-title" id="firmTitle">Loading…</div>
-    <span class="status-pill" id="statusPill"></span>
+    <div class="verdict-hero" id="verdictHero" style="display:none">
+        <div class="verdict-letter" id="topVerdictLetter"></div>
+        <span class="verdict-name" id="topVerdictName"></span>
+    </div>
+    <span class="status-pill" id="statusPill" style="display:none"></span>
 </div>
 
 <div class="page" id="pageContent">
-    <div class="loading" style="grid-column:1/-1">Loading prospect data…</div>
+    <div class="loading-msg">Loading prospect intelligence…</div>
 </div>
 
 <script>
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function esc(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (!s && s !== 0) return '';
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-function fmt(n) {
+function fmtGbp(n) {
     if (typeof n !== 'number') return '—';
     return '£' + Math.round(n).toLocaleString('en-GB');
 }
-
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+        return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+    } catch { return iso; }
+}
 function statusClass(s) {
     return ['researched','pitched','audited','client'].includes(s) ? s : 'researched';
 }
-
 function statusLabel(s) {
-    const map = { researched:'Researched', pitched:'Pitched', audited:'Audited', client:'Client' };
-    return map[s] || s;
+    return { researched:'Researched', pitched:'Pitched', audited:'Audited', client:'Client' }[s] || s;
 }
+const VERDICT_LABEL = { A:'Hunt', B:'Watch', C:'Pass' };
+const VERDICT_DESC  = { A:'Strong signal — move now', B:'Potential — needs more info', C:'Not worth pursuing now' };
 
-function flagPill(flag) {
-    const labels = { quick_win:'Quick Win', automate:'Automate', review:'Review', keep:'Keep' };
-    return `<span class="flag-pill ${esc(flag)}">${labels[flag] || flag}</span>`;
-}
+// ── Build left column ──────────────────────────────────────────────────────
+function buildLeft(p) {
+    const status   = p.status  || 'researched';
+    const verdict  = p.verdict || 'B';
+    const vLabel   = VERDICT_LABEL[verdict] || verdict;
+    const vDesc    = VERDICT_DESC[verdict]  || '';
+    const vCls     = verdict.toLowerCase();
+    const conf     = p.confidence          || 0;
+    const evConf   = p.evidence_confidence || 0;
 
-function scoreBar(val, max) {
-    const pct = max > 0 ? Math.min(100, (val / max) * 100) : 0;
-    return `<div class="score-bar-wrap">
-        <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%"></div></div>
-        <span class="score-num">${Math.round(val)}</span>
+    // Financial value
+    const fv = p.financial_value || {};
+    const fvKnown = fv.status === 'known' && fv.amount_gbp;
+    const fvHtml = fvKnown ? `
+        <div class="fv-amount">${fmtGbp(fv.amount_gbp)}<span style="font-size:13px;font-weight:400;color:var(--muted)">/yr</span></div>
+        ${fv.range_low && fv.range_high ? `<div class="fv-range">${fmtGbp(fv.range_low)} – ${fmtGbp(fv.range_high)}</div>` : ''}
+        ${fv.basis ? `<div class="fv-basis">${esc(fv.basis)}</div>` : ''}
+        ${fv.confidence ? `<div class="fv-conf-row">
+            <div class="fv-conf-bar"><div class="fv-conf-fill" style="width:${fv.confidence}%"></div></div>
+            <span class="fv-conf-label">${fv.confidence}% confidence</span>
+        </div>` : ''}
+    ` : `<div class="fv-amount unknown">UNKNOWN</div>
+        <div class="fv-basis" style="border:none;padding:0;margin-top:4px">${esc(fv.basis || 'Insufficient size signals in public data')}</div>`;
+
+    // Firm detail rows
+    const details = [
+        p.website      ? { k:'Website',  v:`<a href="${esc(p.website.startsWith('http') ? p.website : 'https://'+p.website)}" target="_blank">${esc(p.website)} ↗</a>` } : null,
+        p.contact_name ? { k:'Contact',  v: esc(p.contact_name) } : null,
+        p.email        ? { k:'Email',    v:`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` } : null,
+        p.linkedin_url ? { k:'LinkedIn', v:`<a href="${esc(p.linkedin_url)}" target="_blank">View ↗</a>` } : null,
+        p.industry     ? { k:'Industry', v: esc(p.industry) } : null,
+        p.niche        ? { k:'Niche',    v: esc(p.niche) }    : null,
+        p.employee_count ? { k:'Size',   v: esc(p.employee_count) } : null,
+        (p.software_stack && p.software_stack !== 'unknown') ? { k:'Stack', v: esc(p.software_stack) } : null,
+        p.researched_at ? { k:'Researched', v: fmtDate(p.researched_at) } : null,
+    ].filter(Boolean);
+
+    const detailsHtml = details.map(d => `
+        <div class="detail-row">
+            <span class="detail-key">${esc(d.k)}</span>
+            <span class="detail-val">${d.v}</span>
+        </div>`).join('');
+
+    // Actions
+    let actionsHtml = '';
+    if (status === 'researched') {
+        actionsHtml += `<button class="act-btn blue" onclick="doPitch()">✉ Draft Pitch Email</button>`;
+    }
+    actionsHtml += `<button class="act-btn gold" onclick="doAudit()">⟐ Start Live Audit</button>`;
+    actionsHtml += `<button class="act-btn ghost" onclick="doReResearch()">↺ Re-Research</button>`;
+
+    return `
+    <div class="left-col">
+
+        <!-- Verdict -->
+        <div class="verdict-card">
+            <div class="card-label">Intelligence Verdict</div>
+            <div class="verdict-big">
+                <div class="verdict-letter-big ${vCls}">${esc(verdict)}</div>
+                <div class="verdict-meta">
+                    <div class="verdict-label-big" style="color:${verdict==='A'?'var(--green)':verdict==='B'?'var(--gold)':'var(--muted)'}">${esc(vLabel)}</div>
+                    <div class="verdict-desc" style="font-size:11px;color:var(--muted)">${esc(vDesc)}</div>
+                </div>
+            </div>
+            <div class="conf-grid">
+                <div class="conf-tile">
+                    <div class="conf-label">Verdict Conf.</div>
+                    <div class="conf-val" style="color:var(--cyan)">${conf}%</div>
+                    <div class="conf-bar"><div class="conf-bar-fill" style="width:${conf}%"></div></div>
+                </div>
+                <div class="conf-tile">
+                    <div class="conf-label">Evidence Qual.</div>
+                    <div class="conf-val" style="color:var(--blue)">${evConf}%</div>
+                    <div class="conf-bar"><div class="conf-bar-fill" style="width:${evConf}%;background:var(--blue)"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Value -->
+        <div class="fv-card">
+            <div class="card-label">Est. Annual Value</div>
+            ${fvHtml}
+        </div>
+
+        <!-- Firm Details -->
+        <div class="card">
+            <div class="card-label">Firm Details</div>
+            ${detailsHtml || '<div class="empty-msg">No details recorded.</div>'}
+        </div>
+
+        <!-- Actions -->
+        <div class="card">
+            <div class="card-label">Actions</div>
+            ${actionsHtml}
+        </div>
+
     </div>`;
 }
 
-// ── Pain tags ────────────────────────────────────────────────────────────────
-function painTags(pain) {
-    if (!pain) return '<span style="color:var(--muted)">—</span>';
-    const parts = pain.split(/[,;·•]/g).map(s => s.trim()).filter(Boolean);
-    return parts.map(p => `<span class="pain-tag">${esc(p)}</span>`).join('');
+// ── Build right column ─────────────────────────────────────────────────────
+function buildRight(p, auditSessions) {
+    const painScore    = p.pain_score         || 0;
+    const valueScore   = p.value_score        || 0;
+    const urgencyScore = p.urgency_score      || 0;
+    const repeatScore  = p.repeatability_score|| 0;
+    const totalScore   = p.total_score        || (painScore + valueScore + urgencyScore + repeatScore);
+
+    function scoreBar(val, max, cls='') {
+        const pct = max > 0 ? Math.min(100, (val/max)*100) : 0;
+        return `<div class="score-bar"><div class="score-bar-fill ${cls}" style="width:${pct}%"></div></div>`;
+    }
+
+    const scoresHtml = `
+    <div class="card">
+        <div class="card-label">Commercial Score</div>
+        <div class="score-row">
+            <span class="score-key">Pain</span>
+            ${scoreBar(painScore, 5)}
+            <span class="score-num">${painScore}/5</span>
+        </div>
+        <div class="score-row">
+            <span class="score-key">Financial Value</span>
+            ${scoreBar(valueScore, 5)}
+            <span class="score-num">${valueScore}/5</span>
+        </div>
+        <div class="score-row">
+            <span class="score-key">Urgency</span>
+            ${scoreBar(urgencyScore, 5)}
+            <span class="score-num">${urgencyScore}/5</span>
+        </div>
+        <div class="score-row">
+            <span class="score-key">Repeatability</span>
+            ${scoreBar(repeatScore, 5)}
+            <span class="score-num">${repeatScore}/5</span>
+        </div>
+        <div class="score-row total-score-row" style="margin-top:4px;padding-top:11px;border-top:1px solid var(--border);border-bottom:none">
+            <span class="score-key">Total</span>
+            ${scoreBar(totalScore, 20, 'total')}
+            <span class="score-num">${totalScore}/20</span>
+        </div>
+    </div>`;
+
+    // Primary thesis
+    const thesisHtml = p.primary_thesis ? `
+    <div class="card">
+        <div class="card-label">Commercial Thesis</div>
+        <p class="thesis-text">${esc(p.primary_thesis)}</p>
+    </div>` : '';
+
+    // Pain signals
+    const signals = Array.isArray(p.pain_signals) ? p.pain_signals : [];
+    const signalsHtml = `
+    <div class="card">
+        <div class="card-label">Pain Signals (${signals.length})</div>
+        ${signals.length ? signals.map(s => `
+            <div class="signal-item">
+                <div class="signal-top">
+                    <span class="strength-badge ${esc(s.strength)}">${esc(s.strength)}</span>
+                    <span class="signal-desc">${esc(s.description)}</span>
+                </div>
+                ${s.evidence && s.evidence !== s.description ? `<div class="signal-evidence">${esc(s.evidence.slice(0, 200))}${s.evidence.length > 200 ? '…' : ''}</div>` : ''}
+            </div>`).join('')
+        : '<div class="empty-msg">No structured signals recorded yet.</div>'}
+    </div>`;
+
+    // Outreach intel
+    const oi = p.outreach_intel || {};
+    const hasOi = oi.why_now || oi.outreach_angle || (oi.objections && oi.objections.length);
+    const oiHtml = hasOi ? `
+    <div class="card">
+        <div class="card-label">Outreach Intelligence</div>
+        ${oi.why_now ? `
+        <div class="oi-section">
+            <div class="oi-label">Why Now</div>
+            <div class="oi-text">${esc(oi.why_now)}</div>
+        </div>` : ''}
+        ${oi.outreach_angle ? `
+        <div class="oi-section">
+            <div class="oi-label">Opening Angle</div>
+            <div class="oi-angle">${esc(oi.outreach_angle)}</div>
+        </div>` : ''}
+        ${oi.objections && oi.objections.length ? `
+        <div class="oi-section">
+            <div class="oi-label">Likely Objections</div>
+            <div>${oi.objections.map(o => `<span class="objection-chip">${esc(o)}</span>`).join('')}</div>
+        </div>` : ''}
+    </div>` : '';
+
+    // Outreach drafts
+    const draftsHtml = (p.outreach_email || p.outreach_dm) ? `
+    <div class="card">
+        <div class="card-label">Outreach Drafts</div>
+        ${p.outreach_email ? `
+        <div class="oi-section">
+            <div class="oi-label">Email Draft</div>
+            <pre style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6">${esc(p.outreach_email)}</pre>
+        </div>` : ''}
+        ${p.outreach_dm ? `
+        <div class="oi-section">
+            <div class="oi-label">DM Draft</div>
+            <pre style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6">${esc(p.outreach_dm)}</pre>
+        </div>` : ''}
+    </div>` : '';
+
+    // Intelligence gaps (unknowns + contradictions)
+    const unknowns = Array.isArray(p.unknowns) ? p.unknowns : [];
+    const contras  = Array.isArray(p.contradictions) ? p.contradictions : [];
+    const gapsHtml = (unknowns.length || contras.length) ? `
+    <div class="card">
+        <div class="card-label">Intelligence Gaps</div>
+        ${unknowns.length ? `
+        <div class="oi-section">
+            <div class="oi-label" style="color:var(--muted)">Unknown</div>
+            ${unknowns.map(u => `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
+                <span style="color:var(--muted);font-size:11px;margin-top:2px">?</span>
+                <span style="font-size:12px;color:var(--muted)">${esc(u)}</span>
+            </div>`).join('')}
+        </div>` : ''}
+        ${contras.length ? `
+        <div class="oi-section">
+            <div class="oi-label" style="color:var(--amber)">Contradictory signals</div>
+            ${contras.map(c => `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
+                <span style="color:var(--amber);font-size:11px;margin-top:2px">⚠</span>
+                <span style="font-size:12px;color:var(--text)">${esc(c)}</span>
+            </div>`).join('')}
+        </div>` : ''}
+    </div>` : '';
+
+    // Audit history
+    const histHtml = auditSessions.length ? `
+    <div class="card">
+        <div class="card-label">Audit History</div>
+        ${auditSessions.sort((a,b) => b.started_at > a.started_at ? 1:-1).map(s => {
+            const done = s.status !== 'in_progress';
+            return `<div class="history-row">
+                <div class="history-dot ${done?'complete':''}"></div>
+                <div class="history-info">
+                    <div class="history-title">${done?'Audit Completed':'Audit In Progress'}</div>
+                    <div class="history-meta">${fmtDate(s.started_at)} · ${s.auditor||'Kane'} · ${(s.processes||[]).length||0} processes</div>
+                </div>
+                ${(s.report_path||s.status==='report_generated'||s.status==='complete') ? `<a class="report-link" href="/api/audit/report/${esc(s.id)}" target="_blank">📄 Report</a>` : ''}
+            </div>`;
+        }).join('')}
+    </div>` : '';
+
+    return `
+    <div class="right-col">
+        ${scoresHtml}
+        ${thesisHtml}
+        ${signalsHtml}
+        ${oiHtml}
+        ${gapsHtml}
+        ${draftsHtml}
+        ${histHtml}
+    </div>`;
 }
 
-// ── Audit sessions for this prospect ────────────────────────────────────────
+// ── Audit sessions ─────────────────────────────────────────────────────────
 async function fetchAuditSessions(prospectId, firmName) {
     try {
         const res = await fetch('/api/audit/sessions');
         if (!res.ok) return [];
         const data = await res.json();
-        const sessions = (data.sessions || data) || [];
-        return sessions.filter(s =>
+        return (data.sessions || data || []).filter(s =>
             (prospectId && s.prospect_id === prospectId) ||
             (firmName && s.firm_name && s.firm_name.toLowerCase() === firmName.toLowerCase())
         );
     } catch { return []; }
 }
 
-// ── Build left column ─────────────────────────────────────────────────────────
-function buildLeft(p, auditSessions) {
-    const latestAudit = auditSessions.filter(s => s.status !== 'in_progress').sort((a,b) => b.started_at > a.started_at ? 1:-1)[0];
-    const hasReport   = latestAudit && latestAudit.report_path;
-    const status      = p.status || 'researched';
-
-    let actionsHtml = '';
-    if (status === 'researched') {
-        actionsHtml = `<button class="act-btn secondary" onclick="doPitch()">✉ Draft Pitch Email</button>`;
-    }
-    if (status !== 'audited' && status !== 'client') {
-        actionsHtml += `<button class="act-btn primary" onclick="doAudit()">⟐ Start Live Audit</button>`;
-    }
-    if (hasReport) {
-        actionsHtml += `<a class="act-btn primary" href="/api/audit/report/${esc(latestAudit.id)}" target="_blank">📄 View Audit Report</a>`;
-    }
-    actionsHtml += `<a class="act-btn ghost" href="/audit?firm=${encodeURIComponent(p.firm_name)}&prospect_id=${esc(p.id)}" target="_blank">+ New Audit Session</a>`;
-
-    const rows = [
-        { key: 'Firm', val: `<strong>${esc(p.firm_name)}</strong>` },
-        { key: 'Status', val: `<span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>` },
-        p.contact_name ? { key: 'Contact', val: esc(p.contact_name) } : null,
-        p.email        ? { key: 'Email',   val: `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` } : null,
-        p.linkedin_url ? { key: 'LinkedIn',val: `<a href="${esc(p.linkedin_url)}" target="_blank">View Profile ↗</a>` } : null,
-        p.website      ? { key: 'Website', val: `<a href="${esc(p.website)}" target="_blank">${esc(p.website)} ↗</a>` } : null,
-        p.industry     ? { key: 'Industry',val: esc(p.industry) } : null,
-        p.employee_count ? { key: 'Size', val: `${esc(p.employee_count)} employees` } : null,
-        { key: 'Pain Signals', val: painTags(p.pain_signal || p.pain_signals) },
-        p.tech_stack || p.tools ? { key: 'Tech Stack', val: esc(p.tech_stack || p.tools) } : null,
-        auditSessions.length ? { key: 'Audit Sessions', val: `${auditSessions.length} session${auditSessions.length > 1 ? 's' : ''}` } : null,
-        p.added_at || p.created_at ? { key: 'Added', val: fmtDate(p.added_at || p.created_at) } : null,
-    ].filter(Boolean);
-
-    return `
-    <div class="left-col">
-        <div class="card">
-            <div class="card-label">Firm Details</div>
-            ${rows.map(r => `
-            <div class="detail-row">
-                <span class="detail-key">${esc(r.key)}</span>
-                <span class="detail-val">${r.val}</span>
-            </div>`).join('')}
-        </div>
-
-        <div class="card actions-card">
-            <div class="card-label">Actions</div>
-            ${actionsHtml || '<span style="color:var(--muted);font-size:12px">No actions available.</span>'}
-        </div>
-    </div>`;
-}
-
-// ── Build right column ────────────────────────────────────────────────────────
-function buildRight(p, auditSessions) {
-    const completed = auditSessions
-        .filter(s => s.status === 'complete' || s.status === 'report_generated')
-        .sort((a,b) => b.started_at > a.started_at ? 1:-1);
-    const latest = completed[0];
-
-    let statsHtml = '';
-    let procHtml  = '';
-    let reportBanner = '';
-
-    if (latest) {
-        // Compute stats from scores array
-        const scores = latest.scores || [];
-        const monthlyCost = scores.reduce((s,x) => s + (x.monthly_cost || 0), 0);
-        const annualSaving = scores.reduce((s,x) => s + (x.annual_saving || x.annualSaving || 0), 0);
-        const quickWins = scores.filter(x => x.flag === 'quick_win' || x.recommendation === 'quick_win').length;
-        const procCount = (latest.processes || []).length || scores.length;
-
-        statsHtml = `
-        <div class="stat-grid">
-            <div class="stat-tile">
-                <div class="stat-label">Monthly Cost</div>
-                <div class="stat-val">${fmt(monthlyCost)}</div>
-                <div class="stat-sub">in audited processes</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">Annual Saving</div>
-                <div class="stat-val" style="color:var(--green)">${fmt(annualSaving)}</div>
-                <div class="stat-sub">if automated</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">Quick Wins</div>
-                <div class="stat-val" style="color:var(--amber)">${quickWins}</div>
-                <div class="stat-sub">ready to automate</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">Processes</div>
-                <div class="stat-val" style="color:var(--cyan)">${procCount}</div>
-                <div class="stat-sub">mapped in audit</div>
-            </div>
-        </div>`;
-
-        // Report banner
-        if (latest.report_path || latest.status === 'report_generated') {
-            reportBanner = `
-            <div class="report-banner">
-                <div class="report-banner-text">
-                    <span>Audit report ready</span> · ${fmtDate(latest.completed_at || latest.started_at)}
-                </div>
-                <a class="report-link" href="/api/audit/report/${esc(latest.id)}" target="_blank">
-                    📄 Open Full Report
-                </a>
-            </div>`;
-        }
-
-        // Process table
-        if (scores.length) {
-            const maxScore = Math.max(...scores.map(x => x.quick_win_score || x.quickWinScore || 0), 1);
-            const rows = scores
-                .sort((a,b) => (b.quick_win_score || b.quickWinScore || 0) - (a.quick_win_score || a.quickWinScore || 0))
-                .map(x => {
-                    const flag   = x.flag || x.recommendation || 'review';
-                    const score  = x.quick_win_score || x.quickWinScore || 0;
-                    const name   = x.name || x.process_id || '—';
-                    const cost   = x.monthly_cost;
-                    const saving = x.annual_saving || x.annualSaving;
-                    const tools  = x.tools || '';
-                    return `<tr>
-                        <td>${esc(name)}</td>
-                        <td>${flagPill(flag)}</td>
-                        <td>${scoreBar(score, maxScore)}</td>
-                        <td style="font-family:'DM Mono',monospace;font-size:12px">${typeof cost==='number' ? fmt(cost)+'/mo' : '—'}</td>
-                        <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--green)">${typeof saving==='number' ? fmt(saving)+'/yr' : '—'}</td>
-                        <td style="color:var(--muted);font-size:11px">${esc(tools)}</td>
-                    </tr>`;
-                }).join('');
-
-            procHtml = `
-            <div class="card">
-                <div class="card-label">Process Breakdown</div>
-                <div style="overflow-x:auto">
-                <table class="proc-table">
-                    <thead>
-                        <tr>
-                            <th>Process</th>
-                            <th>Flag</th>
-                            <th>QW Score</th>
-                            <th>Monthly Cost</th>
-                            <th>Annual Saving</th>
-                            <th>Tools</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                </div>
-            </div>`;
-        }
-    }
-
-    // Audit history
-    const historyRows = auditSessions
-        .sort((a,b) => b.started_at > a.started_at ? 1:-1)
-        .map(s => {
-            const done = s.status !== 'in_progress';
-            return `<div class="history-row">
-                <div class="history-dot ${done ? 'complete' : ''}"></div>
-                <div class="history-info">
-                    <div class="history-title">${done ? 'Audit Completed' : 'Audit In Progress'}</div>
-                    <div class="history-meta">${fmtDate(s.started_at)} · ${s.auditor || 'Kane'} · ${(s.processes||[]).length || 0} processes</div>
-                </div>
-                ${(s.report_path || s.status==='report_generated') ? `<a class="report-link" style="padding:4px 10px;font-size:11px" href="/api/audit/report/${esc(s.id)}" target="_blank">📄 Report</a>` : ''}
-            </div>`;
-        }).join('');
-
-    const noAudit = !auditSessions.length;
-
-    return `
-    <div class="right-col">
-        ${noAudit ? `
-        <div class="card">
-            <div class="empty-state">
-                <div class="ico">⟐</div>
-                <div>No audit sessions yet for this firm.</div>
-                <div style="margin-top:8px"><button class="act-btn primary" style="display:inline-flex;width:auto;margin:0 auto" onclick="doAudit()">⟐ Start Live Audit</button></div>
-            </div>
-        </div>` : ''}
-
-        ${statsHtml ? `<div>${statsHtml}</div>` : ''}
-        ${reportBanner}
-        ${procHtml}
-
-        ${auditSessions.length ? `
-        <div class="card">
-            <div class="card-label">Audit History</div>
-            ${historyRows}
-        </div>` : ''}
-    </div>`;
-}
-
-// ── Date formatting ──────────────────────────────────────────────────────────
-function fmtDate(iso) {
-    if (!iso) return '—';
-    try {
-        const d = new Date(iso);
-        return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-    } catch { return iso; }
-}
-
-// ── Actions ──────────────────────────────────────────────────────────────────
+// ── Actions ───────────────────────────────────────────────────────────────
 let _prospect = null;
-
 function doPitch() {
     if (!_prospect) return;
     window.location.href = `/?pitchProspect=${encodeURIComponent(_prospect.id)}`;
 }
-
 function doAudit() {
     if (!_prospect) return;
     window.open(`/audit?firm=${encodeURIComponent(_prospect.firm_name)}&prospect_id=${encodeURIComponent(_prospect.id)}`, '_blank');
 }
+function doReResearch() {
+    if (!_prospect) return;
+    const msg = `research prospect "${_prospect.firm_name}" website="${_prospect.website||''}"`;
+    window.location.href = `/?chat=${encodeURIComponent(msg)}`;
+}
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────
 async function init() {
-    const params     = new URLSearchParams(location.search);
-    const pathParts = window.location.pathname.split("/").filter(Boolean);
-    const prospectId = pathParts[pathParts.length - 1] || params.get("id");
-
+    const pathParts  = window.location.pathname.split('/').filter(Boolean);
+    const prospectId = pathParts[pathParts.length - 1] || new URLSearchParams(location.search).get('id');
     if (!prospectId) {
-        document.getElementById('pageContent').innerHTML =
-            '<div class="loading" style="grid-column:1/-1">No prospect ID specified.</div>';
+        document.getElementById('pageContent').innerHTML = '<div class="loading-msg">No prospect ID.</div>';
         return;
     }
-
     try {
         const res = await fetch(`/api/prospects/${encodeURIComponent(prospectId)}`);
         if (!res.ok) throw new Error('Not found');
@@ -675,25 +800,29 @@ async function init() {
         const p = data.prospect || data;
         _prospect = p;
 
-        const status = p.status || 'researched';
-        document.getElementById('firmTitle').textContent  = p.firm_name || prospectId;
-        document.title = `${p.firm_name} — Kaizen OS`;
-
+        // Top bar
+        document.getElementById('firmTitle').textContent = p.firm_name || prospectId;
+        document.title = `${p.firm_name} — AgenticOS`;
+        const verdict = p.verdict || 'B';
+        const vl = document.getElementById('topVerdictLetter');
+        vl.textContent  = verdict;
+        vl.className    = `verdict-letter ${verdict.toLowerCase()}`;
+        document.getElementById('topVerdictName').textContent = VERDICT_LABEL[verdict] || verdict;
+        document.getElementById('verdictHero').style.display = 'flex';
         const pill = document.getElementById('statusPill');
-        pill.textContent  = statusLabel(status);
-        pill.className    = `status-pill ${statusClass(status)}`;
+        pill.textContent = statusLabel(p.status || 'researched');
+        pill.className   = `status-pill ${statusClass(p.status || 'researched')}`;
+        pill.style.display = '';
 
         const auditSessions = await fetchAuditSessions(prospectId, p.firm_name);
-
         document.getElementById('pageContent').innerHTML =
-            buildLeft(p, auditSessions) + buildRight(p, auditSessions);
+            buildLeft(p) + buildRight(p, auditSessions);
 
     } catch(e) {
         document.getElementById('pageContent').innerHTML =
-            '<div class="loading" style="grid-column:1/-1;color:var(--red)">Failed to load prospect.</div>';
+            '<div class="loading-msg" style="color:var(--red)">Failed to load prospect.</div>';
     }
 }
-
 init();
 </script>
 </body>
